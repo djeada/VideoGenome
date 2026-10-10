@@ -1,0 +1,168 @@
+{
+  "schema_version": "0.1.0",
+  "id": "educational.software-explainer",
+  "version": "0.1.0",
+  "title": "Software walkthrough explainer",
+  "category": "educational",
+  "description": "Step-by-step software explainer combining genuine screen recordings, annotations and voiceover.",
+  "tags": [
+    "educational",
+    "software",
+    "tutorial",
+    "screen-capture"
+  ],
+  "inputs": {
+    "app_name": {
+      "type": "string",
+      "description": "Name of the software product",
+      "required": true
+    },
+    "screen_recording": {
+      "type": "video",
+      "description": "Current and accurate screen capture",
+      "required": true
+    },
+    "tutorial_steps": {
+      "type": "string_array",
+      "description": "Verified steps shown in the recording",
+      "required": true
+    },
+    "narration": {
+      "type": "audio",
+      "description": "Cleared recorded or generated narration",
+      "required": true
+    }
+  },
+  "style": {
+    "mood": "clear, calm and helpful",
+    "palette": [
+      "#121927",
+      "#FFFFFF",
+      "#48C2B7"
+    ],
+    "typography": "Highly legible interface-oriented sans serif",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": true
+  },
+  "engines": [
+    "editorial",
+    "ffmpeg",
+    "remotion"
+  ],
+  "scenes": [
+    {
+      "id": "setup",
+      "role": "context",
+      "duration_frames": 150,
+      "shots": [
+        {
+          "id": "title",
+          "kind": "motion_graphics",
+          "duration_frames": 150,
+          "direction": {
+            "action": "Introduce the software and the outcome",
+            "text_template": "How to use {{app_name}}",
+            "framing": "clear title card"
+          },
+          "engine_hint": "remotion",
+          "input_refs": [
+            "app_name"
+          ]
+        }
+      ],
+      "audio": {
+        "music_direction": "Low-key background bed beneath narration"
+      }
+    },
+    {
+      "id": "demo",
+      "role": "instruction",
+      "duration_frames": 450,
+      "shots": [
+        {
+          "id": "walkthrough",
+          "kind": "screen_capture",
+          "duration_frames": 360,
+          "direction": {
+            "action": "Show the actual product interface in a logical progression",
+            "framing": "readable crop with cursor emphasis"
+          },
+          "engine_hint": "editorial",
+          "input_refs": [
+            "screen_recording",
+            "tutorial_steps",
+            "narration"
+          ]
+        },
+        {
+          "id": "callout",
+          "kind": "motion_graphics",
+          "duration_frames": 90,
+          "direction": {
+            "action": "Highlight the key interface action using restrained overlays",
+            "framing": "annotation aligned to visible UI"
+          },
+          "engine_hint": "remotion",
+          "input_refs": [
+            "tutorial_steps"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recap",
+      "role": "summary",
+      "duration_frames": 300,
+      "shots": [
+        {
+          "id": "summary_card",
+          "kind": "motion_graphics",
+          "duration_frames": 300,
+          "direction": {
+            "action": "Recap the verified steps and next action",
+            "text_template": "You're ready to use {{app_name}}",
+            "framing": "simple steps summary"
+          },
+          "engine_hint": "remotion",
+          "input_refs": [
+            "app_name",
+            "tutorial_steps"
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style.typography",
+      "style.palette"
+    ],
+    "notes": [
+      "Use actual interface recordings; do not invent a functioning UI.",
+      "Verify steps against the current app release."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "step_accuracy",
+      "mode": "human",
+      "description": "All demonstrated UI steps match the current software."
+    },
+    {
+      "id": "text_legibility",
+      "mode": "automated",
+      "description": "Zoom, labels and captions are legible at target resolution."
+    },
+    {
+      "id": "voice_timing",
+      "mode": "human",
+      "description": "Narration follows the on-screen sequence without omissions."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+dist/
+build/
+*.mp4
+*.mov
+*.wav
+*.png
+*.jpg
+.env

@@ -1,0 +1,186 @@
+{
+  "schema_version": "0.1.0",
+  "id": "commercial.cinematic-product-reveal",
+  "version": "0.1.0",
+  "title": "Cinematic product reveal",
+  "category": "commercial",
+  "description": "Premium hybrid commercial mixing generated footage, product detail shots and a branded motion-graphics end card.",
+  "tags": [
+    "commercial",
+    "cinematic",
+    "product",
+    "hybrid"
+  ],
+  "inputs": {
+    "product_name": {
+      "type": "string",
+      "description": "Product name used in title card",
+      "required": true
+    },
+    "product_images": {
+      "type": "image_array",
+      "description": "Approved reference imagery of the real product",
+      "required": true
+    },
+    "selling_point": {
+      "type": "string",
+      "description": "Main product benefit",
+      "required": true
+    },
+    "logo": {
+      "type": "image",
+      "description": "Transparent company logo",
+      "required": true
+    }
+  },
+  "style": {
+    "mood": "premium, tactile and dramatic",
+    "palette": [
+      "#0A0D14",
+      "#F5F2EB",
+      "#C6A46B"
+    ],
+    "typography": "Elegant high-contrast sans serif with generous tracking",
+    "pacing": "variable"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": false
+  },
+  "engines": [
+    "generative_video",
+    "editorial",
+    "remotion"
+  ],
+  "scenes": [
+    {
+      "id": "tease",
+      "role": "hook",
+      "duration_frames": 120,
+      "shots": [
+        {
+          "id": "detail",
+          "kind": "generated_video",
+          "duration_frames": 120,
+          "direction": {
+            "action": "Build anticipation with a shadowed macro detail",
+            "framing": "extreme closeup",
+            "camera_move": "slow push-in",
+            "lighting": "raking side light",
+            "prompt_template": "Show the exact referenced product; no invented labels or features."
+          },
+          "engine_hint": "generative_video",
+          "input_refs": [
+            "product_images"
+          ]
+        }
+      ],
+      "audio": {
+        "music_direction": "Sparse atmospheric pulse",
+        "sfx": [
+          "soft mechanical texture"
+        ]
+      }
+    },
+    {
+      "id": "reveal",
+      "role": "hero",
+      "duration_frames": 240,
+      "shots": [
+        {
+          "id": "hero",
+          "kind": "generated_video",
+          "duration_frames": 150,
+          "direction": {
+            "action": "Reveal the entire product while maintaining the reference identity",
+            "framing": "three-quarter hero shot",
+            "camera_move": "controlled orbit",
+            "lighting": "soft rim light",
+            "prompt_template": "Preserve product geometry, branding and color."
+          },
+          "engine_hint": "generative_video",
+          "input_refs": [
+            "product_images"
+          ]
+        },
+        {
+          "id": "benefit",
+          "kind": "motion_graphics",
+          "duration_frames": 90,
+          "direction": {
+            "action": "Overlay one concise benefit without obscuring product",
+            "text_template": "{{selling_point}}",
+            "framing": "safe-area-aligned lower third"
+          },
+          "engine_hint": "remotion",
+          "input_refs": [
+            "selling_point"
+          ]
+        }
+      ],
+      "audio": {
+        "music_direction": "Musical crescendo at hero reveal",
+        "sfx": [
+          "subtle impact"
+        ]
+      }
+    },
+    {
+      "id": "outro",
+      "role": "brand_close",
+      "duration_frames": 180,
+      "shots": [
+        {
+          "id": "brand_card",
+          "kind": "motion_graphics",
+          "duration_frames": 180,
+          "direction": {
+            "action": "End with a clear static product name and logo",
+            "text_template": "{{product_name}}",
+            "framing": "centered brand lockup",
+            "lighting": "flat graphic"
+          },
+          "engine_hint": "remotion",
+          "input_refs": [
+            "product_name",
+            "logo"
+          ]
+        }
+      ],
+      "audio": {
+        "music_direction": "Resolve to minimal brand sting"
+      }
+    }
+  ],
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style.palette",
+      "style.typography",
+      "scenes.outro"
+    ],
+    "notes": [
+      "Treat reference images as the source of truth for product identity.",
+      "Generated footage is subject to human product-fidelity review."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "product_fidelity",
+      "mode": "human",
+      "description": "Generated product geometry, logos and features match approved references."
+    },
+    {
+      "id": "text_safe_area",
+      "mode": "automated",
+      "description": "Text and logo remain within output safe-area margins."
+    },
+    {
+      "id": "audio_peak",
+      "mode": "automated",
+      "description": "Final mix stays within configured peak limits."
+    }
+  ]
+}
