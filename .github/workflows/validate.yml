@@ -33,6 +33,14 @@ jobs:
         run: |
           test -s /tmp/vg-demo.mp4
           ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 /tmp/vg-demo.mp4
+      - name: Render layered audio and captions for two briefs
+        run: |
+          for brief in editing learning; do
+            directory="/tmp/vg-editorial-$brief"
+            python -m tools.create_editorial_demo --brief "$brief" -o "$directory"
+            python -m videogenome compile "$directory/job.json" -o "$directory/plan.json"
+            python -m videogenome render "$directory/job.json" -o "$directory/demo.mp4" --receipt "$directory/receipt.json"
+          done
       - name: Upload reproducible video and receipt
         uses: actions/upload-artifact@v4
         with:
@@ -40,4 +48,13 @@ jobs:
           path: |
             /tmp/vg-demo.mp4
             /tmp/vg-receipt.json
+          if-no-files-found: error
+      - name: Upload editorial previews and provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: videogenome-editorial-examples
+          path: |
+            /tmp/vg-editorial-*/demo.mp4
+            /tmp/vg-editorial-*/plan.json
+            /tmp/vg-editorial-*/receipt.json
           if-no-files-found: error

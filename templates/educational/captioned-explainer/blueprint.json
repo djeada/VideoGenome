@@ -1,0 +1,185 @@
+{
+  "schema_version": "0.2.0",
+  "id": "educational.captioned-explainer",
+  "version": "0.1.0",
+  "title": "Captioned explainer with a layered soundtrack",
+  "category": "educational",
+  "description": "An eight-second still-and-title recipe with locked caption cues, a music bed and a separate narration track. Supply approved image and audio assets.",
+  "tags": [
+    "reference",
+    "captions",
+    "audio",
+    "explainer"
+  ],
+  "inputs": {
+    "image": {
+      "type": "image",
+      "required": true,
+      "description": "Approved opening illustration"
+    },
+    "music": {
+      "type": "audio",
+      "required": true,
+      "description": "Music source of at least nine seconds (first second trimmed)"
+    },
+    "narration": {
+      "type": "audio",
+      "required": true,
+      "description": "Approved four-second narration source"
+    },
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "Closing title, keep concise"
+    },
+    "caption_intro": {
+      "type": "string",
+      "required": true,
+      "description": "Opening caption, at most two lines and 20 characters per second"
+    },
+    "caption_detail": {
+      "type": "string",
+      "required": true,
+      "description": "Caption spanning the picture cut"
+    },
+    "caption_close": {
+      "type": "string",
+      "required": true,
+      "description": "Closing caption"
+    }
+  },
+  "style": {
+    "mood": "clear and calm",
+    "palette": [
+      "#14202E",
+      "#3DBEA8",
+      "#FFFFFF"
+    ],
+    "typography": "Neutral sans serif with high-contrast caption boxes",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 640,
+    "height": 360,
+    "fps": 24,
+    "captions": true
+  },
+  "engines": [
+    "ffmpeg"
+  ],
+  "scenes": [
+    {
+      "id": "illustration",
+      "role": "explain",
+      "duration_frames": 96,
+      "shots": [
+        {
+          "id": "opening_image",
+          "kind": "still_image",
+          "duration_frames": 96,
+          "input_refs": [
+            "image"
+          ],
+          "direction": {
+            "action": "Hold an approved explanatory illustration"
+          }
+        }
+      ]
+    },
+    {
+      "id": "conclusion",
+      "role": "summarize",
+      "duration_frames": 96,
+      "shots": [
+        {
+          "id": "closing_card",
+          "kind": "motion_graphics",
+          "duration_frames": 96,
+          "direction": {
+            "action": "Close with one concise thought",
+            "text_template": "{{title}}"
+          }
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "preserve",
+    "source_audio_gain_db": 0,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 192,
+        "in_frame": 24,
+        "gain_db": -18,
+        "fade_in_frames": 12,
+        "fade_out_frames": 24
+      },
+      {
+        "id": "narrator",
+        "input_ref": "narration",
+        "start_frame": 48,
+        "duration_frames": 96,
+        "gain_db": -3,
+        "fade_in_frames": 6,
+        "fade_out_frames": 6
+      }
+    ],
+    "captions": {
+      "style": {
+        "font_size": 20,
+        "margin_x": 24,
+        "margin_bottom": 24,
+        "max_chars_per_line": 28,
+        "max_lines": 2,
+        "max_chars_per_second": 20
+      },
+      "cues": [
+        {
+          "id": "intro",
+          "start_frame": 12,
+          "duration_frames": 60,
+          "text_template": "{{caption_intro}}"
+        },
+        {
+          "id": "detail",
+          "start_frame": 84,
+          "duration_frames": 60,
+          "text_template": "{{caption_detail}}"
+        },
+        {
+          "id": "close",
+          "start_frame": 144,
+          "duration_frames": 48,
+          "text_template": "{{caption_close}}"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "Only declared copy and cleared source assets may be filled. Caption timings, line limits, audio gains and fades are expert decisions."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "technical_review",
+      "mode": "human",
+      "description": "Listen to the complete mix and verify that captions match the supplied narration."
+    },
+    {
+      "id": "rights_review",
+      "mode": "human",
+      "description": "Review source rights, factual accuracy and suitability for distribution."
+    }
+  ]
+}

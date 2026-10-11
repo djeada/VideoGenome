@@ -23,19 +23,21 @@ Small-model job manifest (typed inputs, approved local media)
         - holds still images
         - trims and scales pre-rendered footage
         - preserves existing dialogue when available
+        - mixes locked audio tracks with gain, trim and fades
+        - burns frame-timed captions with checked copy limits
         - normalizes H.264/AAC
         - joins clips and probes output
                 |
       MP4 + provenance/QA receipt
 ~~~
 
-The current FFmpeg adapter is a real end-to-end **reference renderer** but not a general-purpose nonlinear video editor. It has one primary sequential picture track. Multitrack sound, transitions, overlays, separate captions, automation of filming/3D/generative media and evaluation of aesthetics are planned rather than implemented.
+The current FFmpeg adapter has one sequential picture track plus a locked audio/caption timeline. Schema v0.2 blueprints can mix multiple audio sources, preserve or mute embedded sound, and burn captions over picture cuts. See [the editorial timeline contract](editorial-timeline.md) for the runnable example, compatibility, timing and limits. Picture transitions, general overlays, sidecar subtitles, automatic media generation and aesthetic evaluation remain planned.
 
 ## Three distinct artifacts
 
-1. **Blueprint** (schemas/blueprint.schema.json) is reviewed creative authority. It defines typed input slots, story scenes, ordered shot recipes, frame durations, styles, engine hints and declared gates. A smaller model cannot edit it at job runtime.
+1. **Blueprint** (schemas/blueprint.schema.json) is reviewed creative authority. It defines typed input slots, story scenes, ordered shot recipes, frame durations, styles, engine hints and declared gates. Version 0.2 also defines audio tracks, caption cues and layout limits. A smaller model cannot edit it at job runtime.
 2. **Job** (schemas/job.schema.json) contains values for declared slots, asset inventory, self-attested rights, source bindings, trim position, frame fit and any human-gate attestation. Unknown keys and undeclared inputs are rejected.
-3. **IR/plan** is compiled data, not editable creative direction. It contains shot IDs, inclusive start and exclusive end frames, source mappings, text content, blueprint/job SHA256 hashes and machine/human gate status. A renderer produces media from it.
+3. **IR/plan** is compiled data, not editable creative direction. It contains shot IDs, inclusive start and exclusive end frames, source mappings, text content, blueprint/job SHA256 hashes and machine/human gate status. IR v0.2 includes resolved audio bindings and wrapped caption cues. A renderer produces media from it.
 
 Blueprint templates are trusted files inside the checked-out repository; they are allowed to be referenced from job directories outside that repository. All media paths are relative to the job's own directory and cannot escape it by traversal or symlink.
 
@@ -109,7 +111,8 @@ OpenTimelineIO is worth evaluating for interchange of editorial structures, but 
 | JSON Schema and semantic validation | enforced | schema compatibility and migration tests |
 | Rights | self-attested in job; uncleared is rejected | verified evidence workflow and reviewer identity |
 | Media inputs | file exists, sha256, source duration/stream check | codec allowlist, OS sandbox, resource quotas |
-| Media output | ffprobe size/duration and output hash | frame drops, loudness, silence and black-frame checks |
+| Media output | ffprobe frame count, size/duration and output hash | loudness, silence and black-frame checks |
+| Audio/caption timeline | source duration/hash checks, locked timing, caption line and reading-speed limits | transcription fidelity, font coverage, perceptual mix and accessibility review |
 | Automated gates from blueprint | recorded as not_evaluated | gate registry, executable tests, evidence and thresholds |
 | Human gates | recorded as not_evaluated unless job self-attests | signed approval and publication scope |
 | Identity continuity | not evaluated | reference-based assessment plus human checks |
