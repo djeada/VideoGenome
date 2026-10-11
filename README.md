@@ -6,6 +6,19 @@ VideoGenome is an open framework for **model-independent, reusable video product
 
 > **Status: experimental production kernel.** We now have a real input-to-timeline compiler and an FFmpeg reference renderer, **not** a universal video-generation engine or a fully featured nonlinear editor. See [supported vs planned capabilities](docs/production-pipeline.md).
 
+## Discover templates and prepare small-model jobs
+
+The catalog is machine-readable and can be searched without generating code:
+
+~~~bash
+python -m videogenome catalog --category social
+python -m videogenome catalog --orientation landscape --shot-kind motion_graphics
+python -m videogenome inspect commercial.cinematic-product-reveal
+python -m videogenome scaffold educational.title-card-sequence -o /tmp/my-job.json
+~~~
+
+A scaffold is **intentionally incomplete**: media inputs and rights records must be supplied by an authorized user or asset pipeline, and no quality gate is automatically approved. The catalog describes template expectations, not proof that any media provider can generate every shot.
+
 ## Working vertical slice
 
 Python 3.10+, FFmpeg and ffprobe installed, and a local font-enabled FFmpeg build:

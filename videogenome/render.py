@@ -155,6 +155,10 @@ def render(plan: dict, job_directory: Path, output_path: Path) -> dict:
     if not plan["segments"]:
         raise ProductionError("No segments in render plan")
     output_path = output_path.resolve()
+    for asset in plan["assets"].values():
+        source_path = confined_file(job_directory.resolve(), asset["path"])
+        if source_path == output_path:
+            raise ProductionError("Output would overwrite a source asset")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="videogenome-") as directory:

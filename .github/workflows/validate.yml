@@ -33,3 +33,11 @@ jobs:
         run: |
           test -s /tmp/vg-demo.mp4
           ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 /tmp/vg-demo.mp4
+      - name: Upload reproducible video and receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: videogenome-demo
+          path: |
+            /tmp/vg-demo.mp4
+            /tmp/vg-receipt.json
+          if-no-files-found: error

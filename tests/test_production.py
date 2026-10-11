@@ -158,6 +158,8 @@ class FFmpegIntegrationTests(unittest.TestCase):
         manifest.write_text(json.dumps(job), encoding="utf-8")
         plan = compile_job(manifest)
         movie = self.root / "hybrid.mp4"
+        with self.assertRaisesRegex(ProductionError, "overwrite"):
+            render(plan, self.root, footage)
         receipt = render(plan, self.root, movie)
         streams = probe(movie)["streams"]
         self.assertEqual(receipt["frames_planned"], 72)
