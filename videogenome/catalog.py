@@ -32,6 +32,7 @@ def describe_template(path: Path) -> dict:
     return {
         "id": data["id"],
         "version": data["version"],
+        "schema_version": data["schema_version"],
         "title": data["title"],
         "description": data["description"],
         "category": data["category"],
@@ -46,6 +47,7 @@ def describe_template(path: Path) -> dict:
             name: spec["type"] for name, spec in data["inputs"].items() if not spec["required"]
         },
         "has_human_gates": any(g["mode"] == "human" for g in data["quality_gates"]),
+        "timeline": data.get("timeline"),
         "path": str(path.relative_to(ROOT))
     }
 

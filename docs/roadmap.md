@@ -10,6 +10,13 @@ Acceptance: no extra model/API keys; command-line render produces readable MP4; 
 
 ## Stage 1 — real editorial post-production
 
+First implemented slice: [audio and caption timeline](editorial-timeline.md).
+Schema v0.2 supports overlapping audio with trim/gain/fades, source sound
+preservation or muting, and frame-timed captions with checked copy limits.
+Two reproducible briefs run through one reusable template; decoded-media tests
+verify the audio and caption behavior. This does not complete the broader
+Stage 1 acceptance criteria below.
+
 Produce three finished, reviewable reference videos from permitted sources: (a) creator/testimonial social ad, (b) genuine software walkthrough, (c) premium product reveal. Implement multiple picture/audio tracks, transitions, captions, typography layout, audio mix policies, safe zones and aspect crops.
 
 Acceptance: all three execute the *same* blueprint/job/IR contract; dialogue remains intelligible; subtitles meet reading/safe-zone rules; each exports 16:9 and/or 9:16 with reviewable crops; technical QA includes audio loudness, media integrity and visually compared golden frames.
@@ -46,4 +53,6 @@ Use blinded human review and machine measurements for creative quality, narrativ
 
 A professional recipe contribution should include: its audience and outcome, allowed slots and locks, creative references, provider capabilities, all dependencies, rights declarations, a working sample job, a reference render or reproducible fixture, machine tests and a reviewer rubric. Quality claims without example outputs should not enter the trusted catalog.
 
-The next useful PR after this one is **an actual multi-track timeline and audio/caption system**, not another folder full of unexecuted schemas.
+Next: add picture transitions and richer typography, then produce the three
+permitted-source reference videos above with real dialogue and human review.
+Automatic ducking, loudness mastering and subtitle interchange remain needed.

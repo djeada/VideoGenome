@@ -120,6 +120,45 @@ class FFmpegIntegrationTests(unittest.TestCase):
         self.assertTrue(receipt["output_sha256"])
         self.assertTrue(any(g["status"] == "not_evaluated" for g in receipt["quality_gates"]))
 
+    def test_title_copy_is_rendered_without_ffmpeg_text_expansion(self) -> None:
+        job = json.loads(DEMO.read_text(encoding="utf-8"))
+        job["template"] = str((ROOT / "templates/educational/title-card-sequence/blueprint.json").resolve())
+        job["inputs"] = {
+            "headline": "100% ready",
+            "insight": "%{eif:1+1:d}",
+            "action": "2",
+        }
+        manifest = self.root / "literal-copy.json"
+        manifest.write_text(json.dumps(job), encoding="utf-8")
+        plan = compile_job(manifest)
+        movie = self.root / "literal-copy.mp4"
+        render(plan, self.root, movie)
+
+        # A successful encode alone does not prove drawtext displayed the copy:
+        # a stray percent sign can silently produce an entirely blank card.
+        width = plan["output"]["width"]
+        height = plan["output"]["height"]
+        text_widths = []
+        for segment in plan["segments"]:
+            timestamp = (segment["start_frame"] + segment["duration_frames"] / 2) / plan["output"]["fps"]
+            frame = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-loglevel", "error",
+                 "-ss", str(timestamp), "-i", str(movie), "-frames:v", "1",
+                 "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"],
+                capture_output=True, check=True
+            ).stdout
+            self.assertEqual(len(frame), width * height)
+            # This blueprint uses white text on a dark background. Measure
+            # foreground extent without depending on exact fonts or H.264 bytes.
+            columns = {index % width for index, pixel in enumerate(frame) if pixel > 200}
+            text_widths.append(max(columns, default=-1) - min(columns, default=0) + 1)
+            with self.subTest(text=segment["text"]):
+                self.assertGreater(text_widths[-1], 0, "Title copy disappeared from the rendered card")
+
+        # The literal expression must occupy substantially more space than its
+        # evaluated result, which would otherwise be the same single digit.
+        self.assertGreater(text_widths[1], 3 * text_widths[2])
+
     def test_hybrid_real_video_audio_image_and_graphics(self) -> None:
         footage = self.root / "clip.mp4"
         image = self.root / "still.ppm"

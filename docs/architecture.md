@@ -7,7 +7,7 @@ A shot can be performed by an actor, assembled from licensed footage, rendered i
 ```text
 brief / audience / brand
           |
-template discovery + parameter binding  [future]
+template discovery + parameter binding  [present]
           |
 versioned blueprint JSON               [present]
           |
@@ -17,24 +17,24 @@ media acquisition / generation         [future]
    |         |           |
  footage   code/3D    generative
    \         |          /
-timeline assembly and audio mix         [future]
+picture assembly, audio mix, captions   [present]
           |
 technical QA + human creative review   [declarations present, execution future]
           |
-exports + provenance manifest          [future]
+MP4 export + provenance receipt         [present]
 ```
 
 ## The layers
 
 1. **Knowledge and creative strategy.** Audience, hook, narrative, pacing, directing, cinematography, casting, lighting, sound, and platform context. Make reusable recipes, not unconstrained prompts.
-2. **Blueprint contract.** Inputs, locked rules, coherent style tokens, scenes, ordered shots, duration in frames, engine hints, quality gates. This repository implements v0.1 JSON Schema.
-3. **Planning and asset manifest.** Future binding layer resolves input values into approved media assets, checks rights/consent, verifies capabilities, measures output costs, and records origin metadata.
-4. **Execution adapters.** Future plugins for footage/editing, Remotion, FFmpeg, Blender, generative image/video, voice and audio. A template may mix adapters in one timeline.
-5. **Assembly and quality.** Future frame-accurate timeline, transitions, captions, audio mixing, output transformations, consistency tests, and approvals.
+2. **Blueprint contract.** Inputs, locked style, scenes, ordered shots, frame timing, engine hints and quality gates. Schema v0.2 adds audio tracks and caption cues; v0.1 remains supported.
+3. **Planning and asset manifest.** The compiler binds typed inputs, checks self-attested rights, confines local paths and records source hashes. Provider capability selection, independent rights verification and cost estimates remain planned.
+4. **Execution adapters.** The FFmpeg reference adapter renders graphics, stills and pre-produced video, mixes audio and burns captions. Remotion, Blender and generative providers remain planned.
+5. **Assembly and quality.** Sequential picture, overlapping audio and timed captions produce an MP4 with frame-count, resolution, duration and hash checks. Picture transitions, perceptual evaluation and signed approvals remain planned.
 
 ## What a smaller model can change
 
-A lightweight production model should fill named inputs and select approved blueprints. It should **not** silently rewrite locked colors, brand positioning, claims, shot composition, or compliance rules. The initial schema describes rules but does not enforce arbitrary JSON paths; this requires a later binding engine and policy layer.
+A lightweight production model fills named inputs and selects reviewed blueprints. The compiler rejects job-level style, scene and timeline overrides. Free-text creative and compliance policies still require human review; they are not arbitrary executable rules.
 
 A capable model can propose new recipes, improve the visual language, and submit a PR with test evidence. Reviewers promote those recipes to a trusted catalog after provenance and quality checks.
 
@@ -48,15 +48,15 @@ A capable model can propose new recipes, improve the visual language, and submit
 
 Treat these as *capabilities*, not mandatory dependencies. A simple tutorial and a film scene should validate against the same core specification without using the same engine.
 
-## Technical conventions in v0.1
+## Technical conventions
 
 - Times are positive **integer frames** at the declared output frame rate; each scene's shot durations must sum to its duration.
-- Shots are sequential; overlap, crossfades, variable frame rates and multitrack timing are intentionally out of scope.
-- Input references name a declared input key. Double-brace placeholders in descriptions are **examples only**; the validator does not substitute them.
+- Picture shots are sequential. The [v0.2 editorial timeline](editorial-timeline.md) permits overlapping audio and non-overlapping caption cues; picture crossfades, compositing and variable frame rates remain out of scope.
+- Input references name a declared input key. The compiler substitutes double-brace slots in shot and caption `text_template` fields; free-text descriptions and generation prompts are not executed.
 - Each blueprint specifies candidate engines as strings; engine discovery and capability enforcement are not implemented.
 - Quality gates declare `automated` or `human` checks; this foundation **does not execute quality gates**.
 - Free-text prompt templates may not assert guaranteed product identity, safety, legal clearance or narrative truth.
 
 ## Next vertical slice
 
-Implement a job input manifest, safe variable binding, simple Remotion/FFmpeg adapter, and deterministic render of one motion-graphics scene. Then add video-footage editing and a generative shot adapter. Keep the blueprint schema independent of those adapters. Add golden-frame inspection, legibility checks, consistent asset identities and human approval before accepting expensive or public outputs.
+Extend the working compiler and FFmpeg adapter with picture transitions and richer typography, then provider adapters. Keep creative intent independent of the renderer. Expand visual/audio evaluation and human approval before accepting expensive or public outputs; see the milestone [roadmap](roadmap.md).

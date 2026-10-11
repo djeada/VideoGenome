@@ -8,6 +8,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import textwrap
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -107,6 +109,48 @@ def _substitute(template: str, inputs: dict) -> str:
     return result
 
 
+def _compile_timeline(blueprint: dict, inputs: dict, assets: dict) -> dict:
+    source = blueprint["timeline"]
+    tracks = []
+    for track in source.get("audio_tracks", []):
+        asset_id = inputs.get(track["input_ref"])
+        if not isinstance(asset_id, str) or assets.get(asset_id, {}).get("kind") != "audio":
+            raise ProductionError(f"Audio track {track['id']!r} requires audio input {track['input_ref']!r}")
+        tracks.append({
+            "id": track["id"], "asset_id": asset_id,
+            "start_frame": track["start_frame"], "duration_frames": track["duration_frames"],
+            "in_frame": track.get("in_frame", 0), "gain_db": track.get("gain_db", 0),
+            "fade_in_frames": track.get("fade_in_frames", 0),
+            "fade_out_frames": track.get("fade_out_frames", 0),
+        })
+    timeline = {
+        "source_audio": source.get("source_audio", "preserve"),
+        "source_audio_gain_db": source.get("source_audio_gain_db", 0),
+        "audio_tracks": tracks,
+    }
+    if "captions" in source:
+        style = source["captions"]["style"]
+        cues = []
+        for cue in sorted(source["captions"]["cues"], key=lambda c: c["start_frame"]):
+            text = " ".join(_substitute(cue["text_template"], inputs).split())
+            if not text or any(unicodedata.category(char) == "Cc" for char in text):
+                raise ProductionError(f"Caption {cue['id']!r} needs nonempty printable text")
+            if any(len(word) > style["max_chars_per_line"] for word in text.split()):
+                raise ProductionError(f"Caption {cue['id']!r} contains a word too long for the line limit")
+            lines = textwrap.wrap(text, width=style["max_chars_per_line"],
+                                  break_long_words=False, break_on_hyphens=False)
+            if len(lines) > style["max_lines"]:
+                raise ProductionError(f"Caption {cue['id']!r} exceeds the line limit; shorten the copy")
+            cps = len(text) * blueprint["output"]["fps"] / cue["duration_frames"]
+            if cps > style["max_chars_per_second"]:
+                raise ProductionError(f"Caption {cue['id']!r} exceeds the reading-speed limit ({cps:.1f} chars/s)")
+            cues.append({"id": cue["id"], "start_frame": cue["start_frame"],
+                         "end_frame": cue["start_frame"] + cue["duration_frames"],
+                         "text": text, "lines": lines})
+        timeline["captions"] = {"style": style, "cues": cues}
+    return timeline
+
+
 def compile_job(job_path: Path) -> dict[str, Any]:
     job_path = job_path.resolve()
     job_dir = job_path.parent
@@ -204,8 +248,8 @@ def compile_job(job_path: Path) -> dict[str, Any]:
         raise ProductionError(f"Cannot approve unknown/non-human gates: {sorted(unknown_approvals)}")
 
     output = blueprint["output"]
-    return {
-        "ir_version": "0.1.0",
+    plan = {
+        "ir_version": "0.2.0" if "timeline" in blueprint else "0.1.0",
         "job_id": job["id"], "template_id": blueprint["id"],
         "template_version": blueprint["version"],
         "template_sha256": sha256_file(template_path),
@@ -221,3 +265,6 @@ def compile_job(job_path: Path) -> dict[str, Any]:
             for gate in blueprint["quality_gates"]
         ],
     }
+    if "timeline" in blueprint:
+        plan["timeline"] = _compile_timeline(blueprint, inputs, records)
+    return plan

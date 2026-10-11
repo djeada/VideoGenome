@@ -1,0 +1,63 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.captioned-explainer",
+  "template": "../../templates/educational/captioned-explainer/blueprint.json",
+  "template_version": "0.1.0",
+  "inputs": {
+    "image": "illustration",
+    "music": "music",
+    "narration": "narration",
+    "title": "Sound meets story",
+    "caption_intro": "Start with a quiet music bed.",
+    "caption_detail": "Bring narration in on cue.",
+    "caption_close": "Keep the story clear."
+  },
+  "assets": {
+    "illustration": {
+      "kind": "image",
+      "path": "timeline.ppm",
+      "origin": {
+        "type": "rendered",
+        "description": "Original geometric timeline illustration from the demo generator"
+      },
+      "rights": {
+        "cleared": true,
+        "license": "MIT",
+        "evidence": "Procedurally created by tools/create_editorial_demo.py in this MIT-licensed repository; no external recordings."
+      }
+    },
+    "music": {
+      "kind": "audio",
+      "path": "music.wav",
+      "origin": {
+        "type": "rendered",
+        "description": "Synthetic 220 Hz calibration tone, not a musical recording"
+      },
+      "rights": {
+        "cleared": true,
+        "license": "MIT",
+        "evidence": "Procedurally created by tools/create_editorial_demo.py in this MIT-licensed repository; no external recordings."
+      }
+    },
+    "narration": {
+      "kind": "audio",
+      "path": "narration.wav",
+      "origin": {
+        "type": "rendered",
+        "description": "Synthetic 660 Hz calibration tone, not speech or a human voice"
+      },
+      "rights": {
+        "cleared": true,
+        "license": "MIT",
+        "evidence": "Procedurally created by tools/create_editorial_demo.py in this MIT-licensed repository; no external recordings."
+      }
+    }
+  },
+  "shot_assets": {
+    "opening_image": {
+      "asset": "illustration",
+      "fit": "contain"
+    }
+  },
+  "approved_gates": []
+}

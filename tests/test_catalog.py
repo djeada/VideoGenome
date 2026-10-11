@@ -35,6 +35,13 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaises(ProductionError):
             inspect_template("missing.template")
 
+    def test_editorial_template_exposes_locked_caption_and_audio_requirements(self) -> None:
+        descriptor = inspect_template("educational.captioned-explainer")
+        self.assertEqual(descriptor["schema_version"], "0.2.0")
+        self.assertEqual(descriptor["required_inputs"]["narration"], "audio")
+        self.assertEqual(descriptor["timeline"]["captions"]["style"]["max_lines"], 2)
+        self.assertEqual(descriptor["timeline"]["audio_tracks"][1]["start_frame"], 48)
+
 
 if __name__ == "__main__":
     unittest.main()
