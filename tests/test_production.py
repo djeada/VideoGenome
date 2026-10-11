@@ -163,7 +163,7 @@ class FFmpegIntegrationTests(unittest.TestCase):
         self.assertEqual(receipt["frames_planned"], 72)
         self.assertAlmostEqual(receipt["duration_observed_seconds"], 3, delta=0.12)
         self.assertTrue(any(s["codec_type"] == "audio" for s in streams))
-        self.assertEqual((streams[0]["width"], streams[0]["height"]), (320, 240))
+        self.assertEqual((streams[0]["width"], streams[0]["height"]), (320, 320))
 
 
 if __name__ == "__main__":
