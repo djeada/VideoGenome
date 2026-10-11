@@ -6,7 +6,7 @@ The **reviewed repository** owns template code, creative decisions, schemas and 
 
 The reference compiler limits job keys, rejects unknown input variables and missing media, confines asset paths to the job directory even through symlinks, and verifies asset hashes during rendering. Templates must be existing files inside the trusted repository. A proposed future signed template registry would define authoritative versions and dependencies.
 
-Subprocesses receive argv arrays rather than shell-constructed commands. Untrusted title copy is stored as a text file passed to FFmpeg drawtext, not interpolated into filter syntax. This prevents many command-injection paths, but it is **not** a hardened media-processing sandbox.
+Subprocesses receive argv arrays rather than shell-constructed commands. Untrusted title copy is stored as a text file passed to FFmpeg drawtext, not interpolated into filter syntax. Drawtext expansion is disabled so percent signs, backslashes and expression-like copy such as `%{eif:1+1:d}` remain literal text. This prevents many command-injection paths, but it is **not** a hardened media-processing sandbox.
 
 ## Threats and controls
 

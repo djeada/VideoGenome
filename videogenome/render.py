@@ -107,11 +107,12 @@ def _render_segment(
         if text:
             text_path = scratch / f"{segment['shot_id']}.txt"
             text_path.write_text(text, encoding="utf-8")
-            # drawtext reads untrusted copy as file data, never filter syntax.
+            # Keep untrusted copy out of both filter syntax and drawtext's
+            # percent/backslash expansion language, even when using textfile.
             # Paths live in a controlled temp directory (no shell interpolation).
             safe_path = str(text_path).replace("\\", "\\\\").replace(":", "\\:")
             filtergraph += (
-                f",drawtext=textfile='{safe_path}':font=Sans:"
+                f",drawtext=textfile='{safe_path}':expansion=none:font=Sans:"
                 f"fontcolor={_text_color(color)}:fontsize={max(24, w // 18)}:"
                 "x=(w-text_w)/2:y=(h-text_h)/2"
             )
