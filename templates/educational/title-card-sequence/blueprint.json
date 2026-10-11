@@ -1,0 +1,126 @@
+{
+  "schema_version": "0.1.0",
+  "id": "educational.title-card-sequence",
+  "version": "0.1.0",
+  "title": "Brand-safe three-card explainer",
+  "category": "educational",
+  "description": "A fully renderable deterministic title-card sequence; the simplest executable reference for the production pipeline.",
+  "tags": [
+    "reference",
+    "typography",
+    "motion_graphics",
+    "educational"
+  ],
+  "inputs": {
+    "headline": {
+      "type": "string",
+      "description": "Strong opening hook",
+      "required": true
+    },
+    "insight": {
+      "type": "string",
+      "description": "One central insight",
+      "required": true
+    },
+    "action": {
+      "type": "string",
+      "description": "Final actionable message",
+      "required": true
+    }
+  },
+  "style": {
+    "mood": "minimal, assured and contemporary",
+    "palette": [
+      "#14202E",
+      "#FFFFFF",
+      "#3DBEA8"
+    ],
+    "typography": "High-contrast geometric sans serif",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "captions": false
+  },
+  "engines": [
+    "ffmpeg"
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "role": "opening",
+      "duration_frames": 72,
+      "shots": [
+        {
+          "id": "headline_card",
+          "kind": "motion_graphics",
+          "duration_frames": 72,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "Open with a centered clear headline",
+            "text_template": "{{headline}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "argument",
+      "role": "central_message",
+      "duration_frames": 72,
+      "shots": [
+        {
+          "id": "insight_card",
+          "kind": "motion_graphics",
+          "duration_frames": 72,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "Introduce the single central takeaway",
+            "text_template": "{{insight}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "resolution",
+      "role": "call_to_action",
+      "duration_frames": 72,
+      "shots": [
+        {
+          "id": "action_card",
+          "kind": "motion_graphics",
+          "duration_frames": 72,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "End on one memorable action",
+            "text_template": "{{action}}"
+          }
+        }
+      ]
+    }
+  ],
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes"
+    ],
+    "notes": [
+      "The content model may change only the declared text inputs; all production design remains locked."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "valid_input_contract",
+      "mode": "automated",
+      "description": "All declared slots and scene timings validate before rendering."
+    },
+    {
+      "id": "creative_review",
+      "mode": "human",
+      "description": "A reviewer approves copy, tone and visual suitability before publishing."
+    }
+  ]
+}

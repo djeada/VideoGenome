@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VideoGenome Production Job v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "job_schema",
+    "id",
+    "template",
+    "template_version",
+    "inputs"
+  ],
+  "properties": {
+    "job_schema": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]+$"
+    },
+    "template": {
+      "type": "string",
+      "minLength": 1
+    },
+    "template_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "assets": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "path",
+          "origin",
+          "rights"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "image",
+              "video",
+              "audio"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "origin": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "description"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "filmed",
+                  "licensed",
+                  "owned",
+                  "generated",
+                  "screen_recorded",
+                  "rendered",
+                  "other"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "minLength": 3
+              },
+              "model": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "seed": {
+                "type": "integer"
+              }
+            }
+          },
+          "rights": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cleared",
+              "license",
+              "evidence"
+            ],
+            "properties": {
+              "cleared": {
+                "type": "boolean"
+              },
+              "license": {
+                "type": "string",
+                "minLength": 3
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 3
+              },
+              "consent": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "shot_assets": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "asset"
+        ],
+        "properties": {
+          "asset": {
+            "type": "string",
+            "minLength": 1
+          },
+          "in_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "fit": {
+            "enum": [
+              "contain",
+              "cover"
+            ]
+          }
+        }
+      }
+    },
+    "approved_gates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
