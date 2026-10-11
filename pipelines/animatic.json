@@ -1,7 +1,7 @@
 {
   "pipeline_schema": "0.1.0",
   "id": "animatic",
-  "description": "Every capability produced by labelled placeholders: review timing, layout and mix before any model runs.",
+  "description": "Every capability, including procedural recipes, produced by labelled placeholders: review timing, layout and mix structure before anything expensive runs.",
   "verification": "CI (rendered on every push)",
   "providers": {
     "placeholder": {
@@ -16,6 +16,7 @@
     "image": "placeholder",
     "video": "placeholder",
     "typing": "placeholder",
-    "render_3d": "placeholder"
+    "render_3d": "placeholder",
+    "procedural": "placeholder"
   }
 }
