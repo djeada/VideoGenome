@@ -1,0 +1,169 @@
+{
+  "schema_version": "0.1.0",
+  "id": "social.ugc-testimonial",
+  "version": "0.1.0",
+  "title": "UGC testimonial short",
+  "category": "social",
+  "description": "Authentic vertical testimonial composed from talking-head footage, real b-roll and readable captions.",
+  "tags": [
+    "social",
+    "ugc",
+    "testimonial",
+    "real-footage"
+  ],
+  "inputs": {
+    "speaker_clip": {
+      "type": "video",
+      "description": "Consent-cleared real speaker footage",
+      "required": true
+    },
+    "broll_clips": {
+      "type": "video_array",
+      "description": "Supporting footage with appropriate rights",
+      "required": true
+    },
+    "hook_line": {
+      "type": "string",
+      "description": "Short opening claim from the real testimony",
+      "required": true
+    },
+    "testimonial_line": {
+      "type": "string",
+      "description": "Actual testimonial spoken by the participant",
+      "required": true
+    },
+    "cta": {
+      "type": "string",
+      "description": "Approved call to action",
+      "required": true
+    }
+  },
+  "style": {
+    "mood": "natural, direct and personable",
+    "palette": [
+      "#111111",
+      "#FFFFFF",
+      "#FFE45C"
+    ],
+    "typography": "Bold mobile-first sans serif captions",
+    "pacing": "fast"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": true
+  },
+  "engines": [
+    "editorial",
+    "ffmpeg",
+    "remotion"
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "role": "attention",
+      "duration_frames": 120,
+      "shots": [
+        {
+          "id": "speaker_hook",
+          "kind": "talking_head",
+          "duration_frames": 120,
+          "direction": {
+            "action": "Use the participant's real hook; keep performance natural",
+            "framing": "medium closeup with headroom",
+            "text_template": "{{hook_line}}"
+          },
+          "engine_hint": "editorial",
+          "input_refs": [
+            "speaker_clip",
+            "hook_line"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "proof",
+      "role": "testimonial",
+      "duration_frames": 360,
+      "shots": [
+        {
+          "id": "speaker_proof",
+          "kind": "talking_head",
+          "duration_frames": 210,
+          "direction": {
+            "action": "Hold enough time for an intelligible real testimonial",
+            "framing": "eye-level",
+            "text_template": "{{testimonial_line}}"
+          },
+          "engine_hint": "editorial",
+          "input_refs": [
+            "speaker_clip",
+            "testimonial_line"
+          ]
+        },
+        {
+          "id": "broll",
+          "kind": "footage",
+          "duration_frames": 150,
+          "direction": {
+            "action": "Show context-appropriate evidence with original audio preserved when helpful",
+            "framing": "handheld cutaways"
+          },
+          "engine_hint": "editorial",
+          "input_refs": [
+            "broll_clips"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cta",
+      "role": "close",
+      "duration_frames": 150,
+      "shots": [
+        {
+          "id": "cta_card",
+          "kind": "motion_graphics",
+          "duration_frames": 150,
+          "direction": {
+            "action": "Overlay the approved CTA on final footage or neutral color",
+            "text_template": "{{cta}}",
+            "framing": "above UI safe-zone"
+          },
+          "engine_hint": "remotion",
+          "input_refs": [
+            "cta"
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style.typography"
+    ],
+    "notes": [
+      "Do not synthesize or invent testimonials.",
+      "Confirm consent, releases and usage rights before publication."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "authenticity",
+      "mode": "human",
+      "description": "Testimonial statements and edits accurately represent the real participant."
+    },
+    {
+      "id": "caption_legibility",
+      "mode": "automated",
+      "description": "Caption text is within mobile UI safe zones and has sufficient contrast."
+    },
+    {
+      "id": "rights_review",
+      "mode": "human",
+      "description": "Footage, likeness and music have the required permissions."
+    }
+  ]
+}
