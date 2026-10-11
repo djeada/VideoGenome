@@ -17,10 +17,19 @@ jobs:
       - name: Install FFmpeg and fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-inter fontconfig
           ffmpeg -version | head -n 1
       - name: Install development requirements
-        run: python -m pip install -r requirements-dev.txt
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m playwright install --with-deps chromium-headless-shell
+      - name: Build and install the wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel -o /tmp/dist .
+          python -m pip install /tmp/dist/*.whl
+      - name: Diagnose toolchain and fonts
+        run: cd /tmp && videogenome doctor
       - name: Validate all blueprints
         run: python -m tools.validate
       - name: Run unit and media integration tests
@@ -29,6 +38,35 @@ jobs:
         run: python -m videogenome compile examples/three-card-explainer/job.json -o /tmp/vg-plan.json
       - name: Render documented example
         run: python -m videogenome render examples/three-card-explainer/job.json -o /tmp/vg-demo.mp4 --receipt /tmp/vg-receipt.json
+      - name: Render the vertical social example from outside the repository
+        run: |
+          mkdir -p /tmp/vg-vertical && cp examples/vertical-tips/job.json /tmp/vg-vertical/
+          cd /tmp/vg-vertical && videogenome render job.json -o tips.mp4 --receipt receipt.json
+      - name: Produce and render producible templates through the animatic pipeline
+        run: |
+          videogenome pipelines
+          for example in narrated-slides code-typing-reel product-turntable; do
+            directory="/tmp/vg-animatic-$example"
+            mkdir -p "$directory" && cp examples/$example/job.json "$directory/"
+            if [ "$example" = product-turntable ]; then
+              python -m tools.create_product_model -o "$directory/bottle.glb"
+            fi
+            videogenome make "$directory/job.json" --pipeline animatic \
+              -o "$directory/animatic.mp4" --receipt "$directory/receipt.json"
+          done
+      - name: Render procedural programmes and recipe previews
+        run: |
+          for example in three-card-explainer vertical-tips; do
+            directory="/tmp/vg-procedural-$example"
+            mkdir -p "$directory" && cp examples/$example/job.json "$directory/"
+            videogenome make "$directory/job.json" --pipeline procedural \
+              -o "$directory/procedural.mp4" --receipt "$directory/receipt.json"
+          done
+          mkdir -p /tmp/vg-recipes
+          for recipe in $(videogenome recipes --json | python -c "import json,sys; print(' '.join(r['id'] for r in json.load(sys.stdin)))"); do
+            case "$recipe" in audio.*) ext=wav ;; *) ext=mp4 ;; esac
+            videogenome recipe "$recipe" --duration 4 --size 640x360 -o "/tmp/vg-recipes/$recipe.$ext"
+          done
       - name: Verify resulting media
         run: |
           test -s /tmp/vg-demo.mp4
@@ -47,14 +85,22 @@ jobs:
           name: videogenome-demo
           path: |
             /tmp/vg-demo.mp4
+            /tmp/vg-demo.*.jpg
             /tmp/vg-receipt.json
+            /tmp/vg-vertical/
+            /tmp/vg-animatic-*/animatic.*
+            /tmp/vg-animatic-*/receipt.json
+            /tmp/vg-animatic-*/generated/manifest.json
+            /tmp/vg-procedural-*/procedural.*
+            /tmp/vg-procedural-*/receipt.json
+            /tmp/vg-recipes/
           if-no-files-found: error
       - name: Upload editorial previews and provenance
         uses: actions/upload-artifact@v4
         with:
           name: videogenome-editorial-examples
           path: |
-            /tmp/vg-editorial-*/demo.mp4
+            /tmp/vg-editorial-*/demo.*
             /tmp/vg-editorial-*/plan.json
             /tmp/vg-editorial-*/receipt.json
           if-no-files-found: error

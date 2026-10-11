@@ -1,0 +1,35 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "visual.shader-gradient",
+  "version": "0.1.0",
+  "title": "Mesh gradient shader (WebGL)",
+  "description": "A four-colour mesh gradient computed in a WebGL fragment shader: colours drift into each other like lit silk, with vignette and grain. Rendered frame-exactly in headless Chromium.",
+  "media": ["video", "image"],
+  "runtime": "browser",
+  "entry": "index.html",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "palette": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                  "default": ["#0F1B3D", "#4F46E5", "#22D3EE", "#F472B6"], "description": "Exactly four colours blended in linear light"},
+      "speed": {"type": "number", "minimum": 0, "maximum": 1.5, "default": 0.12, "description": "Drift speed"},
+      "frequency": {"type": "number", "minimum": 0.2, "maximum": 5, "default": 1.1, "description": "Size of colour regions (lower = larger)"},
+      "softness": {"type": "number", "minimum": 1, "maximum": 12, "default": 4, "description": "Boundary crispness: 1 = muddy blend, 12 = graphic blobs"},
+      "angle": {"type": "number", "minimum": -180, "maximum": 180, "default": -20, "description": "Rotation of the flow field"},
+      "brightness": {"type": "number", "minimum": 0.3, "maximum": 1.5, "default": 1.0, "description": "Exposure in linear light"},
+      "grain": {"type": "number", "minimum": 0, "maximum": 0.15, "default": 0.035, "description": "Film grain / dither amount"}
+    }
+  },
+  "presets": {
+    "electric": {},
+    "pastel": {"palette": ["#F8E1F4", "#C9E4F8", "#FDF0D5", "#D7F5E6"], "softness": 3, "grain": 0.02},
+    "ember": {"palette": ["#1A0B0B", "#7F1D1D", "#F97316", "#FCD34D"], "softness": 5, "speed": 0.09},
+    "ocean": {"palette": ["#031926", "#0E4D64", "#137C8B", "#9AD1D4"], "softness": 3.5, "frequency": 0.8}
+  },
+  "tags": ["background", "gradient", "webgl", "shader", "brand"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": ["Needs `pip install playwright` and `playwright install chromium-headless-shell`.", "Noise is an original hash-based value noise; no external shader code."],
+  "cost": {"seconds_per_output_second": 1.5}
+}

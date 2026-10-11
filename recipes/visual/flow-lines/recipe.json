@@ -1,0 +1,220 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "visual.flow-lines",
+  "version": "0.1.0",
+  "title": "Flow-field line art (Canvas 2D)",
+  "description": "Elegant generative line art: particles trace smooth curves through an evolving noise flow field and leave tapered, fading trails in palette colours. Drawn with Canvas 2D in headless Chromium, frame-exact and deterministic.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "palette": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#7DD3FC",
+          "#A78BFA",
+          "#F0ABFC",
+          "#E0F2FE"
+        ],
+        "description": "Line colours (earlier colours are used more often)"
+      },
+      "background": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#050814",
+          "#0B1028",
+          "#120A24"
+        ],
+        "description": "Background gradient stops"
+      },
+      "count": {
+        "type": "integer",
+        "minimum": 50,
+        "maximum": 4000,
+        "default": 450,
+        "description": "Number of particles drawing lines"
+      },
+      "line_width": {
+        "type": "number",
+        "minimum": 0.3,
+        "maximum": 8,
+        "default": 1.5,
+        "description": "Stroke width in pixels at 1080p (scales with frame size)"
+      },
+      "opacity": {
+        "type": "number",
+        "minimum": 0.02,
+        "maximum": 1,
+        "default": 0.6,
+        "description": "Opacity of the newest part of each trail"
+      },
+      "speed": {
+        "type": "number",
+        "minimum": 0.005,
+        "maximum": 0.6,
+        "default": 0.11,
+        "description": "Particle speed in short-side lengths per second"
+      },
+      "noise_scale": {
+        "type": "number",
+        "minimum": 0.2,
+        "maximum": 8,
+        "default": 1.6,
+        "description": "Flow-field features per short side (higher = tighter swirls)"
+      },
+      "curl": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 3,
+        "default": 1.1,
+        "description": "How strongly the field turns the lines"
+      },
+      "direction": {
+        "type": "number",
+        "minimum": -180,
+        "maximum": 180,
+        "default": 0,
+        "description": "Bias direction of the flow in degrees"
+      },
+      "evolve": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2,
+        "default": 0.25,
+        "description": "How fast the flow field itself changes over time"
+      },
+      "trail": {
+        "type": "integer",
+        "minimum": 4,
+        "maximum": 300,
+        "default": 150,
+        "description": "Trail length in simulation steps"
+      },
+      "substeps": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 6,
+        "default": 1,
+        "description": "Simulation steps per frame (smoothness)"
+      },
+      "prewarm": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 2000,
+        "default": 220,
+        "description": "Steps simulated before the first frame so lines already exist"
+      },
+      "glow": {
+        "type": "boolean",
+        "default": true,
+        "description": "Additive blending: overlapping lines glow (use false on light backgrounds)"
+      },
+      "vignette": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.45,
+        "description": "Edge darkening"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.3,
+        "default": 0.05,
+        "description": "Film grain overlay strength"
+      }
+    }
+  },
+  "presets": {
+    "silk": {},
+    "ink": {
+      "palette": [
+        "#1F2937",
+        "#374151",
+        "#7C2D12"
+      ],
+      "background": [
+        "#F5F1E8",
+        "#EDE6D6"
+      ],
+      "glow": false,
+      "opacity": 0.55,
+      "line_width": 1.2,
+      "count": 380,
+      "vignette": 0.15,
+      "grain": 0.08
+    },
+    "ember": {
+      "palette": [
+        "#F97316",
+        "#FBBF24",
+        "#EF4444"
+      ],
+      "background": [
+        "#070303",
+        "#160707"
+      ],
+      "curl": 1.4,
+      "speed": 0.09,
+      "opacity": 0.38
+    },
+    "aurora-threads": {
+      "palette": [
+        "#34D399",
+        "#22D3EE",
+        "#A3E635"
+      ],
+      "background": [
+        "#02060A",
+        "#041318"
+      ],
+      "noise_scale": 1.1,
+      "direction": -20,
+      "trail": 220,
+      "count": 380
+    },
+    "calm": {
+      "speed": 0.07,
+      "evolve": 0.12,
+      "curl": 0.8,
+      "count": 320,
+      "opacity": 0.5
+    }
+  },
+  "tags": [
+    "background",
+    "generative",
+    "lines",
+    "canvas",
+    "elegant"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Trails are redrawn from history each frame, so there is no 8-bit fade residue.",
+    "Rendering a frame out of order re-simulates from the seed; output is identical either way."
+  ],
+  "cost": {
+    "seconds_per_output_second": 7.0
+  }
+}

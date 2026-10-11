@@ -1,0 +1,479 @@
+{
+  "schema_version": "0.4.0",
+  "id": "educational.narrated-slides",
+  "version": "0.1.0",
+  "title": "Narrated three-slide explainer",
+  "category": "educational",
+  "description": "A 22-second explainer: title, three illustrated slides with narration and matching captions, closing line. Every illustration, narration and the music bed can be supplied by the job or produced by whichever image/speech/music providers the pipeline routes.",
+  "tags": [
+    "explainer",
+    "narration",
+    "captions",
+    "producible",
+    "speech",
+    "image"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "Opening title, under 40 characters"
+    },
+    "closing": {
+      "type": "string",
+      "required": true,
+      "description": "Closing line, under 40 characters"
+    },
+    "slide_1_script": {
+      "type": "string",
+      "required": true,
+      "description": "Narration for slide 1: one or two sentences, at most 84 characters (also the caption)"
+    },
+    "slide_1_visual": {
+      "type": "string",
+      "required": true,
+      "description": "What slide 1's illustration should show (an image prompt, no text in the image)"
+    },
+    "slide_1_image": {
+      "type": "image",
+      "required": true,
+      "description": "Slide 1 illustration; supply a cleared image or let the pipeline generate it",
+      "produce": {
+        "capability": "image",
+        "style": "explainer_illustration",
+        "request": {
+          "prompt": "{{slide_1_visual}}, clean editorial illustration, no text",
+          "query": "{{slide_1_visual}}",
+          "negative_prompt": "text, letters, watermark, logo"
+        }
+      }
+    },
+    "slide_1_voice": {
+      "type": "audio",
+      "required": true,
+      "description": "Slide 1 narration; supply a recording or let the pipeline synthesise the script",
+      "produce": {
+        "capability": "speech",
+        "voice": "narrator",
+        "request": {
+          "text": "{{slide_1_script}}"
+        }
+      }
+    },
+    "slide_2_script": {
+      "type": "string",
+      "required": true,
+      "description": "Narration for slide 2: one or two sentences, at most 84 characters (also the caption)"
+    },
+    "slide_2_visual": {
+      "type": "string",
+      "required": true,
+      "description": "What slide 2's illustration should show (an image prompt, no text in the image)"
+    },
+    "slide_2_image": {
+      "type": "image",
+      "required": true,
+      "description": "Slide 2 illustration; supply a cleared image or let the pipeline generate it",
+      "produce": {
+        "capability": "image",
+        "style": "explainer_illustration",
+        "request": {
+          "prompt": "{{slide_2_visual}}, clean editorial illustration, no text",
+          "query": "{{slide_2_visual}}",
+          "negative_prompt": "text, letters, watermark, logo"
+        }
+      }
+    },
+    "slide_2_voice": {
+      "type": "audio",
+      "required": true,
+      "description": "Slide 2 narration; supply a recording or let the pipeline synthesise the script",
+      "produce": {
+        "capability": "speech",
+        "voice": "narrator",
+        "request": {
+          "text": "{{slide_2_script}}"
+        }
+      }
+    },
+    "slide_3_script": {
+      "type": "string",
+      "required": true,
+      "description": "Narration for slide 3: one or two sentences, at most 84 characters (also the caption)"
+    },
+    "slide_3_visual": {
+      "type": "string",
+      "required": true,
+      "description": "What slide 3's illustration should show (an image prompt, no text in the image)"
+    },
+    "slide_3_image": {
+      "type": "image",
+      "required": true,
+      "description": "Slide 3 illustration; supply a cleared image or let the pipeline generate it",
+      "produce": {
+        "capability": "image",
+        "style": "explainer_illustration",
+        "request": {
+          "prompt": "{{slide_3_visual}}, clean editorial illustration, no text",
+          "query": "{{slide_3_visual}}",
+          "negative_prompt": "text, letters, watermark, logo"
+        }
+      }
+    },
+    "slide_3_voice": {
+      "type": "audio",
+      "required": true,
+      "description": "Slide 3 narration; supply a recording or let the pipeline synthesise the script",
+      "produce": {
+        "capability": "speech",
+        "voice": "narrator",
+        "request": {
+          "text": "{{slide_3_script}}"
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Optional music bed of at least 22 seconds",
+      "produce": {
+        "capability": "music",
+        "style": "reflective",
+        "request": {
+          "prompt": "calm minimal ambient underscore, soft pads, no vocals",
+          "query": "ambient piano"
+        }
+      }
+    },
+    "backdrop": {
+      "type": "video",
+      "required": false,
+      "description": "Moving background behind the title and closing cards",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "visual.aurora",
+          "preset": "calm",
+          "params": {
+            "palette": [
+              "#060B10",
+              "#101820",
+              "#1B4A44",
+              "#4FC1A6"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "style": {
+    "mood": "clear, calm, trustworthy",
+    "palette": [
+      "#101820",
+      "#F2F2EE",
+      "#4FC1A6"
+    ],
+    "typography": "Inter SemiBold, centred",
+    "pacing": "measured",
+    "title_card": {
+      "font_family": "Inter",
+      "font_weight": "semibold",
+      "align": "center",
+      "font_size": 68,
+      "min_font_size": 44,
+      "max_lines": 2,
+      "background": "#101820",
+      "text_color": "#F2F2EE",
+      "accent_color": "#4FC1A6",
+      "accent_bar": true,
+      "entrance": "rise",
+      "entrance_frames": 10,
+      "background_input": "backdrop",
+      "background_dim": 0.2
+    }
+  },
+  "output": {
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "captions": true,
+    "poster_frame": 120,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg"
+  ],
+  "scenes": [
+    {
+      "id": "opening",
+      "role": "hook",
+      "duration_frames": 48,
+      "shots": [
+        {
+          "id": "title_card",
+          "kind": "motion_graphics",
+          "duration_frames": 48,
+          "direction": {
+            "action": "State the topic plainly",
+            "text_template": "{{title}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "slide_1",
+      "role": "explain",
+      "duration_frames": 144,
+      "shots": [
+        {
+          "id": "slide_1_shot",
+          "kind": "still_image",
+          "duration_frames": 144,
+          "input_refs": [
+            "slide_1_image"
+          ],
+          "direction": {
+            "action": "Hold illustration 1 while the narration explains it",
+            "prompt_template": "{{slide_1_visual}}"
+          },
+          "motion": {
+            "type": "push_in",
+            "amount": 0.08
+          },
+          "fit": "cover"
+        }
+      ]
+    },
+    {
+      "id": "slide_2",
+      "role": "explain",
+      "duration_frames": 144,
+      "shots": [
+        {
+          "id": "slide_2_shot",
+          "kind": "still_image",
+          "duration_frames": 144,
+          "input_refs": [
+            "slide_2_image"
+          ],
+          "direction": {
+            "action": "Hold illustration 2 while the narration explains it",
+            "prompt_template": "{{slide_2_visual}}"
+          },
+          "motion": {
+            "type": "pan_right",
+            "amount": 0.08
+          },
+          "fit": "cover"
+        }
+      ]
+    },
+    {
+      "id": "slide_3",
+      "role": "explain",
+      "duration_frames": 144,
+      "shots": [
+        {
+          "id": "slide_3_shot",
+          "kind": "still_image",
+          "duration_frames": 144,
+          "input_refs": [
+            "slide_3_image"
+          ],
+          "direction": {
+            "action": "Hold illustration 3 while the narration explains it",
+            "prompt_template": "{{slide_3_visual}}"
+          },
+          "motion": {
+            "type": "pull_out",
+            "amount": 0.08
+          },
+          "fit": "cover"
+        }
+      ]
+    },
+    {
+      "id": "closing",
+      "role": "summarize",
+      "duration_frames": 48,
+      "shots": [
+        {
+          "id": "closing_card",
+          "kind": "motion_graphics",
+          "duration_frames": 48,
+          "direction": {
+            "action": "Close on one memorable line",
+            "text_template": "{{closing}}"
+          }
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 12,
+    "transitions": [
+      {
+        "after_shot": "title_card",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#101820"
+      },
+      {
+        "after_shot": "slide_1_shot",
+        "kind": "crossfade",
+        "duration_frames": 12
+      },
+      {
+        "after_shot": "slide_2_shot",
+        "kind": "crossfade",
+        "duration_frames": 12
+      },
+      {
+        "after_shot": "slide_3_shot",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#101820"
+      }
+    ],
+    "audio_tracks": [
+      {
+        "id": "narration_1",
+        "input_ref": "slide_1_voice",
+        "start_frame": 54,
+        "duration_frames": 132,
+        "gain_db": 0,
+        "fade_out_frames": 4
+      },
+      {
+        "id": "narration_2",
+        "input_ref": "slide_2_voice",
+        "start_frame": 198,
+        "duration_frames": 132,
+        "gain_db": 0,
+        "fade_out_frames": 4
+      },
+      {
+        "id": "narration_3",
+        "input_ref": "slide_3_voice",
+        "start_frame": 342,
+        "duration_frames": 132,
+        "gain_db": 0,
+        "fade_out_frames": 4
+      },
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 528,
+        "gain_db": -6,
+        "fade_in_frames": 24,
+        "fade_out_frames": 36
+      }
+    ],
+    "captions": {
+      "style": {
+        "font_size": 28,
+        "margin_x": 40,
+        "margin_bottom": 40,
+        "max_chars_per_line": 42,
+        "max_lines": 2,
+        "max_chars_per_second": 17
+      },
+      "cues": [
+        {
+          "id": "caption_1",
+          "start_frame": 54,
+          "duration_frames": 132,
+          "text_template": "{{slide_1_script}}"
+        },
+        {
+          "id": "caption_2",
+          "start_frame": 198,
+          "duration_frames": 132,
+          "text_template": "{{slide_2_script}}"
+        },
+        {
+          "id": "caption_3",
+          "start_frame": 342,
+          "duration_frames": 132,
+          "text_template": "{{slide_3_script}}"
+        }
+      ]
+    },
+    "ducking": [
+      {
+        "track": "music_bed",
+        "under": [
+          "narration_1",
+          "narration_2",
+          "narration_3"
+        ],
+        "depth_db": 12,
+        "ramp_frames": 8
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "Each narration slot is 5.5 seconds; generated speech that runs longer is rejected with a request to shorten the script.",
+      "Captions reuse the narration script verbatim so they match what is spoken.",
+      "Prompts describe the picture only; text inside generated images is discouraged because image models misspell it."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness within 1.5 LU of -16 LUFS.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17.5,
+        "max": -14.5
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "True peak at or below -0.5 dBTP after encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No blank picture longer than half a second.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "narration_matches_script",
+      "mode": "human",
+      "description": "Listen through: the narration says exactly the captioned script, with correct pronunciation."
+    },
+    {
+      "id": "visual_accuracy_review",
+      "mode": "human",
+      "description": "Generated illustrations do not misrepresent facts, people, brands or contain garbled text."
+    },
+    {
+      "id": "rights_review",
+      "mode": "human",
+      "description": "Provider output licences and any supplied media are cleared for the intended distribution."
+    }
+  ]
+}

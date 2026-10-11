@@ -1,0 +1,257 @@
+{
+  "schema_version": "0.4.0",
+  "id": "commercial.product-turntable",
+  "version": "0.1.0",
+  "title": "Square 3D product turntable",
+  "category": "commercial",
+  "description": "A 9-second 1:1 product spot: name card, a 3D turntable of the supplied product model rendered by any render_3d provider (e.g. Blender), and a call to action. The model file is a reference input; the turntable may also be supplied as finished footage.",
+  "tags": [
+    "commercial",
+    "product",
+    "3d",
+    "square",
+    "producible"
+  ],
+  "inputs": {
+    "product_name": {
+      "type": "string",
+      "required": true,
+      "description": "Product name, under 30 characters"
+    },
+    "tagline": {
+      "type": "string",
+      "required": true,
+      "description": "Short benefit line, under 50 characters"
+    },
+    "cta": {
+      "type": "string",
+      "required": true,
+      "description": "Call to action, under 30 characters"
+    },
+    "product_model": {
+      "type": "model_3d",
+      "required": true,
+      "description": "Rights-cleared product model (.glb/.gltf/.obj/.fbx/.stl/.ply)"
+    },
+    "turntable": {
+      "type": "video",
+      "required": true,
+      "description": "360-degree product render; supply footage or let a render_3d provider make it",
+      "produce": {
+        "capability": "render_3d",
+        "style": "studio_dark",
+        "references": [
+          "product_model"
+        ],
+        "request": {
+          "prompt": "studio turntable of {{product_name}}"
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Optional music bed of at least 9 seconds",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "product",
+          "params": {
+            "key": "C"
+          }
+        }
+      }
+    },
+    "backdrop": {
+      "type": "video",
+      "required": false,
+      "description": "Moving background behind the cards",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "visual.bokeh",
+          "preset": "golden",
+          "width": 720,
+          "height": 720,
+          "params": {
+            "background": [
+              "#07080B",
+              "#111318",
+              "#1A140B"
+            ],
+            "brightness": 0.8
+          }
+        }
+      }
+    }
+  },
+  "style": {
+    "mood": "premium, precise",
+    "palette": [
+      "#111318",
+      "#F4F1EA",
+      "#E3B04B"
+    ],
+    "typography": "Inter Bold, centred, gold rule",
+    "pacing": "measured",
+    "title_card": {
+      "font_family": "Inter",
+      "font_weight": "bold",
+      "align": "center",
+      "font_size": 84,
+      "min_font_size": 52,
+      "max_lines": 2,
+      "background": "#111318",
+      "text_color": "#F4F1EA",
+      "accent_color": "#E3B04B",
+      "accent_bar": true,
+      "kicker_font_size": 36,
+      "entrance": "rise",
+      "entrance_frames": 10,
+      "background_input": "backdrop",
+      "background_dim": 0.35
+    }
+  },
+  "output": {
+    "width": 1080,
+    "height": 1080,
+    "fps": 24,
+    "captions": false,
+    "poster_frame": 100,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "blender"
+  ],
+  "scenes": [
+    {
+      "id": "intro",
+      "role": "hook",
+      "duration_frames": 48,
+      "shots": [
+        {
+          "id": "name_card",
+          "kind": "motion_graphics",
+          "duration_frames": 48,
+          "direction": {
+            "action": "Introduce the product",
+            "text_template": "{{product_name}}",
+            "kicker_template": "INTRODUCING"
+          }
+        }
+      ]
+    },
+    {
+      "id": "reveal",
+      "role": "product_reveal",
+      "duration_frames": 120,
+      "shots": [
+        {
+          "id": "turntable_shot",
+          "kind": "3d",
+          "duration_frames": 120,
+          "input_refs": [
+            "turntable",
+            "product_model"
+          ],
+          "direction": {
+            "action": "Full orbit under a three-point studio rig",
+            "camera_move": "360-degree orbit",
+            "lighting": "key, fill and rim area lights"
+          }
+        }
+      ]
+    },
+    {
+      "id": "close",
+      "role": "call_to_action",
+      "duration_frames": 48,
+      "shots": [
+        {
+          "id": "cta_card",
+          "kind": "motion_graphics",
+          "duration_frames": 48,
+          "direction": {
+            "action": "Benefit and next step",
+            "text_template": "{{cta}}",
+            "kicker_template": "{{tagline}}"
+          }
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_in_frames": 6,
+    "fade_out_frames": 12,
+    "transitions": [
+      {
+        "after_shot": "name_card",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#111318"
+      },
+      {
+        "after_shot": "turntable_shot",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#111318"
+      }
+    ],
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 216,
+        "gain_db": -4,
+        "fade_in_frames": 12,
+        "fade_out_frames": 24
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The render shows the supplied model as is; it does not prove the physical product looks identical.",
+      "Materials come from the model file; providers may add only neutral studio lighting."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness within 1 LU of -14 LUFS.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No blank picture longer than half a second.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "product_fidelity_review",
+      "mode": "human",
+      "description": "The render faithfully represents the product (shape, colour, logo) without misleading claims."
+    }
+  ]
+}

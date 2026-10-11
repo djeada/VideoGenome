@@ -11,14 +11,17 @@ import re
 import textwrap
 import unicodedata
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from jsonschema import Draft202012Validator
 
-from tools.validate import validate_blueprint
+from videogenome.blueprint import validate_blueprint
+from videogenome.layout import fit_copy, resolve_title_card
+from videogenome.resources import DATA_ROOT, SCHEMAS, template_roots
 
-ROOT = Path(__file__).resolve().parents[1]
-JOB_SCHEMA = ROOT / "schemas" / "job.schema.json"
+ROOT = DATA_ROOT
+JOB_SCHEMA = SCHEMAS / "job.schema.json"
+TEMPLATE_ID = re.compile(r"^[a-z][a-z0-9.-]+$")
 TOKEN = re.compile(r"{{\s*([a-z][a-z0-9_]*)\s*}}")
 UNSAFE_TOKEN = re.compile(r"{{|}}")
 
@@ -70,6 +73,8 @@ def _validate_json(document: dict, schema: dict, label: str) -> None:
 
 def _check_input(name: str, spec: dict, value: Any, assets: dict) -> None:
     kind = spec["type"]
+    if "enum" in spec and value not in spec["enum"]:
+        raise ProductionError(f"Input {name!r} must be one of {spec['enum']}")
     is_str = isinstance(value, str)
     if kind in ("string", "url") and not is_str:
         raise ProductionError(f"Input {name!r} must be a string")
@@ -79,7 +84,7 @@ def _check_input(name: str, spec: dict, value: Any, assets: dict) -> None:
         raise ProductionError(f"Input {name!r} must be numeric")
     if kind == "boolean" and not isinstance(value, bool):
         raise ProductionError(f"Input {name!r} must be boolean")
-    expected = {"image": "image", "video": "video", "audio": "audio"}
+    expected = {"image": "image", "video": "video", "audio": "audio", "model_3d": "model_3d"}
     if kind in expected:
         if not is_str or value not in assets or assets[value]["kind"] != expected[kind]:
             raise ProductionError(f"Input {name!r} must reference a declared {expected[kind]} asset")
@@ -109,10 +114,74 @@ def _substitute(template: str, inputs: dict) -> str:
     return result
 
 
+def find_template(identifier: str, template_dirs: Iterable[Path] = ()) -> Path:
+    """Resolve a template ID to exactly one blueprint inside a trusted root."""
+    matches = []
+    for root in template_roots(template_dirs):
+        for path in sorted(root.glob("**/blueprint.json")):
+            try:
+                if json.loads(path.read_text(encoding="utf-8")).get("id") == identifier:
+                    matches.append(path.resolve())
+            except (OSError, json.JSONDecodeError, AttributeError):
+                continue
+    if not matches:
+        raise ProductionError(f"Unknown template {identifier!r}; run `videogenome catalog`")
+    if len(set(matches)) > 1:
+        raise ProductionError(f"Template id {identifier!r} is defined more than once: {matches}")
+    return matches[0]
+
+
+def resolve_template(reference: str, job_dir: Path, template_dirs: Iterable[Path] = ()) -> Path:
+    """Accept a template ID, or a path to a blueprint inside a trusted root."""
+    template_dirs = list(template_dirs)
+    if TEMPLATE_ID.match(reference) and not reference.endswith(".json"):
+        return find_template(reference, template_dirs)
+    requested = Path(reference)
+    # Templates are trusted, reviewed data; assets are confined to the job.
+    # A job outside the repository may reference a reviewed template by path,
+    # but never one outside the trusted template directories.
+    path = (requested if requested.is_absolute() else job_dir / requested).resolve()
+    trusted = [ROOT.resolve(), *template_roots(template_dirs)]
+    if not path.is_file() or not any(path.is_relative_to(root) for root in trusted):
+        raise ProductionError(
+            "Template must be a catalog id or an existing blueprint inside a trusted "
+            "template directory (see --templates / VIDEOGENOME_TEMPLATE_PATH)"
+        )
+    return path
+
+
+def with_defaults(blueprint: dict, inputs: dict) -> dict:
+    """Job inputs plus blueprint defaults for omitted optional inputs."""
+    defaults = {name: spec["default"] for name, spec in blueprint["inputs"].items()
+                if "default" in spec and name not in inputs}
+    return {**defaults, **inputs}
+
+
+def _compile_picture(blueprint: dict, segments: list[dict]) -> dict:
+    timeline = blueprint.get("timeline", {})
+    position = {segment["shot_id"]: index for index, segment in enumerate(segments)}
+    transitions = []
+    for transition in timeline.get("transitions", []):
+        index = position[transition["after_shot"]]
+        transitions.append({
+            "from_shot": transition["after_shot"], "to_shot": segments[index + 1]["shot_id"],
+            "cut_frame": segments[index]["end_frame"], "kind": transition["kind"],
+            "duration_frames": transition["duration_frames"],
+            "color": transition.get("color", "#000000"),
+        })
+    return {
+        "transitions": sorted(transitions, key=lambda t: t["cut_frame"]),
+        "fade_in_frames": timeline.get("fade_in_frames", 0),
+        "fade_out_frames": timeline.get("fade_out_frames", 0),
+    }
+
+
 def _compile_timeline(blueprint: dict, inputs: dict, assets: dict) -> dict:
     source = blueprint["timeline"]
     tracks = []
     for track in source.get("audio_tracks", []):
+        if track["input_ref"] not in inputs and not blueprint["inputs"][track["input_ref"]]["required"]:
+            continue  # An optional bed the job chose not to supply.
         asset_id = inputs.get(track["input_ref"])
         if not isinstance(asset_id, str) or assets.get(asset_id, {}).get("kind") != "audio":
             raise ProductionError(f"Audio track {track['id']!r} requires audio input {track['input_ref']!r}")
@@ -128,6 +197,16 @@ def _compile_timeline(blueprint: dict, inputs: dict, assets: dict) -> dict:
         "source_audio_gain_db": source.get("source_audio_gain_db", 0),
         "audio_tracks": tracks,
     }
+    present = {track["id"]: track for track in tracks}
+    ducking = []
+    for duck in source.get("ducking", []):
+        windows = [(present[o]["start_frame"], present[o]["start_frame"] + present[o]["duration_frames"])
+                   for o in duck["under"] if o in present]
+        if duck["track"] in present and windows:  # Optional tracks may be absent.
+            ducking.append({"track": duck["track"], "windows": sorted(windows),
+                            "depth_db": duck.get("depth_db", 10), "ramp_frames": duck.get("ramp_frames", 6)})
+    if ducking:
+        timeline["ducking"] = ducking
     if "captions" in source:
         style = source["captions"]["style"]
         cues = []
@@ -151,22 +230,13 @@ def _compile_timeline(blueprint: dict, inputs: dict, assets: dict) -> dict:
     return timeline
 
 
-def compile_job(job_path: Path) -> dict[str, Any]:
+def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = ()) -> dict[str, Any]:
     job_path = job_path.resolve()
     job_dir = job_path.parent
     job = read_json(job_path)
     _validate_json(job, read_json(JOB_SCHEMA), "production job")
 
-    # Templates are trusted repository code/data; assets are confined to the job.
-    # Allow a job outside the repository to reference a reviewed template by
-    # absolute path, but reject templates outside the trusted repository root.
-    requested_template = Path(job["template"])
-    template_path = (
-        requested_template if requested_template.is_absolute()
-        else job_dir / requested_template
-    ).resolve()
-    if not template_path.is_relative_to(ROOT.resolve()) or not template_path.is_file():
-        raise ProductionError("Template must be an existing file inside the VideoGenome repository")
+    template_path = resolve_template(job["template"], job_dir, template_dirs)
     blueprint = read_json(template_path)
     blueprint_errors = validate_blueprint(blueprint)
     if blueprint_errors:
@@ -187,17 +257,20 @@ def compile_job(job_path: Path) -> dict[str, Any]:
         source = confined_file(job_dir, spec["path"])
         records[asset_id] = {
             "path": spec["path"], "kind": spec["kind"], "sha256": sha256_file(source),
-            "rights": spec["rights"], "origin": spec["origin"]
+            "rights": spec["rights"], "origin": spec["origin"],
+            **({"generation": spec["generation"]} if "generation" in spec else {}),
         }
 
-    inputs = job.get("inputs", {})
+    inputs = with_defaults(blueprint, job.get("inputs", {}))
     unknown = sorted(set(inputs) - set(blueprint["inputs"]))
     if unknown:
         raise ProductionError(f"Undeclared inputs (template is locked): {unknown}")
     for name, spec in blueprint["inputs"].items():
         if name not in inputs:
             if spec["required"]:
-                raise ProductionError(f"Missing required input: {name}")
+                hint = (f" (producible via {spec['produce']['capability']!r}: run `videogenome produce` "
+                        "or `make` with a --pipeline that routes it)" if "produce" in spec else "")
+                raise ProductionError(f"Missing required input: {name}{hint}")
             continue
         _check_input(name, spec, inputs[name], assets)
 
@@ -209,6 +282,10 @@ def compile_job(job_path: Path) -> dict[str, Any]:
     if unknown_bindings:
         raise ProductionError(f"Unknown shot asset bindings: {unknown_bindings}")
 
+    card = resolve_title_card(blueprint)
+    background = card.get("background_input")
+    if background and isinstance(inputs.get(background), str):
+        card["background_asset"] = inputs[background]
     frame = 0
     segments: list[dict] = []
     for scene in blueprint["scenes"]:
@@ -216,6 +293,13 @@ def compile_job(job_path: Path) -> dict[str, Any]:
             kind = shot["kind"]
             binding = job.get("shot_assets", {}).get(shot["id"])
             required_kind = "image" if kind == "still_image" else "video"
+            if binding is None and kind != "motion_graphics":
+                # Bind from the shot's single declared media input, if unambiguous.
+                candidates = [inputs[ref] for ref in shot.get("input_refs", [])
+                              if blueprint["inputs"][ref]["type"] == required_kind
+                              and isinstance(inputs.get(ref), str)]
+                if len(candidates) == 1:
+                    binding = {"asset": candidates[0]}
             if kind != "motion_graphics" and not binding:
                 raise ProductionError(
                     f"Shot {shot['id']!r} ({kind}) needs a rendered {required_kind} asset"
@@ -227,9 +311,19 @@ def compile_job(job_path: Path) -> dict[str, Any]:
                 raise ProductionError(f"Shot {shot['id']!r} needs a {required_kind} asset")
             direction = shot["direction"]
             text = _substitute(direction.get("text_template", ""), inputs)
-            if kind == "motion_graphics" and not text:
+            graphics = {}
+            if kind == "motion_graphics":
                 # Empty title cards are allowed as color pauses, not invented copy.
-                text = ""
+                text = " ".join(text.split())
+                kicker = " ".join(_substitute(direction.get("kicker_template", ""), inputs).split())
+                for label, copy in (("Text", text), ("Kicker", kicker)):
+                    if any(unicodedata.category(char) == "Cc" for char in copy):
+                        raise ProductionError(f"{label} for shot {shot['id']!r} contains control characters")
+                try:
+                    size, lines = fit_copy(card, text, kicker, blueprint["output"])
+                except ValueError as exc:
+                    raise ProductionError(f"Copy for shot {shot['id']!r} does not fit: {exc}") from exc
+                graphics = {"lines": lines, "font_size": size, "kicker": kicker}
             duration = shot["duration_frames"]
             segment = {
                 "scene_id": scene["id"], "shot_id": shot["id"], "kind": kind,
@@ -237,7 +331,9 @@ def compile_job(job_path: Path) -> dict[str, Any]:
                 "duration_frames": duration, "text": text,
                 "asset_id": asset_id,
                 "in_seconds": binding.get("in_seconds", 0) if binding else 0,
-                "fit": binding.get("fit", "contain") if binding else "contain"
+                "fit": (binding or {}).get("fit", shot.get("fit", "contain")),
+                **({"motion": shot["motion"]} if "motion" in shot else {}),
+                **graphics,
             }
             segments.append(segment)
             frame += duration
@@ -249,13 +345,15 @@ def compile_job(job_path: Path) -> dict[str, Any]:
 
     output = blueprint["output"]
     plan = {
-        "ir_version": "0.2.0" if "timeline" in blueprint else "0.1.0",
+        "ir_version": blueprint["schema_version"],
         "job_id": job["id"], "template_id": blueprint["id"],
         "template_version": blueprint["version"],
         "template_sha256": sha256_file(template_path),
         "job_sha256": sha256_file(job_path),
         "output": output, "palette": blueprint["style"]["palette"],
+        "title_card": card,
         "segments": segments, "total_frames": frame,
+        "picture": _compile_picture(blueprint, segments),
         "assets": records,
         "quality_gates": [
             {

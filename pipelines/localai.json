@@ -1,0 +1,36 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "localai",
+  "description": "Speech and images from a LocalAI server's OpenAI-compatible API; set model ids to the models you installed.",
+  "verification": "unverified example: protocol covered by tests against a local fake server",
+  "extends": "animatic",
+  "providers": {
+    "localai_speech": {
+      "type": "openai-compatible",
+      "config": {
+        "capabilities": [
+          "speech"
+        ],
+        "base_url": "http://localhost:8080/v1",
+        "model_id": "${LOCALAI_TTS_MODEL}",
+        "notes": "Add output_rights for the installed voice model."
+      }
+    },
+    "localai_image": {
+      "type": "openai-compatible",
+      "config": {
+        "capabilities": [
+          "image"
+        ],
+        "base_url": "http://localhost:8080/v1",
+        "model_id": "${LOCALAI_IMAGE_MODEL}",
+        "image_size": "1024x576",
+        "notes": "Add output_rights for the installed image model."
+      }
+    }
+  },
+  "routes": {
+    "speech": "localai_speech",
+    "image": "localai_image"
+  }
+}

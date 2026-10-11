@@ -50,7 +50,6 @@ def create_demo(directory: Path, *, brief: str = "editing") -> Path:
             pixels.extend(color)
     (directory / "timeline.ppm").write_bytes(f"P6\n{width} {height}\n255\n".encode() + pixels)
     job = json.loads((ROOT / "examples/captioned-explainer/job.json").read_text(encoding="utf-8"))
-    job["template"] = str(ROOT / "templates/educational/captioned-explainer/blueprint.json")
     if brief == "learning":
         job["id"] = "sample.captioned-learning"
         job["inputs"].update({

@@ -1,0 +1,67 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "blender-mcp",
+  "description": "render_3d through a Blender MCP server (djeada/blender-mcp-server) running turntable.py headlessly; other capabilities are placeholders.",
+  "verification": "manual 2026-10-11: blender-mcp-server 0.2.0 (stdio) + Blender 5.1.1, headless transport",
+  "extends": "animatic",
+  "providers": {
+    "blender_mcp": {
+      "type": "mcp",
+      "config": {
+        "capabilities": [
+          "render_3d"
+        ],
+        "server": {
+          "argv": [
+            "${BLENDER_MCP_SERVER}"
+          ],
+          "env": {
+            "BLENDER_BIN": "${BLENDER_BIN}"
+          }
+        },
+        "steps": [
+          {
+            "tool": "blender_python_exec",
+            "arguments": {
+              "script_path": "{profile_dir}/blender/turntable.py",
+              "transport": "headless",
+              "factory_startup": true,
+              "timeout_seconds": 3600,
+              "args": {
+                "output": "{output}",
+                "width": "{width}",
+                "height": "{height}",
+                "fps": "{fps?}",
+                "seconds": "{duration_seconds?}",
+                "still": "{media}",
+                "engine": "eevee",
+                "model": "{references.product_model?}",
+                "background": "{style?}"
+              }
+            }
+          }
+        ],
+        "extension": {
+          "video": ".mp4",
+          "image": ".png"
+        },
+        "timeout_seconds": 3600,
+        "model": {
+          "name": "Blender turntable.py via blender_python_exec",
+          "source": "https://github.com/djeada/blender-mcp-server"
+        },
+        "output_rights": {
+          "license": "Owned render",
+          "evidence": "Rendered locally with Blender from the job's referenced model asset (rights recorded separately) or a primitive stand-in."
+        }
+      }
+    }
+  },
+  "routes": {
+    "render_3d": "blender_mcp"
+  },
+  "styles": {
+    "studio_dark": "#111318",
+    "studio_light": "#D9DCE1"
+  }
+}

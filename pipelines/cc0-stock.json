@@ -1,0 +1,77 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "cc0-stock",
+  "description": "Real openly licensed media: CC0 / public-domain footage and photos from Wikimedia Commons and Openverse, CC0 sounds from Openverse (Freesound); procedural recipes fill anything not found. Items whose title or description suggests news, interviews or portraits are skipped.",
+  "verification": "manual 2026-10-11 against live Openverse and Wikimedia Commons APIs; results change as the indexes change",
+  "extends": "procedural",
+  "providers": {
+    "openverse": {
+      "type": "openverse",
+      "config": {
+        "licenses": [
+          "cc0",
+          "pdm"
+        ],
+        "candidates": 5,
+        "exclude_terms": [
+          "logo",
+          "screenshot",
+          "diagram",
+          "map",
+          "news",
+          "interview",
+          "anchor",
+          "press conference",
+          "speech",
+          "portrait",
+          "selfie",
+          "voa",
+          "broadcast"
+        ]
+      }
+    },
+    "commons": {
+      "type": "wikimedia-commons",
+      "config": {
+        "candidates": 5,
+        "skip_restricted": true,
+        "exclude_terms": [
+          "logo",
+          "diagram",
+          "map",
+          "chart",
+          "news",
+          "interview",
+          "anchor",
+          "press conference",
+          "speech",
+          "portrait",
+          "selfie",
+          "voa",
+          "broadcast"
+        ]
+      }
+    }
+  },
+  "routes": {
+    "image": {
+      "fallback": [
+        "openverse",
+        "commons",
+        "procedural"
+      ]
+    },
+    "video": {
+      "fallback": [
+        "commons",
+        "procedural"
+      ]
+    },
+    "sound": {
+      "fallback": [
+        "openverse",
+        "placeholder"
+      ]
+    }
+  }
+}

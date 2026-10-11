@@ -1,0 +1,41 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "piper-local",
+  "description": "open-source-local with Piper instead of Kokoro for narration (smaller, faster, more robotic).",
+  "verification": "manual 2026-10-11: piper-tts (en_US-lessac-medium, CPU)",
+  "extends": "open-source-local",
+  "providers": {
+    "piper": {
+      "type": "command",
+      "config": {
+        "capabilities": [
+          "speech"
+        ],
+        "argv": [
+          "${PIPER_BIN}",
+          "--model",
+          "{voice}",
+          "--output_file",
+          "{output}"
+        ],
+        "stdin": "{text}",
+        "extension": ".wav",
+        "timeout_seconds": 300,
+        "model": {
+          "name": "Piper",
+          "source": "https://github.com/OHF-Voice/piper1-gpl"
+        },
+        "notes": "Add output_rights with the licence of the voice you use (each Piper voice has its own MODEL_CARD); produce refuses Piper audio until you do."
+      }
+    }
+  },
+  "routes": {
+    "speech": "piper"
+  },
+  "voices": {
+    "default": "${PIPER_VOICES}/en_US-lessac-medium.onnx",
+    "narrator": "${PIPER_VOICES}/en_US-lessac-medium.onnx",
+    "narrator_male": "${PIPER_VOICES}/en_US-lessac-medium.onnx",
+    "narrator_british": "${PIPER_VOICES}/en_US-lessac-medium.onnx"
+  }
+}

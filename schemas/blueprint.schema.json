@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "VideoGenome blueprint v0.1 / v0.2",
+  "title": "VideoGenome blueprint v0.1 / v0.2 / v0.3 / v0.4",
   "description": "Portable, renderer-independent, human-reviewable video production recipe.",
   "type": "object",
   "additionalProperties": false,
@@ -23,7 +23,9 @@
     "schema_version": {
       "enum": [
         "0.1.0",
-        "0.2.0"
+        "0.2.0",
+        "0.3.0",
+        "0.4.0"
       ]
     },
     "id": {
@@ -143,7 +145,8 @@
             "video",
             "video_array",
             "audio",
-            "url"
+            "url",
+            "model_3d"
           ]
         },
         "description": {
@@ -152,6 +155,29 @@
         },
         "required": {
           "type": "boolean"
+        },
+        "produce": {
+          "$ref": "#/$defs/produce"
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "description": "Allowed values (schema 0.4.0): lets a content model choose, e.g., a mood or preset safely"
+        },
+        "default": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "description": "Value used when an optional input is omitted (schema 0.4.0)"
         }
       }
     },
@@ -187,6 +213,9 @@
             "fast",
             "variable"
           ]
+        },
+        "title_card": {
+          "$ref": "#/$defs/title_card"
         }
       }
     },
@@ -215,6 +244,30 @@
         },
         "captions": {
           "type": "boolean"
+        },
+        "loudness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target_lufs",
+            "max_true_peak_dbtp"
+          ],
+          "properties": {
+            "target_lufs": {
+              "type": "number",
+              "minimum": -36,
+              "maximum": -5
+            },
+            "max_true_peak_dbtp": {
+              "type": "number",
+              "minimum": -9,
+              "maximum": 0
+            }
+          }
+        },
+        "poster_frame": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     },
@@ -318,8 +371,45 @@
             },
             "prompt_template": {
               "type": "string"
+            },
+            "kicker_template": {
+              "type": "string",
+              "minLength": 1
             }
           }
+        },
+        "motion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "description": "Camera move applied to a still image (schema 0.4.0)",
+          "properties": {
+            "type": {
+              "enum": [
+                "none",
+                "push_in",
+                "pull_out",
+                "pan_left",
+                "pan_right",
+                "pan_up",
+                "pan_down"
+              ]
+            },
+            "amount": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.4
+            }
+          }
+        },
+        "fit": {
+          "enum": [
+            "cover",
+            "contain"
+          ],
+          "description": "Default framing for supplied or produced media when the job does not bind one (schema 0.4.0)"
         }
       }
     },
@@ -363,6 +453,26 @@
         "description": {
           "type": "string",
           "minLength": 10
+        },
+        "check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "metric"
+          ],
+          "properties": {
+            "metric": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "description": "A metric reported by a configured analyzer (built-in FFmpeg analyzer: integrated_lufs, true_peak_dbtp, loudness_range_lu, black_seconds, blank_seconds, longest_blank_seconds, longest_silence_seconds)"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          }
         }
       }
     },
@@ -521,6 +631,248 @@
                 "$ref": "#/$defs/caption_cue"
               }
             }
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/transition"
+          }
+        },
+        "fade_in_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fade_out_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ducking": {
+          "type": "array",
+          "maxItems": 32,
+          "description": "Lower a track while other tracks play (schema 0.4.0), e.g. music under narration",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "track",
+              "under"
+            ],
+            "properties": {
+              "track": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "under": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                }
+              },
+              "depth_db": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 40
+              },
+              "ramp_frames": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 240
+              }
+            }
+          }
+        }
+      }
+    },
+    "title_card": {
+      "type": "object",
+      "description": "Locked typographic system for motion-graphics cards (schema 0.3.0).",
+      "additionalProperties": false,
+      "required": [
+        "font_family",
+        "font_weight",
+        "align",
+        "font_size",
+        "min_font_size",
+        "max_lines",
+        "background",
+        "text_color"
+      ],
+      "properties": {
+        "font_family": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9 ]{2,64}$"
+        },
+        "font_weight": {
+          "enum": [
+            "regular",
+            "medium",
+            "semibold",
+            "bold",
+            "black"
+          ]
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center"
+          ]
+        },
+        "font_size": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 400
+        },
+        "min_font_size": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 400
+        },
+        "max_lines": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "line_spacing": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "safe_margin_x": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "safe_margin_top": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "safe_margin_bottom": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "background": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "text_color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "accent_color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "accent_bar": {
+          "type": "boolean"
+        },
+        "kicker_font_size": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 200
+        },
+        "entrance": {
+          "enum": [
+            "none",
+            "fade",
+            "rise"
+          ]
+        },
+        "entrance_frames": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 240
+        },
+        "background_input": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Image or video input drawn behind every card (schema 0.4.0); motion continues across cards"
+        },
+        "background_dim": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.9,
+          "description": "Black scrim over the background for legibility (schema 0.4.0)"
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "after_shot",
+        "kind",
+        "duration_frames"
+      ],
+      "properties": {
+        "after_shot": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "kind": {
+          "enum": [
+            "crossfade",
+            "dip"
+          ]
+        },
+        "duration_frames": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 240
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        }
+      }
+    },
+    "produce": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability"
+      ],
+      "description": "How a pipeline may produce this input when the job does not supply it (schema 0.4.0). Names a capability, never a provider.",
+      "properties": {
+        "capability": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "request": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "object",
+              "array"
+            ]
+          }
+        },
+        "voice": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Voice role resolved by the pipeline profile"
+        },
+        "style": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Style role resolved by the pipeline profile"
+        },
+        "references": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
           }
         }
       }

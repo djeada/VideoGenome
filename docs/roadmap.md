@@ -14,7 +14,10 @@ First implemented slice: [audio and caption timeline](editorial-timeline.md).
 Schema v0.2 supports overlapping audio with trim/gain/fades, source sound
 preservation or muting, and frame-timed captions with checked copy limits.
 Two reproducible briefs run through one reusable template; decoded-media tests
-verify the audio and caption behavior. This does not complete the broader
+verify the audio and caption behavior. Schema v0.3 adds measured title-card
+typography, crossfades and dips, two-pass loudness mastering, executed
+loudness/true-peak/blank/silence gates, SRT/WebVTT sidecars and an installable
+CLI with a renderable 9:16 template. This does not complete the broader
 Stage 1 acceptance criteria below.
 
 Produce three finished, reviewable reference videos from permitted sources: (a) creator/testimonial social ad, (b) genuine software walkthrough, (c) premium product reveal. Implement multiple picture/audio tracks, transitions, captions, typography layout, audio mix policies, safe zones and aspect crops.
@@ -53,6 +56,17 @@ Use blinded human review and machine measurements for creative quality, narrativ
 
 A professional recipe contribution should include: its audience and outcome, allowed slots and locks, creative references, provider capabilities, all dependencies, rights declarations, a working sample job, a reference render or reproducible fixture, machine tests and a reviewer rubric. Quality claims without example outputs should not enter the trusted catalog.
 
-Next: add picture transitions and richer typography, then produce the three
-permitted-source reference videos above with real dialogue and human review.
-Automatic ducking, loudness mastering and subtitle interchange remain needed.
+v0.4 delivers the plugin layer of Stage 2: capabilities, provider/renderer/
+analyzer/exporter interfaces with entry points, pipeline profiles with
+fallback and chain routes, generic command/HTTP/ComfyUI/MCP adapters, cached
+production with provenance, and verified local routes (Piper, Type-Simulator,
+Blender, blender-mcp-server). Still missing from Stage 2: cost estimates,
+asynchronous jobs with cancellation, and budget limits before generation.
+
+Next:
+- **Takes and judges**: generate N takes and select by analyzer scores (WER via
+  faster-whisper, speaker similarity via ECAPA), as proven in the drama TTS work.
+- **Audio-driven timing**: templates whose slots stretch to the produced
+  narration instead of rejecting long expressive takes.
+- **Producers of `model_3d`** (text/image-to-3D) feeding render_3d chains.
+- Multi-aspect reframing and automatic ducking under dialogue.

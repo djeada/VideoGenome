@@ -27,10 +27,10 @@ MP4 export + provenance receipt         [present]
 ## The layers
 
 1. **Knowledge and creative strategy.** Audience, hook, narrative, pacing, directing, cinematography, casting, lighting, sound, and platform context. Make reusable recipes, not unconstrained prompts.
-2. **Blueprint contract.** Inputs, locked style, scenes, ordered shots, frame timing, engine hints and quality gates. Schema v0.2 adds audio tracks and caption cues; v0.1 remains supported.
+2. **Blueprint contract.** Inputs, locked style, scenes, ordered shots, frame timing, engine hints and quality gates. Schema v0.2 adds audio tracks and caption cues; v0.3 adds title-card typography, transitions, loudness targets and machine-checked gates. Older versions remain supported.
 3. **Planning and asset manifest.** The compiler binds typed inputs, checks self-attested rights, confines local paths and records source hashes. Provider capability selection, independent rights verification and cost estimates remain planned.
-4. **Execution adapters.** The FFmpeg reference adapter renders graphics, stills and pre-produced video, mixes audio and burns captions. Remotion, Blender and generative providers remain planned.
-5. **Assembly and quality.** Sequential picture, overlapping audio and timed captions produce an MP4 with frame-count, resolution, duration and hash checks. Picture transitions, perceptual evaluation and signed approvals remain planned.
+4. **Execution adapters.** The FFmpeg reference adapter renders designed title cards, stills and pre-produced video, applies crossfades and dips, mixes and masters audio and burns captions. Remotion, Blender and generative providers remain planned.
+5. **Assembly and quality.** Sequential picture with transitions, overlapping audio and timed captions produce an MP4 with frame-count, resolution, duration and hash checks, measured loudness/blank/silence metrics and subtitle/review sidecars. Perceptual evaluation and signed approvals remain planned.
 
 ## What a smaller model can change
 
@@ -51,12 +51,12 @@ Treat these as *capabilities*, not mandatory dependencies. A simple tutorial and
 ## Technical conventions
 
 - Times are positive **integer frames** at the declared output frame rate; each scene's shot durations must sum to its duration.
-- Picture shots are sequential. The [v0.2 editorial timeline](editorial-timeline.md) permits overlapping audio and non-overlapping caption cues; picture crossfades, compositing and variable frame rates remain out of scope.
+- Picture shots are sequential. The [v0.2 editorial timeline](editorial-timeline.md) permits overlapping audio and non-overlapping caption cues; v0.3 adds frame-preserving crossfades and dips. Compositing and variable frame rates remain out of scope.
 - Input references name a declared input key. The compiler substitutes double-brace slots in shot and caption `text_template` fields; free-text descriptions and generation prompts are not executed.
 - Each blueprint specifies candidate engines as strings; engine discovery and capability enforcement are not implemented.
-- Quality gates declare `automated` or `human` checks; this foundation **does not execute quality gates**.
+- Quality gates declare `automated` or `human` checks. Only automated gates with a supported machine `check` (loudness, true peak, black/blank picture, silence) are executed; all others stay `not_evaluated`.
 - Free-text prompt templates may not assert guaranteed product identity, safety, legal clearance or narrative truth.
 
 ## Next vertical slice
 
-Extend the working compiler and FFmpeg adapter with picture transitions and richer typography, then provider adapters. Keep creative intent independent of the renderer. Expand visual/audio evaluation and human approval before accepting expensive or public outputs; see the milestone [roadmap](roadmap.md).
+Extend the working compiler and FFmpeg adapter with multi-aspect reframing and compositing, then provider adapters. Keep creative intent independent of the renderer. Expand visual/audio evaluation and human approval before accepting expensive or public outputs; see the milestone [roadmap](roadmap.md).

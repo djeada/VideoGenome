@@ -1,7 +1,7 @@
 {
   "job_schema": "0.1.0",
   "id": "sample.captioned-explainer",
-  "template": "../../templates/educational/captioned-explainer/blueprint.json",
+  "template": "educational.captioned-explainer",
   "template_version": "0.1.0",
   "inputs": {
     "image": "illustration",

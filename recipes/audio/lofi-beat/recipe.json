@@ -1,0 +1,41 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "audio.lofi-beat",
+  "version": "0.1.0",
+  "title": "Lo-fi beat bed",
+  "description": "A relaxed, swung lo-fi hip-hop bed: soft synthesized drums, jazz seventh/ninth chords on an FM electric piano, round bass, vinyl crackle and tape wobble. Made for code reels, tutorials and study content.",
+  "media": ["audio"],
+  "runtime": "python",
+  "entry": "lofi_beat.py",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "key": {"enum": ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"], "default": "F", "description": "Tonal centre"},
+      "mode": {"enum": ["major", "minor", "dorian", "mixolydian"], "default": "major", "description": "Scale the chords are built from"},
+      "bpm": {"type": "number", "minimum": 60, "maximum": 100, "default": 82, "description": "Tempo"},
+      "swing": {"type": "number", "minimum": 0, "maximum": 0.8, "default": 0.55, "description": "Lateness of off-beat 16ths: 0 = straight, ~0.66 = triplet shuffle"},
+      "progression": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"type": "integer", "minimum": 1, "maximum": 7},
+                      "default": [2, 5, 1, 6], "description": "Scale degrees, one chord per bar (2-5-1-6 is the classic jazz turnaround)"},
+      "extensions": {"enum": ["sevenths", "ninths"], "default": "ninths", "description": "Chord colour"},
+      "keys_brightness": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.45, "description": "Electric piano bark and treble"},
+      "drums": {"type": "number", "minimum": 0, "maximum": 1.5, "default": 0.85, "description": "Drum level (0 = keys and bass only)"},
+      "crackle": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.35, "description": "Vinyl crackle and hiss"},
+      "wobble": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5, "description": "Tape wow depth on keys and bass"},
+      "warmth": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5, "description": "Top-end roll-off and saturation"},
+      "room": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.4, "description": "Reverb amount"}
+    }
+  },
+  "presets": {
+    "study": {},
+    "rainy": {"key": "D", "mode": "dorian", "progression": [1, 4, 7, 4], "bpm": 74, "crackle": 0.55, "keys_brightness": 0.3, "warmth": 0.65},
+    "sunny": {"key": "G", "mode": "major", "progression": [1, 6, 2, 5], "bpm": 88, "keys_brightness": 0.6, "crackle": 0.2, "warmth": 0.35},
+    "late-night": {"key": "C", "mode": "minor", "progression": [1, 6, 4, 5], "bpm": 70, "drums": 0.65, "room": 0.6, "warmth": 0.7},
+    "focus": {"key": "A", "mode": "mixolydian", "progression": [1, 7, 4, 1], "bpm": 84, "crackle": 0.15, "wobble": 0.3}
+  },
+  "tags": ["music", "bed", "lofi", "hip-hop", "chill", "tutorial", "code"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": ["Rendered at -20 LUFS integrated so it sits under narration; the programme master sets delivery loudness.", "No samples: every drum, key and crackle is synthesized."],
+  "cost": {"seconds_per_output_second": 0.25}
+}

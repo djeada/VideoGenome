@@ -1,0 +1,16 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.vertical-tips",
+  "template": "social.vertical-tips",
+  "template_version": "0.1.0",
+  "inputs": {
+    "hook": "Three ways to make edits feel faster",
+    "tip_1": "Cut on action so movement hides the edit.",
+    "tip_2": "Trim the first second of every clip. It is almost always dead air.",
+    "tip_3": "Let music change before the picture does.",
+    "cta": "Save this for your next edit"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

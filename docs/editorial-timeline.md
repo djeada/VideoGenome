@@ -138,14 +138,17 @@ The adapter draws centered white sans-serif text on translucent black boxes,
 with a six-pixel line gap. Text is read from generated files with drawtext
 expansion disabled. Percent signs and FFmpeg-looking expressions remain
 literal. There is no automatic transcription, alignment, karaoke timing,
-language detection or sidecar subtitle export.
+language detection. Since v0.3 the renderer also writes SRT and WebVTT sidecars with
+the same cues and line breaks; see [delivery sidecars](motion-design-and-delivery.md#review-sidecars).
 
 ## Evidence and remaining limits
 
 Receipts include the executed timeline, original source hashes and provenance,
 planned/observed frame counts, output hash and container duration. Production
-checks enforce frame count, resolution and duration; template quality gates
-retain their existing self-attested or unevaluated status.
+checks enforce frame count, resolution and duration. Since v0.3, gates that
+declare a machine `check` are evaluated against measured loudness, true peak,
+blank picture and silence; all other gates keep their self-attested or
+unevaluated status.
 
 Integration tests decode the real output to verify overlapping tone levels,
 trim/start/end timing, fades, preserved/muted source sound, caption frame
@@ -153,6 +156,6 @@ boundaries across a cut and caption placement. They also check missing,
 incompatible, uncleared, changed and short audio inputs. These fixture checks
 do not automatically certify arbitrary production media.
 
-Picture remains a single sequential track. Transitions, overlays other than
-captions, speech synthesis, provider generation, automatic mixing and formal
+Picture remains a single sequential track. Crossfades and dips arrive in
+[schema 0.3.0](motion-design-and-delivery.md); overlays other than captions, speech synthesis, provider generation, automatic mixing and formal
 human approval workflows remain outside this implementation.

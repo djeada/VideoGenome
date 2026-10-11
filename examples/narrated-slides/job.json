@@ -1,0 +1,19 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.narrated-slides",
+  "template": "educational.narrated-slides",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "How a video gets made",
+    "slide_1_script": "Every video starts as an idea: who it is for and what it should change.",
+    "slide_1_visual": "a lightbulb above a small audience silhouette",
+    "slide_2_script": "A blueprint locks the craft: timing, type, sound and transitions.",
+    "slide_2_visual": "an architectural blueprint of a film strip",
+    "slide_3_script": "Then any pipeline fills the slots, from local models to real footage.",
+    "slide_3_visual": "interchangeable puzzle pieces clicking into a film reel",
+    "closing": "Design once. Produce anywhere."
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

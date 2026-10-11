@@ -1,0 +1,369 @@
+{
+  "schema_version": "0.4.0",
+  "id": "social.vertical-tips",
+  "version": "0.1.0",
+  "title": "Vertical three-tip social card video",
+  "category": "social",
+  "description": "A 13.5-second 9:16 typographic listicle for Reels, Shorts and TikTok: hook, three numbered tips and a call to action over drifting procedural bokeh, with a procedural pulse bed, whooshes on every cut and -14 LUFS mastering. Renders with no footage, models or downloads.",
+  "tags": [
+    "social",
+    "vertical",
+    "typography",
+    "listicle",
+    "motion_graphics",
+    "renderable"
+  ],
+  "inputs": {
+    "hook": {
+      "type": "string",
+      "required": true,
+      "description": "Opening promise, ideally under 45 characters"
+    },
+    "tip_1": {
+      "type": "string",
+      "required": true,
+      "description": "First tip, one sentence, under 90 characters"
+    },
+    "tip_2": {
+      "type": "string",
+      "required": true,
+      "description": "Second tip, one sentence, under 90 characters"
+    },
+    "tip_3": {
+      "type": "string",
+      "required": true,
+      "description": "Third tip, one sentence, under 90 characters"
+    },
+    "cta": {
+      "type": "string",
+      "required": true,
+      "description": "Specific next step, under 40 characters"
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "{{energy}}",
+          "params": {
+            "key": "E"
+          }
+        }
+      }
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "upbeat",
+        "product",
+        "calm-tech"
+      ],
+      "default": "upbeat",
+      "description": "Music energy for the procedural bed"
+    },
+    "backdrop": {
+      "type": "video",
+      "required": false,
+      "description": "Moving background behind every card; produced procedurally unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "visual.bokeh",
+          "preset": "minimal",
+          "width": 540,
+          "height": 960,
+          "params": {
+            "palette": [
+              "#FF5A36",
+              "#FFB199",
+              "#F5F5F0"
+            ],
+            "background": [
+              "#08090C",
+              "#0E0F13",
+              "#1A0F0D"
+            ],
+            "count": 26,
+            "brightness": 0.75
+          }
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Transition whoosh used on every cut",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    }
+  },
+  "style": {
+    "mood": "confident, punchy, editorial",
+    "palette": [
+      "#0E0F13",
+      "#F5F5F0",
+      "#FF5A36"
+    ],
+    "typography": "Inter Bold, left aligned, tight leading, coral numbering and rule",
+    "pacing": "dynamic",
+    "title_card": {
+      "font_family": "Inter",
+      "font_weight": "bold",
+      "align": "left",
+      "font_size": 104,
+      "min_font_size": 64,
+      "max_lines": 5,
+      "line_spacing": 1.08,
+      "safe_margin_x": 96,
+      "safe_margin_top": 288,
+      "safe_margin_bottom": 480,
+      "background": "#0E0F13",
+      "text_color": "#F5F5F0",
+      "accent_color": "#FF5A36",
+      "accent_bar": true,
+      "kicker_font_size": 48,
+      "entrance": "rise",
+      "entrance_frames": 12,
+      "background_input": "backdrop",
+      "background_dim": 0.3
+    }
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 40,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg"
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "role": "hook",
+      "duration_frames": 60,
+      "shots": [
+        {
+          "id": "hook_card",
+          "kind": "motion_graphics",
+          "duration_frames": 60,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "Stop the scroll with one bold promise",
+            "text_template": "{{hook}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tip_1",
+      "role": "body",
+      "duration_frames": 90,
+      "shots": [
+        {
+          "id": "tip_1_card",
+          "kind": "motion_graphics",
+          "duration_frames": 90,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "Deliver tip 1 as one readable statement",
+            "text_template": "{{tip_1}}",
+            "kicker_template": "01 / 03"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tip_2",
+      "role": "body",
+      "duration_frames": 90,
+      "shots": [
+        {
+          "id": "tip_2_card",
+          "kind": "motion_graphics",
+          "duration_frames": 90,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "Deliver tip 2 as one readable statement",
+            "text_template": "{{tip_2}}",
+            "kicker_template": "02 / 03"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tip_3",
+      "role": "body",
+      "duration_frames": 90,
+      "shots": [
+        {
+          "id": "tip_3_card",
+          "kind": "motion_graphics",
+          "duration_frames": 90,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "Deliver tip 3 as one readable statement",
+            "text_template": "{{tip_3}}",
+            "kicker_template": "03 / 03"
+          }
+        }
+      ]
+    },
+    {
+      "id": "close",
+      "role": "call_to_action",
+      "duration_frames": 75,
+      "shots": [
+        {
+          "id": "cta_card",
+          "kind": "motion_graphics",
+          "duration_frames": 75,
+          "engine_hint": "ffmpeg",
+          "direction": {
+            "action": "End on a single, specific next step",
+            "text_template": "{{cta}}"
+          }
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "preserve",
+    "source_audio_gain_db": 0,
+    "fade_out_frames": 12,
+    "transitions": [
+      {
+        "after_shot": "hook_card",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#0E0F13"
+      },
+      {
+        "after_shot": "tip_1_card",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#0E0F13"
+      },
+      {
+        "after_shot": "tip_2_card",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#0E0F13"
+      },
+      {
+        "after_shot": "tip_3_card",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#0E0F13"
+      }
+    ],
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 405,
+        "gain_db": -3,
+        "fade_in_frames": 15,
+        "fade_out_frames": 30
+      },
+      {
+        "id": "whoosh_1",
+        "input_ref": "whoosh",
+        "start_frame": 48,
+        "duration_frames": 24,
+        "gain_db": -8
+      },
+      {
+        "id": "whoosh_2",
+        "input_ref": "whoosh",
+        "start_frame": 138,
+        "duration_frames": 24,
+        "gain_db": -8
+      },
+      {
+        "id": "whoosh_3",
+        "input_ref": "whoosh",
+        "start_frame": 228,
+        "duration_frames": 24,
+        "gain_db": -8
+      },
+      {
+        "id": "whoosh_4",
+        "input_ref": "whoosh",
+        "start_frame": 318,
+        "duration_frames": 24,
+        "gain_db": -8
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "Text stays inside a 96px side margin, 288px top and 480px bottom zone so platform captions, handles and buttons do not cover it.",
+      "Numbered kickers are fixed; the content model supplies only the hook, three tips and call to action.",
+      "Copy is fitted with measured glyphs; text that cannot fit five lines at 64px is rejected rather than shrunk illegibly.",
+      "Without a music input the bed is generated procedurally; supply a cleared track to replace it."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS social delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds, transitions included.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms each tip is accurate, non-misleading and suitable for the audience."
+    },
+    {
+      "id": "music_rights_review",
+      "mode": "human",
+      "description": "If music is supplied, a reviewer confirms the licence covers social distribution."
+    }
+  ]
+}

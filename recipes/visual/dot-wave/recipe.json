@@ -1,0 +1,223 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "visual.dot-wave",
+  "version": "0.1.0",
+  "title": "Dot wave field",
+  "description": "A perspective-tilted grid of anti-aliased dots rippling with interfering waves, like sound or data moving through a field. Minimal tech and editorial backgrounds with a clean dark ground and soft glow.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "python",
+  "entry": "dot_wave.py",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "palette": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#2DD4BF",
+          "#3B82F6",
+          "#8B5CF6"
+        ],
+        "description": "Dot colours across the grid (and with wave height)"
+      },
+      "background": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#03050A",
+          "#070B16"
+        ],
+        "description": "Background gradient, top to bottom"
+      },
+      "spacing": {
+        "type": "number",
+        "minimum": 0.03,
+        "maximum": 0.3,
+        "default": 0.085,
+        "description": "Distance between dots on the plane (smaller = denser grid)"
+      },
+      "dot_size": {
+        "type": "number",
+        "minimum": 0.002,
+        "maximum": 0.05,
+        "default": 0.011,
+        "description": "Dot radius on the plane"
+      },
+      "size_modulation": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.55,
+        "description": "How much dots shrink in wave troughs"
+      },
+      "amplitude": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.6,
+        "default": 0.14,
+        "description": "Wave height (displacement along the plane normal)"
+      },
+      "frequency": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 30,
+        "default": 7,
+        "description": "Wave spatial frequency"
+      },
+      "speed": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1.5,
+        "default": 0.18,
+        "description": "Wave cycles per second"
+      },
+      "sources": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 6,
+        "default": 3,
+        "description": "Number of interfering wave sources"
+      },
+      "tilt": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.75,
+        "description": "0 = grid faces the camera, 1 = steep floor in perspective"
+      },
+      "horizon": {
+        "type": "number",
+        "minimum": -0.5,
+        "maximum": 0.5,
+        "default": 0.1,
+        "description": "Vertical shift of the plane (positive moves it down)"
+      },
+      "color_by_height": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.3,
+        "description": "0 = colour runs across the grid, 1 = colour follows wave height"
+      },
+      "depth_fade": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2,
+        "default": 0.8,
+        "description": "How quickly far dots fade into the dark"
+      },
+      "glow": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2,
+        "default": 0.6,
+        "description": "Soft bloom around dots"
+      },
+      "brightness": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 3,
+        "default": 1.1,
+        "description": "Dot intensity"
+      },
+      "vignette": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.45,
+        "description": "Edge darkening"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.1,
+        "default": 0.012,
+        "description": "Film grain (also prevents banding)"
+      }
+    }
+  },
+  "presets": {
+    "data": {},
+    "audio": {
+      "palette": [
+        "#F472B6",
+        "#C084FC",
+        "#818CF8"
+      ],
+      "amplitude": 0.22,
+      "frequency": 9,
+      "sources": 4,
+      "speed": 0.3,
+      "color_by_height": 0.6
+    },
+    "editorial": {
+      "palette": [
+        "#E5E7EB",
+        "#F9FAFB"
+      ],
+      "background": [
+        "#0B0B0C",
+        "#111113"
+      ],
+      "tilt": 0.25,
+      "amplitude": 0.08,
+      "glow": 0.25,
+      "size_modulation": 0.7,
+      "horizon": 0.0
+    },
+    "sunset-floor": {
+      "palette": [
+        "#F59E0B",
+        "#F97316",
+        "#EC4899"
+      ],
+      "background": [
+        "#0A0410",
+        "#1A0B1E"
+      ],
+      "tilt": 0.95,
+      "horizon": 0.25,
+      "amplitude": 0.18,
+      "glow": 0.9
+    },
+    "calm": {
+      "amplitude": 0.08,
+      "speed": 0.08,
+      "sources": 2,
+      "glow": 0.4
+    }
+  },
+  "tags": [
+    "background",
+    "tech",
+    "data",
+    "audio",
+    "minimal",
+    "grid"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Dot positions are a pure function of the frame index (parallel and seekable).",
+    "Dots are analytic anti-aliased discs; sub-pixel dots fade by area so the far grid shimmers less."
+  ],
+  "cost": {
+    "seconds_per_output_second": 3.0
+  }
+}

@@ -19,19 +19,22 @@ Small-model job manifest (typed inputs, approved local media)
         - declared quality gates with honest status
                 |
             FFmpeg adapter
-        - generates graphics cards
+        - designs title cards (pinned font, measured fit)
         - holds still images
         - trims and scales pre-rendered footage
         - preserves existing dialogue when available
         - mixes locked audio tracks with gain, trim and fades
         - burns frame-timed captions with checked copy limits
+        - crossfades / dips with frame-exact handles
+        - two-pass loudness mastering (optional)
         - normalizes H.264/AAC
         - joins clips and probes output
                 |
       MP4 + provenance/QA receipt
+      + measured gates, SRT/VTT, poster, contact sheet
 ~~~
 
-The current FFmpeg adapter has one sequential picture track plus a locked audio/caption timeline. Schema v0.2 blueprints can mix multiple audio sources, preserve or mute embedded sound, and burn captions over picture cuts. See [the editorial timeline contract](editorial-timeline.md) for the runnable example, compatibility, timing and limits. Picture transitions, general overlays, sidecar subtitles, automatic media generation and aesthetic evaluation remain planned.
+The current FFmpeg adapter has one sequential picture track plus a locked audio/caption timeline. Schema v0.2 blueprints can mix multiple audio sources, preserve or mute embedded sound, and burn captions over picture cuts. See [the editorial timeline contract](editorial-timeline.md) for the runnable example, compatibility, timing and limits. Schema v0.3 adds designed title cards with measured copy fitting, frame-exact crossfades and dips, loudness mastering, executed technical gate checks and SRT/WebVTT, poster and contact-sheet sidecars; see [motion design and delivery](motion-design-and-delivery.md). General overlays and compositing, multi-aspect reframing, automatic media generation and aesthetic evaluation remain planned.
 
 ## Three distinct artifacts
 

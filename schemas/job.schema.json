@@ -20,7 +20,8 @@
     },
     "template": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Catalog template id (e.g. social.vertical-tips), or a path to a blueprint inside a trusted template directory"
     },
     "template_version": {
       "type": "string",
@@ -49,7 +50,8 @@
             "enum": [
               "image",
               "video",
-              "audio"
+              "audio",
+              "model_3d"
             ]
           },
           "path": {
@@ -111,6 +113,39 @@
                 "minLength": 3
               },
               "consent": {
+                "type": "string"
+              }
+            }
+          },
+          "generation": {
+            "type": "object",
+            "description": "Provenance written by `videogenome produce`; never hand-authored.",
+            "required": [
+              "capability",
+              "pipeline",
+              "providers",
+              "placeholder"
+            ],
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "pipeline": {
+                "type": "string"
+              },
+              "providers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "placeholder": {
+                "type": "boolean"
+              },
+              "request_sha256": {
+                "type": "string"
+              },
+              "manifest": {
                 "type": "string"
               }
             }

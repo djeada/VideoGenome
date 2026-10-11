@@ -1,0 +1,457 @@
+{
+  "schema_version": "0.4.0",
+  "id": "educational.cc0-documentary",
+  "version": "0.1.0",
+  "title": "Short documentary from openly licensed footage",
+  "category": "educational",
+  "description": "A 21.5-second mini documentary: title, three b-roll shots found by topic (CC0 / public-domain footage via the cc0-stock pipeline, or your own clips), narration and matching captions per shot, crossfaded edit and a music bed that ducks under the voice.",
+  "tags": [
+    "documentary",
+    "stock",
+    "cc0",
+    "narration",
+    "captions",
+    "producible"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "Documentary title, under 36 characters"
+    },
+    "closing": {
+      "type": "string",
+      "required": true,
+      "description": "Closing line, under 40 characters"
+    },
+    "topic_1": {
+      "type": "string",
+      "required": true,
+      "description": "What footage 1 should show, as 2-4 search words (e.g. 'ocean waves', 'city traffic night')"
+    },
+    "line_1": {
+      "type": "string",
+      "required": true,
+      "description": "Narration over footage 1: one sentence, at most 76 characters (also the caption)"
+    },
+    "clip_1": {
+      "type": "video",
+      "required": true,
+      "description": "Footage 1; supply your own or let the pipeline find openly licensed footage",
+      "produce": {
+        "capability": "video",
+        "style": "documentary",
+        "request": {
+          "query": "{{topic_1}}",
+          "prompt": "{{topic_1}}, cinematic documentary footage"
+        }
+      }
+    },
+    "voice_1": {
+      "type": "audio",
+      "required": true,
+      "description": "Narration 1; supply a recording or let the pipeline synthesise line 1",
+      "produce": {
+        "capability": "speech",
+        "voice": "narrator",
+        "request": {
+          "text": "{{line_1}}"
+        }
+      }
+    },
+    "topic_2": {
+      "type": "string",
+      "required": true,
+      "description": "What footage 2 should show, as 2-4 search words (e.g. 'ocean waves', 'city traffic night')"
+    },
+    "line_2": {
+      "type": "string",
+      "required": true,
+      "description": "Narration over footage 2: one sentence, at most 76 characters (also the caption)"
+    },
+    "clip_2": {
+      "type": "video",
+      "required": true,
+      "description": "Footage 2; supply your own or let the pipeline find openly licensed footage",
+      "produce": {
+        "capability": "video",
+        "style": "documentary",
+        "request": {
+          "query": "{{topic_2}}",
+          "prompt": "{{topic_2}}, cinematic documentary footage"
+        }
+      }
+    },
+    "voice_2": {
+      "type": "audio",
+      "required": true,
+      "description": "Narration 2; supply a recording or let the pipeline synthesise line 2",
+      "produce": {
+        "capability": "speech",
+        "voice": "narrator",
+        "request": {
+          "text": "{{line_2}}"
+        }
+      }
+    },
+    "topic_3": {
+      "type": "string",
+      "required": true,
+      "description": "What footage 3 should show, as 2-4 search words (e.g. 'ocean waves', 'city traffic night')"
+    },
+    "line_3": {
+      "type": "string",
+      "required": true,
+      "description": "Narration over footage 3: one sentence, at most 76 characters (also the caption)"
+    },
+    "clip_3": {
+      "type": "video",
+      "required": true,
+      "description": "Footage 3; supply your own or let the pipeline find openly licensed footage",
+      "produce": {
+        "capability": "video",
+        "style": "documentary",
+        "request": {
+          "query": "{{topic_3}}",
+          "prompt": "{{topic_3}}, cinematic documentary footage"
+        }
+      }
+    },
+    "voice_3": {
+      "type": "audio",
+      "required": true,
+      "description": "Narration 3; supply a recording or let the pipeline synthesise line 3",
+      "produce": {
+        "capability": "speech",
+        "voice": "narrator",
+        "request": {
+          "text": "{{line_3}}"
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed of at least 21.5 seconds",
+      "produce": {
+        "capability": "music",
+        "style": "serious",
+        "request": {
+          "prompt": "restrained documentary underscore",
+          "query": "ambient drone calm"
+        }
+      }
+    },
+    "backdrop": {
+      "type": "video",
+      "required": false,
+      "description": "Moving background behind title cards",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "visual.aurora",
+          "preset": "midnight"
+        }
+      }
+    }
+  },
+  "style": {
+    "mood": "observational, restrained",
+    "palette": [
+      "#0A0D12",
+      "#F1EEE8",
+      "#C9A227"
+    ],
+    "typography": "Inter SemiBold, centred, gold kicker",
+    "pacing": "measured",
+    "title_card": {
+      "font_family": "Inter",
+      "font_weight": "semibold",
+      "align": "center",
+      "font_size": 64,
+      "min_font_size": 42,
+      "max_lines": 2,
+      "background": "#0A0D12",
+      "text_color": "#F1EEE8",
+      "accent_color": "#C9A227",
+      "accent_bar": true,
+      "kicker_font_size": 22,
+      "entrance": "fade",
+      "entrance_frames": 14,
+      "background_input": "backdrop",
+      "background_dim": 0.35
+    }
+  },
+  "output": {
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "captions": true,
+    "poster_frame": 120,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg"
+  ],
+  "scenes": [
+    {
+      "id": "opening",
+      "role": "hook",
+      "duration_frames": 60,
+      "shots": [
+        {
+          "id": "title_card",
+          "kind": "motion_graphics",
+          "duration_frames": 60,
+          "direction": {
+            "action": "Name the subject",
+            "text_template": "{{title}}",
+            "kicker_template": "A SHORT DOCUMENTARY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "footage_1",
+      "role": "evidence",
+      "duration_frames": 132,
+      "shots": [
+        {
+          "id": "clip_1_shot",
+          "kind": "footage",
+          "duration_frames": 132,
+          "input_refs": [
+            "clip_1"
+          ],
+          "direction": {
+            "action": "Show footage of the subject of line 1",
+            "framing": "cover-fit, centre crop",
+            "prompt_template": "{{topic_1}}"
+          },
+          "fit": "cover"
+        }
+      ]
+    },
+    {
+      "id": "footage_2",
+      "role": "evidence",
+      "duration_frames": 132,
+      "shots": [
+        {
+          "id": "clip_2_shot",
+          "kind": "footage",
+          "duration_frames": 132,
+          "input_refs": [
+            "clip_2"
+          ],
+          "direction": {
+            "action": "Show footage of the subject of line 2",
+            "framing": "cover-fit, centre crop",
+            "prompt_template": "{{topic_2}}"
+          },
+          "fit": "cover"
+        }
+      ]
+    },
+    {
+      "id": "footage_3",
+      "role": "evidence",
+      "duration_frames": 132,
+      "shots": [
+        {
+          "id": "clip_3_shot",
+          "kind": "footage",
+          "duration_frames": 132,
+          "input_refs": [
+            "clip_3"
+          ],
+          "direction": {
+            "action": "Show footage of the subject of line 3",
+            "framing": "cover-fit, centre crop",
+            "prompt_template": "{{topic_3}}"
+          },
+          "fit": "cover"
+        }
+      ]
+    },
+    {
+      "id": "closing",
+      "role": "summarize",
+      "duration_frames": 60,
+      "shots": [
+        {
+          "id": "closing_card",
+          "kind": "motion_graphics",
+          "duration_frames": 60,
+          "direction": {
+            "action": "Leave one thought",
+            "text_template": "{{closing}}"
+          }
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_in_frames": 8,
+    "fade_out_frames": 16,
+    "transitions": [
+      {
+        "after_shot": "title_card",
+        "kind": "dip",
+        "duration_frames": 12,
+        "color": "#0A0D12"
+      },
+      {
+        "after_shot": "clip_1_shot",
+        "kind": "crossfade",
+        "duration_frames": 12
+      },
+      {
+        "after_shot": "clip_2_shot",
+        "kind": "crossfade",
+        "duration_frames": 12
+      },
+      {
+        "after_shot": "clip_3_shot",
+        "kind": "dip",
+        "duration_frames": 12,
+        "color": "#0A0D12"
+      }
+    ],
+    "audio_tracks": [
+      {
+        "id": "narration_1",
+        "input_ref": "voice_1",
+        "start_frame": 72,
+        "duration_frames": 108,
+        "gain_db": 0,
+        "fade_out_frames": 4
+      },
+      {
+        "id": "narration_2",
+        "input_ref": "voice_2",
+        "start_frame": 204,
+        "duration_frames": 108,
+        "gain_db": 0,
+        "fade_out_frames": 4
+      },
+      {
+        "id": "narration_3",
+        "input_ref": "voice_3",
+        "start_frame": 336,
+        "duration_frames": 108,
+        "gain_db": 0,
+        "fade_out_frames": 4
+      },
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 516,
+        "gain_db": -4,
+        "fade_in_frames": 24,
+        "fade_out_frames": 36
+      }
+    ],
+    "ducking": [
+      {
+        "track": "music_bed",
+        "under": [
+          "narration_1",
+          "narration_2",
+          "narration_3"
+        ],
+        "depth_db": 12,
+        "ramp_frames": 10
+      }
+    ],
+    "captions": {
+      "style": {
+        "font_size": 28,
+        "margin_x": 40,
+        "margin_bottom": 44,
+        "max_chars_per_line": 42,
+        "max_lines": 2,
+        "max_chars_per_second": 17
+      },
+      "cues": [
+        {
+          "id": "caption_1",
+          "start_frame": 72,
+          "duration_frames": 108,
+          "text_template": "{{line_1}}"
+        },
+        {
+          "id": "caption_2",
+          "start_frame": 204,
+          "duration_frames": 108,
+          "text_template": "{{line_2}}"
+        },
+        {
+          "id": "caption_3",
+          "start_frame": 336,
+          "duration_frames": 108,
+          "text_template": "{{line_3}}"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "Footage sound is muted: stock clips rarely carry usable audio.",
+      "Each narration window is 4.5 s; longer synthesised speech is rejected with a request to shorten the line.",
+      "Retrieved footage is only as relevant as its search words; a human checks relevance and licences."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness within 1.5 LU of -16 LUFS.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17.5,
+        "max": -14.5
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak at or below -1 dBTP.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -1.0
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No blank picture longer than half a second.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "footage_relevance",
+      "mode": "human",
+      "description": "Each clip genuinely shows what its narration says and is not misleading out of context."
+    },
+    {
+      "id": "licence_review",
+      "mode": "human",
+      "description": "Open each footage source page in the receipt and confirm the CC0 / public-domain declaration and absence of restrictions."
+    }
+  ]
+}
