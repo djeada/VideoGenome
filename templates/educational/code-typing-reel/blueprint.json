@@ -1,0 +1,257 @@
+{
+  "schema_version": "0.4.0",
+  "id": "educational.code-typing-reel",
+  "version": "0.1.0",
+  "title": "Vertical code typing reel",
+  "category": "educational",
+  "description": "A 16-second 9:16 reel: a hook card, a typed code walkthrough produced by any 'typing' provider (e.g. Type-Simulator) or a supplied recording, and a takeaway card. Keyboard sound from the typing clip is kept; an optional music bed sits underneath.",
+  "tags": [
+    "social",
+    "vertical",
+    "code",
+    "typing",
+    "producible"
+  ],
+  "inputs": {
+    "hook": {
+      "type": "string",
+      "required": true,
+      "description": "Opening promise, under 45 characters"
+    },
+    "code": {
+      "type": "string",
+      "required": true,
+      "description": "The code or text to type, at most about 12 short lines; it is displayed, never executed"
+    },
+    "takeaway": {
+      "type": "string",
+      "required": true,
+      "description": "One-sentence takeaway, under 80 characters"
+    },
+    "file_name": {
+      "type": "string",
+      "required": true,
+      "description": "Displayed file name; its extension selects syntax highlighting (e.g. walrus.py)"
+    },
+    "typing_clip": {
+      "type": "video",
+      "required": true,
+      "description": "Typing animation of the code; supply a capture or let the pipeline produce it",
+      "produce": {
+        "capability": "typing",
+        "style": "terminal_dark",
+        "request": {
+          "text": "{{code}}",
+          "filename": "{{file_name}}"
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Optional music bed of at least 16 seconds",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.lofi-beat",
+          "preset": "focus",
+          "params": {
+            "key": "F"
+          }
+        }
+      }
+    },
+    "backdrop": {
+      "type": "video",
+      "required": false,
+      "description": "Moving background behind the cards",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "visual.dot-wave",
+          "preset": "data",
+          "width": 720,
+          "height": 1280,
+          "params": {
+            "palette": [
+              "#1F6F3F",
+              "#7EE787",
+              "#C8F7D4"
+            ],
+            "background": [
+              "#05080B",
+              "#0D1117"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "style": {
+    "mood": "focused, nerdy, satisfying",
+    "palette": [
+      "#0D1117",
+      "#E6EDF3",
+      "#7EE787"
+    ],
+    "typography": "Inter Bold, left aligned, green numbering rule",
+    "pacing": "dynamic",
+    "title_card": {
+      "font_family": "Inter",
+      "font_weight": "bold",
+      "align": "left",
+      "font_size": 96,
+      "min_font_size": 60,
+      "max_lines": 5,
+      "line_spacing": 1.08,
+      "safe_margin_x": 96,
+      "safe_margin_top": 288,
+      "safe_margin_bottom": 480,
+      "background": "#0D1117",
+      "text_color": "#E6EDF3",
+      "accent_color": "#7EE787",
+      "accent_bar": true,
+      "kicker_font_size": 44,
+      "entrance": "rise",
+      "entrance_frames": 10,
+      "background_input": "backdrop",
+      "background_dim": 0.15
+    }
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 30,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg"
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "role": "hook",
+      "duration_frames": 60,
+      "shots": [
+        {
+          "id": "hook_card",
+          "kind": "motion_graphics",
+          "duration_frames": 60,
+          "direction": {
+            "action": "Promise the payoff",
+            "text_template": "{{hook}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "walkthrough",
+      "role": "demonstration",
+      "duration_frames": 330,
+      "shots": [
+        {
+          "id": "typing_shot",
+          "kind": "animation",
+          "duration_frames": 330,
+          "input_refs": [
+            "typing_clip"
+          ],
+          "direction": {
+            "action": "Type the code at a readable pace; simulated, not a screen recording"
+          }
+        }
+      ]
+    },
+    {
+      "id": "takeaway",
+      "role": "call_to_action",
+      "duration_frames": 90,
+      "shots": [
+        {
+          "id": "takeaway_card",
+          "kind": "motion_graphics",
+          "duration_frames": 90,
+          "direction": {
+            "action": "Land the lesson",
+            "text_template": "{{takeaway}}",
+            "kicker_template": "TAKEAWAY"
+          }
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "preserve",
+    "source_audio_gain_db": -10,
+    "fade_out_frames": 15,
+    "transitions": [
+      {
+        "after_shot": "hook_card",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#0D1117"
+      },
+      {
+        "after_shot": "typing_shot",
+        "kind": "dip",
+        "duration_frames": 10,
+        "color": "#0D1117"
+      }
+    ],
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 480,
+        "gain_db": -6,
+        "fade_in_frames": 15,
+        "fade_out_frames": 30
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The typed code is display text only: producers must never execute it (Type-Simulator runs with --no-run).",
+      "The typing clip is cover-fitted to 1080x1920; providers should render natively at that size."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness within 1 LU of -14 LUFS.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No blank picture longer than half a second.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "code_review",
+      "mode": "human",
+      "description": "The code is correct, safe to show, contains no secrets and matches the takeaway."
+    }
+  ]
+}

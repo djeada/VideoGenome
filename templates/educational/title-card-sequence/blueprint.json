@@ -1,10 +1,10 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.4.0",
   "id": "educational.title-card-sequence",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Brand-safe three-card explainer",
   "category": "educational",
-  "description": "A fully renderable deterministic title-card sequence; the simplest executable reference for the production pipeline.",
+  "description": "A fully renderable three-card typographic explainer over a slowly flowing procedural backdrop, with an optional procedural music bed. Balanced, measured copy fitting, staggered entrances and dips.",
   "tags": [
     "reference",
     "typography",
@@ -26,6 +26,54 @@
       "type": "string",
       "description": "Final actionable message",
       "required": true
+    },
+    "mood": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "hopeful",
+        "reflective",
+        "warm"
+      ],
+      "description": "Music mood for the procedural bed",
+      "default": "hopeful"
+    },
+    "backdrop": {
+      "type": "video",
+      "required": false,
+      "description": "Moving background behind every card; produced procedurally unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "visual.aurora",
+          "preset": "midnight",
+          "params": {
+            "palette": [
+              "#070C14",
+              "#14202E",
+              "#1C4F57",
+              "#3DBEA8"
+            ],
+            "speed": 0.04,
+            "glow": 0.18
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.ambient-pad",
+          "preset": "{{mood}}",
+          "params": {
+            "key": "D"
+          }
+        }
+      }
     }
   },
   "style": {
@@ -35,14 +83,40 @@
       "#FFFFFF",
       "#3DBEA8"
     ],
-    "typography": "High-contrast geometric sans serif",
-    "pacing": "measured"
+    "typography": "Inter Bold, centred, balanced line breaks, teal accent rule",
+    "pacing": "measured",
+    "title_card": {
+      "font_family": "Inter",
+      "font_weight": "bold",
+      "align": "center",
+      "font_size": 72,
+      "min_font_size": 44,
+      "max_lines": 3,
+      "line_spacing": 1.12,
+      "safe_margin_x": 128,
+      "safe_margin_top": 96,
+      "safe_margin_bottom": 96,
+      "background": "#14202E",
+      "text_color": "#FFFFFF",
+      "accent_color": "#3DBEA8",
+      "accent_bar": true,
+      "kicker_font_size": 24,
+      "entrance": "rise",
+      "entrance_frames": 14,
+      "background_input": "backdrop",
+      "background_dim": 0.18
+    }
   },
   "output": {
     "width": 1280,
     "height": 720,
     "fps": 24,
-    "captions": false
+    "captions": false,
+    "poster_frame": 48,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
   },
   "engines": [
     "ffmpeg"
@@ -105,10 +179,12 @@
     "locked_elements": [
       "style",
       "output",
-      "scenes"
+      "scenes",
+      "timeline"
     ],
     "notes": [
-      "The content model may change only the declared text inputs; all production design remains locked."
+      "The content model may change only the declared text inputs; all production design remains locked.",
+      "Copy that cannot fit three lines at 44px is rejected at compile time rather than shrunk illegibly."
     ]
   },
   "quality_gates": [
@@ -118,9 +194,57 @@
       "description": "All declared slots and scene timings validate before rendering."
     },
     {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds, transitions included.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness within 1.5 LU of -16 LUFS when music is present.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17.5,
+        "max": -14.5
+      }
+    },
+    {
       "id": "creative_review",
       "mode": "human",
       "description": "A reviewer approves copy, tone and visual suitability before publishing."
     }
-  ]
+  ],
+  "timeline": {
+    "fade_in_frames": 8,
+    "fade_out_frames": 16,
+    "transitions": [
+      {
+        "after_shot": "headline_card",
+        "kind": "dip",
+        "duration_frames": 12,
+        "color": "#14202E"
+      },
+      {
+        "after_shot": "insight_card",
+        "kind": "dip",
+        "duration_frames": 12,
+        "color": "#14202E"
+      }
+    ],
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 216,
+        "gain_db": 0,
+        "fade_in_frames": 12,
+        "fade_out_frames": 24
+      }
+    ]
+  }
 }

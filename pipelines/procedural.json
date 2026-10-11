@@ -1,0 +1,41 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "procedural",
+  "description": "Everything local and code-generated: procedural music beds, transition sounds, abstract motion backgrounds and stills from the recipe catalog. Speech stays a silent timing placeholder.",
+  "verification": "CI (recipes rendered on every push)",
+  "providers": {
+    "placeholder": {
+      "type": "placeholder"
+    },
+    "procedural": {
+      "type": "procedural",
+      "config": {
+        "defaults": {
+          "music": {
+            "recipe": "audio.ambient-pad",
+            "preset": "hopeful"
+          },
+          "video": {
+            "recipe": "visual.aurora",
+            "preset": "calm"
+          },
+          "image": {
+            "recipe": "visual.aurora",
+            "preset": "calm"
+          }
+        }
+      }
+    }
+  },
+  "routes": {
+    "procedural": "procedural",
+    "music": "procedural",
+    "video": "procedural",
+    "image": "procedural",
+    "speech": "placeholder",
+    "voice_conversion": "placeholder",
+    "typing": "placeholder",
+    "render_3d": "placeholder",
+    "sound": "placeholder"
+  }
+}

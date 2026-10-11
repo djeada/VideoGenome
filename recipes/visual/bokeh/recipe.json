@@ -1,0 +1,256 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "visual.bokeh",
+  "version": "0.1.0",
+  "title": "Cinematic bokeh",
+  "description": "Out-of-focus lights drifting slowly through several depths of field over a deep gradient: soft discs with faint lens rims, parallax, gentle twinkle, haze, vignette and grain. Warm, cinematic backgrounds for titles and quotes.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "python",
+  "entry": "bokeh.py",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "palette": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#FFD7A0",
+          "#FFB067",
+          "#F28C6B",
+          "#9EC5FF"
+        ],
+        "description": "Light colours the discs pick from"
+      },
+      "background": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#03040A",
+          "#0A0E1F",
+          "#140B22"
+        ],
+        "description": "Background gradient stops (dark keeps text legible)"
+      },
+      "background_angle": {
+        "type": "number",
+        "minimum": -180,
+        "maximum": 180,
+        "default": 100,
+        "description": "Gradient direction in degrees (90 = top to bottom)"
+      },
+      "count": {
+        "type": "integer",
+        "minimum": 5,
+        "maximum": 400,
+        "default": 60,
+        "description": "Number of lights"
+      },
+      "size_min": {
+        "type": "number",
+        "minimum": 0.003,
+        "maximum": 0.2,
+        "default": 0.012,
+        "description": "Smallest disc radius as a fraction of the frame's short side (far lights)"
+      },
+      "size_max": {
+        "type": "number",
+        "minimum": 0.01,
+        "maximum": 0.35,
+        "default": 0.11,
+        "description": "Largest disc radius as a fraction of the frame's short side (near lights)"
+      },
+      "softness": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1.5,
+        "default": 0.45,
+        "description": "Defocus: edge blur relative to disc size"
+      },
+      "layers": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 6,
+        "default": 3,
+        "description": "Depth layers with different size, blur and speed"
+      },
+      "drift_speed": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.5,
+        "default": 0.03,
+        "description": "Drift in short-side lengths per second (near layers move faster)"
+      },
+      "drift_angle": {
+        "type": "number",
+        "minimum": -180,
+        "maximum": 180,
+        "default": -75,
+        "description": "Drift direction in degrees (-90 = straight up)"
+      },
+      "twinkle": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.3,
+        "description": "Slow brightness breathing of each light"
+      },
+      "clustering": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.55,
+        "description": "0 = even scatter, 1 = lights gather in a few soft clusters"
+      },
+      "ring": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1.5,
+        "default": 0.35,
+        "description": "Bright lens rim on near discs"
+      },
+      "brightness": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 3,
+        "default": 1.0,
+        "description": "Light intensity"
+      },
+      "bloom": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2,
+        "default": 0.6,
+        "description": "Soft glow around lights"
+      },
+      "haze": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.45,
+        "description": "Slow coloured glow in the background"
+      },
+      "vignette": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5,
+        "description": "Edge darkening"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.1,
+        "default": 0.02,
+        "description": "Film grain (also prevents banding)"
+      },
+      "detail_scale": {
+        "type": "number",
+        "minimum": 0.2,
+        "maximum": 1,
+        "default": 0.5,
+        "description": "Internal resolution for the lights; higher is sharper and slower"
+      }
+    }
+  },
+  "presets": {
+    "golden": {},
+    "city-night": {
+      "palette": [
+        "#FFC46B",
+        "#FF6B6B",
+        "#6BC5FF",
+        "#C7A6FF"
+      ],
+      "background": [
+        "#03050B",
+        "#0A1022",
+        "#101828"
+      ],
+      "count": 110,
+      "size_max": 0.08,
+      "drift_speed": 0.02,
+      "drift_angle": 180
+    },
+    "snowfall": {
+      "palette": [
+        "#FFFFFF",
+        "#DCEBFF",
+        "#BFD8FF"
+      ],
+      "background": [
+        "#0B1424",
+        "#14233A",
+        "#1D3150"
+      ],
+      "count": 140,
+      "size_min": 0.006,
+      "size_max": 0.06,
+      "drift_speed": 0.05,
+      "drift_angle": 95,
+      "ring": 0.1,
+      "softness": 0.6,
+      "clustering": 0.1,
+      "bloom": 0.3
+    },
+    "celebration": {
+      "palette": [
+        "#FFD166",
+        "#EF476F",
+        "#06D6A0",
+        "#4CC9F0"
+      ],
+      "count": 120,
+      "drift_speed": 0.045,
+      "twinkle": 0.6,
+      "brightness": 1.2
+    },
+    "minimal": {
+      "palette": [
+        "#E8EEF7"
+      ],
+      "background": [
+        "#0A0C10",
+        "#12151C"
+      ],
+      "count": 30,
+      "size_max": 0.14,
+      "softness": 0.8,
+      "brightness": 0.7,
+      "haze": 0.1,
+      "ring": 0.2,
+      "clustering": 0.2
+    }
+  },
+  "tags": [
+    "background",
+    "bokeh",
+    "lights",
+    "cinematic",
+    "calm"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Lights are additive in linear light with a highlight shoulder, so overlaps glow instead of clipping.",
+    "Positions are a pure function of the frame index (parallel and seekable)."
+  ],
+  "cost": {
+    "seconds_per_output_second": 2.2
+  }
+}

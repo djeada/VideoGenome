@@ -1,0 +1,44 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "stable-diffusion-cpp",
+  "description": "Images from stable-diffusion.cpp's sd CLI (CPU/Vulkan/CUDA, GGUF or safetensors models); other capabilities are placeholders.",
+  "verification": "unverified example: sd is not installed on the authoring machine",
+  "extends": "animatic",
+  "providers": {
+    "sdcpp": {
+      "type": "command",
+      "config": {
+        "capabilities": [
+          "image"
+        ],
+        "argv": [
+          "${SD_CPP_BIN}",
+          "-m",
+          "${SD_CPP_MODEL}",
+          "-p",
+          "{prompt}",
+          "-W",
+          "1024",
+          "-H",
+          "576",
+          "--steps",
+          "20",
+          "--seed",
+          "{seed}",
+          "-o",
+          "{output}"
+        ],
+        "extension": ".png",
+        "timeout_seconds": 1800,
+        "model": {
+          "name": "stable-diffusion.cpp",
+          "source": "https://github.com/leejet/stable-diffusion.cpp"
+        },
+        "notes": "Add output_rights for the checkpoint you load (e.g. FLUX.1-schnell is Apache-2.0; SDXL uses CreativeML OpenRAIL++-M)."
+      }
+    }
+  },
+  "routes": {
+    "image": "sdcpp"
+  }
+}

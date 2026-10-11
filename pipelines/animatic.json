@@ -1,0 +1,21 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "animatic",
+  "description": "Every capability produced by labelled placeholders: review timing, layout and mix before any model runs.",
+  "verification": "CI (rendered on every push)",
+  "providers": {
+    "placeholder": {
+      "type": "placeholder"
+    }
+  },
+  "routes": {
+    "speech": "placeholder",
+    "voice_conversion": "placeholder",
+    "music": "placeholder",
+    "sound": "placeholder",
+    "image": "placeholder",
+    "video": "placeholder",
+    "typing": "placeholder",
+    "render_3d": "placeholder"
+  }
+}

@@ -1,8 +1,8 @@
 {
   "job_schema": "0.1.0",
   "id": "sample.three-card-explainer",
-  "template": "../../templates/educational/title-card-sequence/blueprint.json",
-  "template_version": "0.1.0",
+  "template": "educational.title-card-sequence",
+  "template_version": "0.2.0",
   "inputs": {
     "headline": "Videos have a genome",
     "insight": "Design once. Adapt the content.",

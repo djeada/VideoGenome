@@ -1,0 +1,45 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "comfyui",
+  "description": "Images from a local ComfyUI server using the bundled SD 1.5 text-to-image API workflow; add your own exported workflows for video, music or 3D.",
+  "verification": "unverified example: adapter covered by tests against a fake ComfyUI API, not a live server",
+  "extends": "animatic",
+  "providers": {
+    "comfy": {
+      "type": "comfyui",
+      "config": {
+        "base_url": "http://127.0.0.1:8188",
+        "workflows": {
+          "image": {
+            "file": "comfyui/sd15_txt2img.api.json",
+            "output_node": "9",
+            "bindings": {
+              "prompt": [
+                {
+                  "node": "6",
+                  "input": "text"
+                }
+              ],
+              "negative_prompt": [
+                {
+                  "node": "7",
+                  "input": "text"
+                }
+              ],
+              "seed": [
+                {
+                  "node": "3",
+                  "input": "seed"
+                }
+              ]
+            }
+          }
+        },
+        "notes": "Edit ckpt_name in the workflow to a checkpoint you installed and add output_rights for its licence. For video, export e.g. a Wan or LTX-Video workflow with Save (API) and bind duration with {\"transform\": \"frames\", \"frame_multiple\": 4, \"frame_offset\": 1}."
+      }
+    }
+  },
+  "routes": {
+    "image": "comfy"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "espeak-ng",
+  "description": "Robotic but dependency-light formant speech with espeak-ng (apt install espeak-ng); useful for drafts and many languages.",
+  "verification": "unverified example: espeak-ng is not installed on the authoring machine",
+  "extends": "animatic",
+  "providers": {
+    "espeak": {
+      "type": "command",
+      "config": {
+        "capabilities": [
+          "speech"
+        ],
+        "argv": [
+          "espeak-ng",
+          "-v",
+          "{voice}",
+          "-f",
+          "{text_file}",
+          "-w",
+          "{output}"
+        ],
+        "extension": ".wav",
+        "model": {
+          "name": "espeak-ng",
+          "license": "GPL-3.0-or-later (program)",
+          "source": "https://github.com/espeak-ng/espeak-ng"
+        },
+        "notes": "Add output_rights once you have confirmed the terms for synthesised output in your context."
+      }
+    }
+  },
+  "routes": {
+    "speech": "espeak"
+  },
+  "voices": {
+    "default": "en-us"
+  }
+}

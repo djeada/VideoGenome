@@ -65,6 +65,7 @@ class ProductionCompilerTests(unittest.TestCase):
 
     def test_rejects_missing_render_asset(self) -> None:
         self.job["template"] = str(HYBRID.resolve())
+        self.job["template_version"] = "0.1.0"
         self.job["inputs"] = {"title": "Hello", "camera_source": "clip", "still_source": "image"}
         with self.assertRaisesRegex(ProductionError, "must reference a declared"):
             compile_job(self.write_job())

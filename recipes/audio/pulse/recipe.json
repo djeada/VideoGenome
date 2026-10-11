@@ -1,0 +1,41 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "audio.pulse",
+  "version": "0.1.0",
+  "title": "Pulse tech bed",
+  "description": "A modern, minimal product and tech bed: soft four-on-the-floor kick with sidechain pump on an airy pad, a plucky arpeggio through ping-pong delay and a clean sub. Energy adds hats and claps.",
+  "media": ["audio"],
+  "runtime": "python",
+  "entry": "pulse.py",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "key": {"enum": ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"], "default": "A", "description": "Tonal centre"},
+      "mode": {"enum": ["major", "minor", "dorian", "lydian", "mixolydian"], "default": "minor", "description": "Scale colour"},
+      "bpm": {"type": "number", "minimum": 90, "maximum": 128, "default": 112, "description": "Tempo"},
+      "progression": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"type": "integer", "minimum": 1, "maximum": 7},
+                      "default": [1, 6, 3, 7], "description": "Scale degrees, one chord per bars_per_chord"},
+      "bars_per_chord": {"type": "integer", "minimum": 1, "maximum": 4, "default": 1, "description": "Bars each chord lasts"},
+      "arp_pattern": {"enum": ["up", "down", "updown", "random"], "default": "updown", "description": "Arpeggio direction"},
+      "arp_rate": {"enum": ["eighths", "sixteenths"], "default": "eighths", "description": "Arpeggio note value"},
+      "arp_density": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.75, "description": "Probability of off-beat arpeggio notes (on-beats always play)"},
+      "pump": {"type": "number", "minimum": 0, "maximum": 0.8, "default": 0.45, "description": "Sidechain pump depth on pad and arp"},
+      "brightness": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.55, "description": "Pad and pluck tone"},
+      "energy": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5, "description": "0.35+ adds offbeat hats, 0.6+ claps, 0.8+ busier hats"},
+      "drums": {"type": "number", "minimum": 0, "maximum": 1.5, "default": 0.9, "description": "Drum level"}
+    }
+  },
+  "presets": {
+    "product": {},
+    "keynote": {"key": "D", "mode": "major", "progression": [1, 5, 6, 4], "bars_per_chord": 2, "bpm": 100, "energy": 0.3, "pump": 0.3, "arp_density": 0.5},
+    "night": {"key": "F#", "mode": "minor", "progression": [1, 7, 6, 7], "bpm": 104, "brightness": 0.35, "energy": 0.45, "arp_pattern": "random"},
+    "upbeat": {"key": "E", "mode": "lydian", "progression": [1, 2, 1, 5], "bpm": 124, "arp_rate": "sixteenths", "energy": 0.85, "brightness": 0.7, "pump": 0.55},
+    "calm-tech": {"key": "C", "mode": "lydian", "progression": [1, 2, 6, 5], "bars_per_chord": 2, "bpm": 96, "energy": 0.2, "drums": 0.6, "pump": 0.25}
+  },
+  "tags": ["music", "bed", "tech", "product", "corporate", "electronic"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": ["Rendered at -20 LUFS integrated so it sits under narration.", "No samples: kick, hats, claps, plucks and pads are synthesized."],
+  "cost": {"seconds_per_output_second": 0.4}
+}

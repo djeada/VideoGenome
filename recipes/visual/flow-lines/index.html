@@ -1,0 +1,192 @@
+<!doctype html>
+<!--
+  Flow lines: particles trace smooth curves through an evolving noise flow
+  field, leaving tapered, fading trails in palette colours (Canvas 2D).
+
+  Trails are *redrawn* from each particle's recent history every frame (with
+  alpha and width falling off by age) rather than faded on the canvas, so an
+  8-bit canvas never accumulates ghost residue and every frame is exact.
+  State advances deterministically from spec.seed; asking for an earlier or
+  non-consecutive frame re-simulates from the start.
+  Contract: window.vgSetup(spec), window.vgRender(frame, t).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="vg"></canvas>
+<script>
+"use strict";
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Seeded 3D value noise with smoothstep interpolation (original implementation).
+function makeNoise(rand) {
+  const size = 256, table = new Float32Array(size), perm = new Uint16Array(size * 2);
+  for (let i = 0; i < size; i++) { table[i] = rand(); perm[i] = i; }
+  for (let i = size - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+  for (let i = 0; i < size; i++) perm[i + size] = perm[i];
+  const h = (x, y, z) => table[perm[perm[perm[x & 255] + (y & 255)] + (z & 255)]];
+  const s = (t) => t * t * (3 - 2 * t);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const noise = (x, y, z) => {
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    const u = s(x - xi), v = s(y - yi), w = s(z - zi);
+    return lerp(
+      lerp(lerp(h(xi, yi, zi), h(xi + 1, yi, zi), u), lerp(h(xi, yi + 1, zi), h(xi + 1, yi + 1, zi), u), v),
+      lerp(lerp(h(xi, yi, zi + 1), h(xi + 1, yi, zi + 1), u), lerp(h(xi, yi + 1, zi + 1), h(xi + 1, yi + 1, zi + 1), u), v), w);
+  };
+  return (x, y, z) => 0.65 * noise(x, y, z) + 0.35 * noise(x * 2.1 + 17.3, y * 2.1 - 9.1, z * 1.7 + 4.2);
+}
+
+function hexToRgb(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+
+const TRAIL_CHUNKS = 6;   // alpha/width bands along each trail, oldest first
+let spec, p, ctx, W, H, unit, state, grainPattern, vignetteGradient, backgroundGradient;
+
+function respawn(particle, rand) {
+  particle.x = rand() * W;
+  particle.y = rand() * H;
+  particle.life = 0;
+  particle.lifespan = Math.floor(p.trail * (1.5 + rand() * 2.5));
+}
+
+function reset() {
+  const rand = mulberry32(spec.seed * 2654435761 + 7);
+  const noise = makeNoise(mulberry32(spec.seed + 1013));
+  const weights = p.palette.map((_, i) => 1 / (1 + i * 0.35));
+  const total = weights.reduce((a, b) => a + b, 0);
+  const particles = [];
+  for (let i = 0; i < p.count; i++) {
+    let pick = rand() * total, color = 0;
+    while (pick > weights[color] && color < weights.length - 1) { pick -= weights[color]; color++; }
+    const particle = { color, history: [], brk: [], speedJitter: 0.7 + rand() * 0.6 };
+    respawn(particle, rand);
+    particle.life = Math.floor(rand() * particle.lifespan);  // desynchronise respawns
+    particles.push(particle);
+  }
+  state = { rand, noise, particles, step: 0, frame: -1 };
+  for (let i = 0; i < p.prewarm; i++) advance();
+}
+
+function advance() {
+  const { rand, noise, particles } = state;
+  const scale = p.noise_scale / unit;
+  const z = state.step * p.evolve * 0.02;
+  const stepLength = p.speed * unit / (spec.fps * p.substeps);
+  for (const particle of particles) {
+    const n = noise(particle.x * scale, particle.y * scale, z);
+    const angle = (n - 0.5) * 2 * Math.PI * p.curl + p.direction * Math.PI / 180;
+    particle.x += Math.cos(angle) * stepLength * particle.speedJitter;
+    particle.y += Math.sin(angle) * stepLength * particle.speedJitter;
+    particle.life++;
+    let broke = false;
+    if (particle.life > particle.lifespan || particle.x < -20 || particle.x > W + 20 || particle.y < -20 || particle.y > H + 20) {
+      respawn(particle, rand);
+      broke = true;  // old trail keeps fading; new trail starts disconnected
+    }
+    particle.history.push(particle.x, particle.y);
+    particle.brk.push(broke ? 1 : 0);
+    if (particle.brk.length > p.trail) { particle.history.splice(0, 2); particle.brk.shift(); }
+  }
+  state.step++;
+}
+
+function draw() {
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = backgroundGradient;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = p.glow ? "lighter" : "source-over";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const colors = p.palette.map(hexToRgb);
+  const baseWidth = p.line_width * unit / 1080;
+  for (let chunk = 0; chunk < TRAIL_CHUNKS; chunk++) {
+    const age = (chunk + 1) / TRAIL_CHUNKS;              // 1/6 oldest .. 1 newest
+    ctx.lineWidth = baseWidth * (0.35 + 0.65 * age);
+    for (let c = 0; c < colors.length; c++) {
+      const [r, g, b] = colors[c];
+      ctx.strokeStyle = `rgba(${r},${g},${b},${(p.opacity * Math.pow(age, 1.3)).toFixed(4)})`;
+      ctx.beginPath();
+      for (const particle of state.particles) {
+        if (particle.color !== c) continue;
+        const points = particle.brk.length;
+        if (points < 2) continue;
+        const start = Math.floor(points * chunk / TRAIL_CHUNKS);
+        const end = Math.min(points - 1, Math.floor(points * (chunk + 1) / TRAIL_CHUNKS));
+        const h = particle.history;
+        let open = false;
+        for (let i = start; i <= end; i++) {
+          if (!open || particle.brk[i]) { ctx.moveTo(h[2 * i], h[2 * i + 1]); open = true; }
+          else ctx.lineTo(h[2 * i], h[2 * i + 1]);
+        }
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = vignetteGradient;
+  ctx.fillRect(0, 0, W, H);
+  if (p.grain > 0) {
+    // Seeded grain tile, shifted per frame; breaks up banding in gradients.
+    const ox = (state.step * 7919) % 256, oy = (state.step * 104729) % 256;
+    ctx.save();
+    ctx.globalAlpha = p.grain;
+    ctx.translate(-ox, -oy);
+    ctx.fillStyle = grainPattern;
+    ctx.fillRect(0, 0, W + 256, H + 256);
+    ctx.restore();
+  }
+}
+
+window.vgSetup = async (s) => {
+  spec = s; p = s.params;
+  W = s.width; H = s.height; unit = Math.min(W, H);
+  const canvas = document.getElementById("vg");
+  canvas.width = W; canvas.height = H;
+  ctx = canvas.getContext("2d", { alpha: false });
+  backgroundGradient = ctx.createLinearGradient(0, 0, W * 0.3, H);
+  p.background.forEach((color, i) => backgroundGradient.addColorStop(p.background.length > 1 ? i / (p.background.length - 1) : 0, color));
+  vignetteGradient = ctx.createRadialGradient(W / 2, H / 2, unit * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.62);
+  vignetteGradient.addColorStop(0, "rgba(0,0,0,0)");
+  vignetteGradient.addColorStop(1, `rgba(0,0,0,${p.vignette})`);
+  const grainCanvas = document.createElement("canvas");
+  grainCanvas.width = 256; grainCanvas.height = 256;
+  const g = grainCanvas.getContext("2d");
+  const image = g.createImageData(256, 256);
+  const rand = mulberry32(s.seed + 31337);
+  for (let i = 0; i < image.data.length; i += 4) {
+    const light = rand() < 0.5;  // half lightens, half darkens: no net brightness shift
+    image.data[i] = image.data[i + 1] = image.data[i + 2] = light ? 255 : 0;
+    image.data[i + 3] = Math.floor(rand() * 255);
+  }
+  g.putImageData(image, 0, 0);
+  grainPattern = ctx.createPattern(grainCanvas, "repeat");
+  reset();
+};
+
+window.vgRender = (frame, t) => {
+  if (frame <= state.frame) reset();
+  while (state.frame < frame) {
+    for (let i = 0; i < p.substeps; i++) advance();
+    state.frame++;
+  }
+  draw();
+};
+</script>
+</body>
+</html>

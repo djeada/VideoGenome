@@ -1,0 +1,19 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.cc0-documentary",
+  "template": "educational.cc0-documentary",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "The Restless Ocean",
+    "topic_1": "ocean waves",
+    "line_1": "Every wave carries energy across thousands of kilometres.",
+    "topic_2": "coral reef fish",
+    "line_2": "Beneath the surface, reefs shelter a quarter of sea life.",
+    "topic_3": "sunset sea",
+    "line_3": "And each evening, the ocean quietly gives back the heat.",
+    "closing": "Protect what moves us."
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

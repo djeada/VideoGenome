@@ -17,7 +17,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(len({entry["id"] for entry in catalog}), len(catalog))
 
     def test_filters_exact_metadata_without_inventing_capabilities(self) -> None:
-        social = discover(category="social", orientation="portrait")
+        social = discover(category="social", orientation="portrait", shot_kind="talking_head")
         self.assertEqual(len(social), 1)
         self.assertIn("talking_head", social[0]["shot_kinds"])
         self.assertIn("speaker_clip", social[0]["required_inputs"])
@@ -30,6 +30,18 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(draft["inputs"]["headline"], "")
         self.assertEqual(draft["template_version"], descriptor["version"])
         self.assertEqual(draft["assets"], {})
+        self.assertEqual(draft["template"], "educational.title-card-sequence")
+
+    def test_scaffold_lists_only_required_inputs(self) -> None:
+        draft = scaffold("social.vertical-tips")
+        self.assertNotIn("music", draft["inputs"])
+        self.assertEqual(set(draft["inputs"]), {"hook", "tip_1", "tip_2", "tip_3", "cta"})
+
+    def test_self_contained_templates_render_from_text_alone(self) -> None:
+        ids = {entry["id"] for entry in discover(self_contained=True)}
+        self.assertIn("educational.title-card-sequence", ids)
+        self.assertIn("social.vertical-tips", ids)
+        self.assertNotIn("educational.captioned-explainer", ids)
 
     def test_unknown_template_rejected(self) -> None:
         with self.assertRaises(ProductionError):

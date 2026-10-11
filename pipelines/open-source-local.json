@@ -1,0 +1,161 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "open-source-local",
+  "description": "Local open-source stack: Kokoro narration, Type-Simulator typing reels, Blender turntables, CC0 stock footage and photos, procedural music and backgrounds.",
+  "verification": "manual 2026-10-11: Kokoro-82M (CPU), Type-Simulator 2.2.0 --mode reel, Blender 5.1.1 EEVEE, live Openverse/Commons, procedural recipes",
+  "extends": "cc0-stock",
+  "providers": {
+    "kokoro": {
+      "type": "command",
+      "config": {
+        "capabilities": [
+          "speech"
+        ],
+        "argv": [
+          "${KOKORO_PYTHON}",
+          "{profile_dir}/kokoro/kokoro_tts.py",
+          "--text-file",
+          "{text_file}",
+          "--voice",
+          "{voice}",
+          "--speed",
+          "{speed?}",
+          "--out",
+          "{output}"
+        ],
+        "env": {
+          "HF_HUB_OFFLINE": "1"
+        },
+        "extension": ".wav",
+        "timeout_seconds": 600,
+        "model": {
+          "name": "Kokoro-82M",
+          "license": "Apache-2.0",
+          "source": "https://huggingface.co/hexgrad/Kokoro-82M"
+        },
+        "output_rights": {
+          "license": "Apache-2.0",
+          "evidence": "Kokoro-82M weights and voice packs are published under Apache-2.0 on the hexgrad/Kokoro-82M model card (reviewed 2026-10-11)."
+        },
+        "notes": "Create the environment at a short path (see pipelines/kokoro/kokoro_tts.py)."
+      }
+    },
+    "type_simulator": {
+      "type": "command",
+      "config": {
+        "capabilities": [
+          "typing"
+        ],
+        "argv": [
+          "${TYPE_SIMULATOR_PYTHON}",
+          "-m",
+          "src.main",
+          "--mode",
+          "reel",
+          "--input",
+          "{text_file}",
+          "--output",
+          "{output}",
+          "--size",
+          "{width}x{height}",
+          "--fps",
+          "{fps}",
+          "--duration",
+          "{duration_seconds}",
+          "--seed",
+          "{seed}",
+          "--theme",
+          "{style}",
+          "--filename={filename}",
+          "--key-volume",
+          "0.3",
+          "--no-run",
+          "--music",
+          "none"
+        ],
+        "cwd": "${TYPE_SIMULATOR_DIR}",
+        "extension": ".mp4",
+        "duration_margin_seconds": 1.0,
+        "defaults": {
+          "style": "hacker",
+          "filename": "snippet.txt"
+        },
+        "timeout_seconds": 900,
+        "model": {
+          "name": "Type-Simulator reel",
+          "version": "2.2.0",
+          "license": "MIT",
+          "source": "https://github.com/djeada/Type-Simulator"
+        },
+        "output_rights": {
+          "license": "MIT",
+          "evidence": "Rendered by Type-Simulator (MIT) from job-supplied text with --no-run (the typed code is never executed) and --music none; keyboard sounds are synthesised by the tool."
+        }
+      }
+    },
+    "blender": {
+      "type": "command",
+      "config": {
+        "capabilities": [
+          "render_3d"
+        ],
+        "argv": [
+          "${BLENDER_BIN}",
+          "-b",
+          "--factory-startup",
+          "--python",
+          "{profile_dir}/blender/turntable.py",
+          "--",
+          "--output",
+          "{output}",
+          "--width",
+          "{width}",
+          "--height",
+          "{height}",
+          "--fps",
+          "{fps}",
+          "--seconds",
+          "{duration_seconds}",
+          "--still",
+          "{media}",
+          "--engine",
+          "eevee",
+          "--model",
+          "{references.product_model?}",
+          "--background",
+          "{style?}"
+        ],
+        "extension": {
+          "video": ".mp4",
+          "image": ".png"
+        },
+        "timeout_seconds": 3600,
+        "model": {
+          "name": "Blender turntable.py",
+          "source": "pipelines/blender/turntable.py"
+        },
+        "output_rights": {
+          "license": "Owned render",
+          "evidence": "Rendered locally with Blender from the job's referenced model asset (whose rights are recorded separately) or a Blender primitive stand-in; Blender's GPL does not cover rendered output."
+        }
+      }
+    }
+  },
+  "routes": {
+    "speech": "kokoro",
+    "typing": "type_simulator",
+    "render_3d": "blender"
+  },
+  "voices": {
+    "default": "af_heart",
+    "narrator": "af_heart",
+    "narrator_male": "am_michael",
+    "narrator_british": "bf_emma"
+  },
+  "styles": {
+    "terminal_dark": "dracula",
+    "terminal_hacker": "hacker",
+    "studio_dark": "#111318",
+    "studio_light": "#D9DCE1"
+  }
+}

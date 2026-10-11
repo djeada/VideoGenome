@@ -10,3 +10,9 @@ build/
 *.png
 *.jpg
 .env
+*.srt
+*.vtt
+*.glb
+generated/
+*.produced.json
+renders/

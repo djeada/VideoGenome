@@ -1,0 +1,36 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "audio.transition",
+  "version": "0.1.0",
+  "title": "Transition sound effects",
+  "description": "Sound-design one-shots shaped to an exact duration so they line up with a cut: whoosh, riser, impact, swell, reverse cymbal and soft UI click, with brightness, pitch, stereo motion and reverb controls.",
+  "media": ["audio"],
+  "runtime": "python",
+  "entry": "transition.py",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "kind": {"enum": ["whoosh", "riser", "impact", "swell", "reverse_cymbal", "soft_click"], "default": "whoosh",
+               "description": "Effect type. Risers, swells and reverse cymbals peak at the end (place them before a cut); impacts and clicks hit at the start (place them on the cut)"},
+      "brightness": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5, "description": "Spectral brightness of noise and tone layers"},
+      "pitch": {"type": "number", "minimum": -12, "maximum": 12, "default": 0, "description": "Semitone offset for tonal layers"},
+      "stereo_motion": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.6, "description": "How far the sound moves or spreads across the stereo field"},
+      "reverb": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.35, "description": "Space around the effect (pre-verb for build-ups so they land on the cut)"}
+    }
+  },
+  "presets": {
+    "whoosh": {"kind": "whoosh"},
+    "riser": {"kind": "riser", "brightness": 0.6, "reverb": 0.3},
+    "impact": {"kind": "impact", "brightness": 0.45, "reverb": 0.5},
+    "swell": {"kind": "swell", "brightness": 0.4, "reverb": 0.5},
+    "reverse-cymbal": {"kind": "reverse_cymbal", "brightness": 0.6, "reverb": 0.25},
+    "soft-click": {"kind": "soft_click", "reverb": 0.1, "stereo_motion": 0},
+    "dark-whoosh": {"kind": "whoosh", "brightness": 0.2, "stereo_motion": 0.8, "reverb": 0.5}
+  },
+  "tags": ["sfx", "transition", "whoosh", "riser", "impact", "sound-design"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": ["Effects of 0.4 s or more are normalised to -18 LUFS (peak <= -1 dBFS); shorter ones to -3 dBFS peak.", "No samples: every layer is synthesized."],
+  "cost": {"seconds_per_output_second": 0.3}
+}
