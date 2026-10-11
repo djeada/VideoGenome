@@ -113,7 +113,16 @@ def compile_job(job_path: Path) -> dict[str, Any]:
     job = read_json(job_path)
     _validate_json(job, read_json(JOB_SCHEMA), "production job")
 
-    template_path = confined_file(job_dir, job["template"])
+    # Templates are trusted repository code/data; assets are confined to the job.
+    # Allow a job outside the repository to reference a reviewed template by
+    # absolute path, but reject templates outside the trusted repository root.
+    requested_template = Path(job["template"])
+    template_path = (
+        requested_template if requested_template.is_absolute()
+        else job_dir / requested_template
+    ).resolve()
+    if not template_path.is_relative_to(ROOT.resolve()) or not template_path.is_file():
+        raise ProductionError("Template must be an existing file inside the VideoGenome repository")
     blueprint = read_json(template_path)
     blueprint_errors = validate_blueprint(blueprint)
     if blueprint_errors:
