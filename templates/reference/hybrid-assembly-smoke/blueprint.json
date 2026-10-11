@@ -1,0 +1,127 @@
+{
+  "schema_version": "0.1.0",
+  "id": "reference.hybrid-assembly-smoke",
+  "version": "0.1.0",
+  "title": "Hybrid source assembly smoke test",
+  "category": "reference",
+  "description": "Minimal frame-accurate real-footage, image and generated-graphic example for integration testing the reference renderer.",
+  "tags": [
+    "hybrid",
+    "footage",
+    "images",
+    "graphics",
+    "testing"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "Title card copy"
+    },
+    "camera_source": {
+      "type": "video",
+      "required": true,
+      "description": "Approved live-action footage"
+    },
+    "still_source": {
+      "type": "image",
+      "required": true,
+      "description": "Approved source image"
+    }
+  },
+  "style": {
+    "mood": "informational and concise",
+    "palette": [
+      "#15243B",
+      "#FFFFFF"
+    ],
+    "typography": "Readable neutral sans serif",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 320,
+    "height": 320,
+    "fps": 24,
+    "captions": false
+  },
+  "engines": [
+    "ffmpeg"
+  ],
+  "scenes": [
+    {
+      "id": "source",
+      "role": "real_footage",
+      "duration_frames": 24,
+      "shots": [
+        {
+          "id": "live_clip",
+          "kind": "footage",
+          "duration_frames": 24,
+          "direction": {
+            "action": "Show a second of live video without dropping recorded sound"
+          },
+          "input_refs": [
+            "camera_source"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "still",
+      "role": "still_photo",
+      "duration_frames": 24,
+      "shots": [
+        {
+          "id": "product_still",
+          "kind": "still_image",
+          "duration_frames": 24,
+          "direction": {
+            "action": "Hold on a licensed still image"
+          },
+          "input_refs": [
+            "still_source"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "title",
+      "role": "caption",
+      "duration_frames": 24,
+      "shots": [
+        {
+          "id": "final_card",
+          "kind": "motion_graphics",
+          "duration_frames": 24,
+          "direction": {
+            "action": "Conclude with a centered readable title",
+            "text_template": "{{title}}"
+          }
+        }
+      ]
+    }
+  ],
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes"
+    ],
+    "notes": [
+      "Test production intent, not a polished marketing template."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "rights_review",
+      "mode": "human",
+      "description": "Rights and subject consent were reviewed before distribution."
+    },
+    {
+      "id": "visual_consistency",
+      "mode": "human",
+      "description": "The camera, still photo and title cut together coherently."
+    }
+  ]
+}

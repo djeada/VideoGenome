@@ -16,7 +16,7 @@ class BlueprintValidationTests(unittest.TestCase):
         cls.good = json.loads(cls.paths[0].read_text(encoding="utf-8"))
 
     def test_examples_validate(self) -> None:
-        self.assertEqual(len(self.paths), 3)
+        self.assertGreaterEqual(len(self.paths), 3)
         for path in self.paths:
             with self.subTest(path=path):
                 data = json.loads(path.read_text(encoding="utf-8"))
