@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.three-card-explainer",
   "template": "educational.title-card-sequence",
-  "template_version": "0.2.0",
+  "template_version": "0.3.0",
   "inputs": {
     "headline": "Videos have a genome",
     "insight": "Design once. Adapt the content.",

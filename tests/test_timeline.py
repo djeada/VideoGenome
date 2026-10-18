@@ -89,7 +89,7 @@ class TimelineCompilerTests(unittest.TestCase):
 
     def test_compiles_audio_bindings_and_caption_cues(self) -> None:
         plan = self.compile()
-        self.assertEqual(plan["ir_version"], "0.2.0")
+        self.assertEqual(plan["ir_version"], "0.5.0")
         self.assertEqual(plan["total_frames"], 192)
         self.assertEqual(plan["timeline"]["audio_tracks"][1]["asset_id"], "narration")
         self.assertEqual(plan["timeline"]["audio_tracks"][1]["start_frame"], 48)

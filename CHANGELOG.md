@@ -1,5 +1,103 @@
 # Changelog
 
+## 0.7.0 — a library of video classes, three cockpits, code that runs unmodified
+
+### Added
+- **Genome library** (`genomes/<id>/genome.json` + `prompt.md`, `schemas/genome.schema.json`):
+  every class of video with a level derived from what exists: **template**
+  (brief to video), **code** (recipes with params) or **prompt** (an authoring
+  prompt for an agent). `videogenome library`, `videogenome genome ID [--prompt]`.
+  30 classes: 24 ready to fill, 2 ready code, 4 prompt only.
+- **Scene recipes and templates for the classes model-made video galleries are
+  full of**, authored to a shared quality bar and reviewed frame by frame:
+  stat reveals and animated charts, an app-launch UI promo, event teasers (3-2-1
+  and days-to-go), how-it-works diagrams, history timelines, quotes over
+  generative art (9:16 and 1:1), a tempo-locked beat visualizer, route maps on
+  Natural Earth coastlines, browser-only code reveals (16:9 and 9:16) and motion
+  showreels (16:9 and 9:16), each with sample jobs and bench briefs.
+- **Studio** (`videogenome studio`): a local web UI to browse the library, fill a
+  template from a brief or by hand with live checks, render and review, tune any
+  recipe's params, render your own HTML, and connect agents. Token-protected,
+  localhost-only, workspace-confined. `videogenome previews` renders library previews.
+- **MCP server** (`videogenome mcp`): agents read slot contracts, write the copy,
+  `check_inputs`, `render` (contact sheet returned as an image), preview recipes,
+  `capture_html` their own code, and use every genome's authoring prompt as an MCP prompt.
+- **Run code unmodified**: pages are served from a virtual origin (ES modules,
+  import maps, `fetch` of sibling files; everything else blocked); Web Audio is
+  rendered offline in lockstep with the frames and muxed in sync; `--click` for
+  click-to-play pages. Shared libraries at `/_lib/`: the `vg-scene` toolkit and a
+  vendored three.js 0.169 (MIT, checksummed). `videogenome recipe-new` scaffolds
+  2D or three.js scenes.
+- Blueprint schema additions: `grounded_with` (a verbatim value must sit next to
+  its label in the brief), `whole_quote` (a quote must be the entire quotation),
+  verbatim number inputs grounded in the brief's numbers.
+
+### Changed
+- Writers must return every required slot; verbatim slots may be `null` and
+  ungrounded ones become *missing* (exit 4) rather than *failed*. Written slots
+  are listed before verbatim ones, short verbatim values match whole words only
+  (scale units such as `M` match "million"), candidate phrases drop sentence
+  openers and connectors, and incomplete drafts never keep rejected values.
+- `videogenome validate` accepts jobs whose producible media is still to be
+  produced and lists it; rendering a pending plan is refused.
+- Optional whole-slot items in produced request arrays are dropped when the slot is
+  left out, so templates can map `value_1..value_6` onto variable-length recipe lists.
+- Validation is fast again: schema meta-validation and recipe discovery are cached
+  (the full library validates in under a second).
+- Recipe provenance hashes include the shared libraries a recipe uses.
+
+## 0.6.0 — from one-off prompts to a system: briefs, writers and code-animated scenes
+
+Galleries of model-made videos show what a frontier model can write once as
+code. This release makes that class of result repeatable: the animation becomes
+a deterministic recipe, the blueprint locks it, and any model fills a brief.
+
+### Added
+- **Writers and `videogenome fill`**: a new plugin kind (`videogenome.writers`)
+  with `openai-chat` (Ollama, llama.cpp, vLLM, hosted APIs; JSON-schema
+  constrained output) and `command` (prompt on stdin) adapters. Profiles declare
+  a `writer`. `fill` turns a brief into a job using slot contracts derived from
+  the blueprint: title-card capacity, caption reading speed, narration words per
+  locked second, scene-recipe text limits and enums. Replies are checked by the
+  compiler and by the renderer's glyph measurement (`Renderer.check_copy`), and
+  problems go back with the exact value. Writes `<job>.fill.json`.
+- **Verbatim grounding and honest refusals**: input `fill` policy (`write`,
+  `verbatim`, `never`); verbatim slots must match the brief, candidate phrases
+  are extracted for the writer, and ungrounded proposals become *missing*.
+  Missing required facts end with exit status 4 and a draft job.
+- **`copy_examples`** in blueprints (schema 0.5.0): expert-written brief and
+  ideal values, shown to the writer and validated like a reply.
+- **`videogenome create`**: brief to finished video in one command (fill,
+  produce, render, gates, review). Measured narration that overruns its slot
+  (`CopyTooLong`) goes back to the writer to shorten exactly that copy.
+- **`videogenome bench`**: fill rate, first-attempt rate, attempts, writer time
+  and honest-refusal rate over a brief suite; `--render` also gates every video.
+  `examples/briefs/smoke.json` has twelve briefs, including two that lack
+  facts and an injection attempt.
+- **Virtual clock for browser rendering**: `"timing": "clock"` recipes and the
+  new **`videogenome capture`** render ordinary animation code
+  (requestAnimationFrame, performance.now, Date, timers, CSS/WAAPI) frame-exactly
+  and byte-reproducibly. Pages may load only files beside them.
+- **Scene recipes**: `scene.kinetic-type` (kinetic typography with an
+  accent-circle wipe), `scene.steps` (process explainer with check marks and
+  recap) and `scene.title-sting` (fly-in brand reveal with impact, sweep and
+  tagline), each with presets and measured text fitting.
+- **Templates**: `social.kinetic-promo`, `educational.steps-explainer` and
+  `commercial.title-sting`, with sound cues on each scene's beats and sample jobs.
+- **Review page** exporter (`<output>.review.html`, on by default): video,
+  measurements, gates with evidence, pending human decisions, provenance and the
+  brief/writer behind the copy. Exporters gain an optional `finalize(receipt)`.
+- Profile `procedural-writer` (procedural media + Qwen2.5-3B on Ollama).
+
+### Changed
+- Copy examples and fill policies on the text templates (vertical-tips 0.2.0,
+  title-card-sequence 0.3.0, narrated-slides, cc0-documentary, code-typing-reel,
+  product-turntable, captioned-explainer 0.2.0), and verbatim-only testimony,
+  names and calls to action in `social.ugc-testimonial` 0.2.0 (now with caption
+  cues) and `commercial.cinematic-product-reveal` 0.2.0. Example jobs pin the new versions.
+- The compiler exposes `copy_issues()` to report every copy problem at once.
+- Browser recipes are confined to their own directory instead of any `file://` URL.
+
 ## 0.5.0 — procedural media, CC0 sourcing and a mix that holds up
 
 ### Added

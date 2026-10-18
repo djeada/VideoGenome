@@ -1,0 +1,41 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.title-sting",
+  "version": "0.1.0",
+  "title": "Title sting / brand reveal (Canvas)",
+  "description": "A brand or title reveal: letters fly in from depth with motion blur and lock into place, a flash ring and spark burst fire on impact with a camera punch, a light sweep crosses the name, an accent rule extends and the tagline tracks in letter by letter. Chrome, flat or glow finish; any aspect ratio.",
+  "media": ["video", "image"],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "name": {"type": "string", "minLength": 1, "maxLength": 22, "default": "VideoGenome",
+               "description": "The name or title being revealed"},
+      "tagline": {"type": "string", "maxLength": 48, "default": "Design once. Produce anywhere.",
+                  "description": "Line under the name (empty for none)"},
+      "palette": {"type": "array", "minItems": 3, "maxItems": 3,
+                  "items": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                  "default": ["#07080B", "#F4F4F2", "#FF5A36"],
+                  "description": "Ground, ink (name and tagline) and accent (ring, sparks, rule, glow)"},
+      "finish": {"enum": ["chrome", "flat", "glow"], "default": "chrome", "description": "Surface of the name"},
+      "tempo": {"type": "number", "minimum": 0.6, "maximum": 1.6, "default": 1.0, "description": "Speed of the whole reveal"},
+      "sparks": {"type": "integer", "minimum": 0, "maximum": 160, "default": 48, "description": "Spark count on impact"},
+      "grain": {"type": "number", "minimum": 0, "maximum": 0.12, "default": 0.04, "description": "Film grain amount"}
+    }
+  },
+  "presets": {
+    "chrome": {},
+    "neon": {"palette": ["#05060A", "#E9FFF2", "#22F5A0"], "finish": "glow", "sparks": 90},
+    "studio": {"palette": ["#F3F1EC", "#15161A", "#2F5BFF"], "finish": "flat", "sparks": 30, "grain": 0.03},
+    "gold": {"palette": ["#0B0907", "#F6E7C1", "#D9A441"], "finish": "chrome", "tempo": 0.85}
+  },
+  "tags": ["scene", "logo", "title", "reveal", "brand", "canvas"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": ["Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+            "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial."],
+  "cost": {"seconds_per_output_second": 2.5}
+}

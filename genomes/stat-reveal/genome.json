@@ -1,0 +1,21 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "stat-reveal",
+  "title": "Headline stat reveal",
+  "summary": "One to four headline numbers, each the hero of its own beat: digits roll or count up and stop, a meter fills only when the number is a share of a whole, the label rises in, and a recap sets every number side by side over a source line.",
+  "family": "data",
+  "formats": ["9:16", "16:9", "1:1"],
+  "duration_seconds": [6, 16],
+  "recipes": ["scene.stat-reveal"],
+  "templates": ["commercial.stat-highlights"],
+  "prompt": "prompt.md",
+  "needs": ["The numbers, what each one counts, and who published them (a source), stated in the brief"],
+  "techniques": ["Canvas 2D", "odometer digit roll", "gauge ring with lit ticks", "masked label rises", "measured text fitting", "film grain"],
+  "gallery_share": "Count-up statistics and 'by the numbers' cards are a staple of annual reports, impact reels and launch posts.",
+  "limits": [
+    "The template takes exactly three numbers; the recipe takes one to four.",
+    "Meters fill only for percentages in the template (or a stated whole via the recipe's scales); other numbers get a neutral ring.",
+    "Verbatim units are checked as text in the brief, so a one-letter unit such as M passes whenever that letter appears; a reviewer still checks units against the source.",
+    "Latin digits and Inter (or the system sans) only; very long numbers shrink, and the render fails rather than overflow."
+  ]
+}

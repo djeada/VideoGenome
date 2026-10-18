@@ -602,6 +602,22 @@ class FFmpegRenderer(Renderer):
                      if t["kind"] not in ("crossfade", "dip")]
         return problems
 
+    def check_copy(self, card: dict, output: dict, cards: list[dict]) -> list[tuple[str, str]]:
+        """Set each card with the pinned font, exactly as render() will."""
+        if not cards or not shutil.which("ffmpeg"):
+            return []
+        plan = {"title_card": card, "output": output}
+        problems = []
+        with tempfile.TemporaryDirectory(prefix="videogenome-copy-") as directory:
+            scratch = Path(directory).resolve()
+            font = _resolve_font(card, scratch)
+            for entry in cards:
+                try:
+                    _card_layout(plan, entry, font, scratch)
+                except ProductionError as exc:
+                    problems.append((entry["shot_id"], str(exc)))
+        return problems
+
     def render(self, plan: dict, job_directory: Path, output_path: Path) -> dict:
         if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
             raise ProductionError("FFmpeg and ffprobe must be installed to render")

@@ -1,0 +1,21 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "how-it-works",
+  "title": "How it works: animated system diagram",
+  "summary": "A concept or flow diagram builds itself: labelled nodes with simple icons appear one per beat at the tips of self-drawing arrows, packets travel along the arrows, the current node is lit and captioned, and the whole system lights up for a takeaway. The look of maths and engineering explainer channels.",
+  "family": "explainer",
+  "formats": ["16:9", "9:16", "1:1"],
+  "duration_seconds": [14, 40],
+  "recipes": ["scene.how-it-works"],
+  "templates": ["educational.how-it-works"],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": ["Canvas 2D", "self-drawing arrow paths with arc-length sampling", "packets streamed along paths",
+                 "camera that frames the revealed nodes", "code-drawn line icons", "measured text fitting", "row, column, snake and loop layouts"],
+  "gallery_share": "System and concept diagrams that assemble themselves are among the most common model-made explainer videos, from product onboarding to maths and engineering channels.",
+  "limits": ["Linear flows and single loops only: no branches, merges or labelled edges",
+             "2-6 nodes; six nodes in 9:16 use a two-column snake with smaller labels",
+             "Icons are a fixed set of 21 simple line drawings, not illustrations or logos",
+             "The template locks four nodes at 24 s so sound cues stay on the beats",
+             "Whether the diagram is correct is a human review; the renderer only checks timing, picture and loudness"]
+}

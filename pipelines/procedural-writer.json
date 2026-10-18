@@ -1,0 +1,22 @@
+{
+  "pipeline_schema": "0.1.0",
+  "id": "procedural-writer",
+  "description": "The procedural profile plus a local writer: Qwen2.5-3B-Instruct on Ollama fills a template's text slots from a brief (`videogenome fill` / `create`). Speech stays a silent timing placeholder.",
+  "verification": "manual 2026-10-18: qwen2.5:3b on Ollama 0.30.8 (RTX 5060); bench examples/briefs/smoke.json 12/12 twice; create rendered vertical-tips and kinetic-promo",
+  "extends": "procedural",
+  "writer": {
+    "type": "openai-chat",
+    "config": {
+      "base_url": "http://127.0.0.1:11434/v1",
+      "model_id": "qwen2.5:3b",
+      "temperature": 0.4,
+      "timeout_seconds": 300,
+      "model": {
+        "name": "Qwen2.5-3B-Instruct",
+        "license": "Qwen Research License",
+        "source": "https://ollama.com/library/qwen2.5"
+      },
+      "notes": "ollama pull qwen2.5:3b. Any OpenAI-compatible server works: change base_url and model_id."
+    }
+  }
+}

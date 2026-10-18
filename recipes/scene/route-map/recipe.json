@@ -1,0 +1,272 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.route-map",
+  "version": "0.1.0",
+  "title": "Route map journey (Canvas)",
+  "description": "A stylised journey map on real coastlines (Natural Earth 1:50m land, public domain, Web Mercator). Stops are placed from latitude/longitude; the camera eases to frame each leg while a dot or plane marker draws the route (arc or straight), a ripple and a stop card fire on each arrival, and distance and duration counters count up to their stated totals in proportion to great-circle leg length. The outro pulls back to the whole labelled route. Portrait stacks title, map and counters; landscape adds an itinerary panel. Land can be filled, a dot matrix, or omitted for an abstract map.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 40,
+        "default": "Lisbon to Seville by rail",
+        "description": "Title of the journey, shown above the map (portrait) or in the panel (landscape)"
+      },
+      "stops": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 5,
+        "items": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "default": [
+          "Lisbon",
+          "Évora",
+          "Badajoz",
+          "Seville"
+        ],
+        "description": "Place names in travel order; empty strings are skipped (at least two must be non-empty)"
+      },
+      "notes": {
+        "type": "array",
+        "maxItems": 5,
+        "items": {
+          "type": "string",
+          "maxLength": 28
+        },
+        "default": [
+          "Day 1 · Start",
+          "Day 2",
+          "Day 3",
+          "Day 4 · Finish"
+        ],
+        "description": "Optional one-line detail on each stop's card (same order as stops; empty for none)"
+      },
+      "lat": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 5,
+        "items": {
+          "type": "number",
+          "minimum": -80,
+          "maximum": 80
+        },
+        "default": [
+          38.72,
+          38.57,
+          38.88,
+          37.39
+        ],
+        "description": "Latitude of each stop in decimal degrees (south negative), same order as stops. A named stop at exactly 0, 0 is treated as missing coordinates and fails the render"
+      },
+      "lon": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 5,
+        "items": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "default": [
+          -9.14,
+          -7.91,
+          -6.97,
+          -5.98
+        ],
+        "description": "Longitude of each stop in decimal degrees (west negative), same order as stops"
+      },
+      "distance": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100000,
+        "default": 520,
+        "description": "Total distance shown by the counter at the end (0 hides the distance counter). Shown exactly as given; legs share it in proportion to great-circle length"
+      },
+      "distance_unit": {
+        "enum": [
+          "km",
+          "mi",
+          "nmi"
+        ],
+        "default": "km",
+        "description": "Unit written after the distance"
+      },
+      "duration": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 10000,
+        "default": 4,
+        "description": "Total duration shown by the second counter at the end (0 hides it)"
+      },
+      "duration_unit": {
+        "enum": [
+          "min",
+          "h",
+          "days",
+          "weeks"
+        ],
+        "default": "days",
+        "description": "Unit written after the duration"
+      },
+      "labels": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12
+        },
+        "default": [
+          "Distance",
+          "Time"
+        ],
+        "description": "Small labels above the two counters"
+      },
+      "path": {
+        "enum": [
+          "arc",
+          "straight"
+        ],
+        "default": "arc",
+        "description": "Leg shape: arc (flight-style curve) or straight (rhumb line). Neither follows real roads or rails"
+      },
+      "marker": {
+        "enum": [
+          "dot",
+          "plane"
+        ],
+        "default": "dot",
+        "description": "Travelling marker: a pulsing dot or a plane silhouette that turns with the route"
+      },
+      "land": {
+        "enum": [
+          "fill",
+          "dots",
+          "none"
+        ],
+        "default": "fill",
+        "description": "Land style: fill (solid coastlines), dots (dot-matrix land) or none (abstract map: graticule only, no geography)"
+      },
+      "borders": {
+        "type": "boolean",
+        "default": true,
+        "description": "Draw international land boundaries (Natural Earth de facto lines; disputed lines are omitted) as faint dashes"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 6,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#CFDDE6",
+          "#F8F5EF",
+          "#151A21",
+          "#E4572E",
+          "#7A8590",
+          "#FFFFFF"
+        ],
+        "description": "Sea (ground), land, ink, accent (route, marker, chips), muted (labels, dashed route ahead) and card colours"
+      },
+      "grid": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5,
+        "description": "Opacity of the latitude/longitude graticule"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.12,
+        "default": 0.03,
+        "description": "Film grain amount"
+      }
+    }
+  },
+  "presets": {
+    "atlas": {},
+    "night": {
+      "palette": [
+        "#0A111D",
+        "#33507A",
+        "#EEF3FA",
+        "#3DDC97",
+        "#8592A8",
+        "#16213A"
+      ],
+      "land": "dots",
+      "marker": "plane",
+      "grid": 0.35,
+      "grain": 0.04
+    },
+    "transit": {
+      "palette": [
+        "#121619",
+        "#262D33",
+        "#F4F4F2",
+        "#FFC21A",
+        "#8C949C",
+        "#1C2227"
+      ],
+      "path": "straight",
+      "grid": 0.3
+    },
+    "voyage": {
+      "palette": [
+        "#0F3B4C",
+        "#E7DBC0",
+        "#F6F1E6",
+        "#FF7A45",
+        "#9DB7C0",
+        "#FFFFFF"
+      ],
+      "path": "arc",
+      "marker": "plane",
+      "grid": 0.4
+    }
+  },
+  "tags": [
+    "scene",
+    "map",
+    "route",
+    "journey",
+    "travel",
+    "geography",
+    "canvas"
+  ],
+  "license": "MIT (code); map data public domain (Natural Earth)",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Land outlines: Natural Earth 1:50m Land (ne_50m_land.geojson from github.com/nvkelso/natural-earth-vector, VERSION 5.2.0-pre, downloaded 2026-10-18, sha256 0e874b27a51d146452be360cafb3cc50c86001074a67d534113e6534682f9826b). Natural Earth states: 'All versions of Natural Earth raster + vector map data found on this website are in the public domain' (naturalearthdata.com/about/terms-of-use). Made with Natural Earth.",
+    "Borders: Natural Earth 1:50m Admin 0 boundary lines (ne_50m_admin_0_boundary_lines_land.geojson, same source and version, sha256 2faac4f6b34386f3d21b6e018cf151f241f00e5c936d44dd17d7d9bfb147fa48), public domain. Only features classed 'International boundary (verify)' are kept; Natural Earth draws de facto boundaries, so a reviewer should confirm they suit the audience, or set borders to false.",
+    "land-50m.js and borders-50m.js were produced by build_map_data.py in this directory: Douglas-Peucker simplification at 0.015 degrees for land and 0.02 degrees for borders, land rings under 0.0005 square degrees (about 6 km²) dropped, coordinates quantised to 1/100 degree and delta encoded (land 60,669 -> 39,378 points; borders 18,955 -> 8,324).",
+    "Routes are stylised: arcs and rhumb lines between stops, not real roads, rails or flight paths. Distances and durations are shown exactly as given; the recipe never computes or claims them. Coastlines at this scale are coarse below about 2 degrees of span, so the camera never zooms in further.",
+    "land: none renders an abstract map with no geography; stop positions still follow the latitude/longitude params.",
+    "Beats: intro = min(1.4, 0.1 D); outro = min(2.8, 0.2 D); leg = (D - intro - outro) / (stops - 1); leg k starts at intro + k * leg, departs at +0.10 leg and arrives (ripple, card) at +0.60 leg (+0.78 leg when there are only two stops); the first stop's card appears at 0.55 * intro; the pull-back starts at D - outro.",
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`. Uses the system's Inter when installed."
+  ],
+  "cost": {
+    "seconds_per_output_second": 2.5
+  }
+}

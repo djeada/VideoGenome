@@ -1,0 +1,17 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Briefs for the cinematic 3D title opener: a travel series, a science talk, a podcast season, and one with no title.",
+  "briefs": [
+    {"id": "hiking-vlog", "template": "social.cinematic-title",
+     "brief": "Opener for my hiking channel's new series High Passes, about crossing the Alps on foot in early summer. Label it Episode 1. Cool morning light."},
+    {"id": "astronomy-talk", "template": "social.cinematic-title",
+     "brief": "Title card for a library talk called Our Thin Blue Line, about why Earth's atmosphere matters. Make it feel like a view from orbit."},
+    {"id": "mars-podcast", "template": "social.cinematic-title",
+     "brief": "Intro for the podcast Dust and Distance, season two, which follows engineers designing rovers for Mars. Kicker: Season 2."},
+    {"id": "river-documentary", "template": "social.cinematic-title",
+     "brief": "Opening title for Where the River Bends, a short documentary about the last ferry crossing in our valley. Golden evening light."},
+    {"id": "opener-without-title", "template": "social.cinematic-title", "expect": "incomplete",
+     "brief": "We need an epic cinematic intro for our travel channel, something with mountains and a sunset.",
+     "note": "No title or channel name is given; the title slot is verbatim, so the writer must report it missing."}
+  ]
+}

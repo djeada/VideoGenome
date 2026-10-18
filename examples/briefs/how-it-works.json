@@ -1,0 +1,15 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Briefs for educational.how-it-works: a flow, a cycle, a technical system, and one that is too vague to diagram.",
+  "briefs": [
+    {"id": "coffee-roast", "template": "educational.how-it-works",
+     "brief": "Explain how coffee gets from farm to cup: farmers pick the ripe cherries by hand; the beans are washed and dried in the sun; a roaster roasts them until they crack and darken; a barista grinds and brews them fresh. Paper look."},
+    {"id": "water-cycle", "template": "educational.how-it-works",
+     "brief": "For a primary school class: the water cycle. The sun warms the sea and water evaporates; the vapour cools and condenses into clouds; the clouds release rain or snow; rivers carry the water back to the sea, and it starts again. It is a cycle, so show it as a loop."},
+    {"id": "dns-lookup", "template": "educational.how-it-works",
+     "brief": "How a browser finds a website: you type the address; your computer asks a DNS resolver; the resolver asks the domain's name server, which answers with the IP address; the browser then connects to the web server at that address. Takeaway: names are for people, numbers are for computers. Terminal look."},
+    {"id": "vague-system", "template": "educational.how-it-works", "expect": "incomplete",
+     "brief": "Make a how-it-works video about our platform. It's really innovative.",
+     "note": "Names no parts and no steps; a writer that fills four nodes and captions has invented them. The template has no verbatim slot, so this measures whether the writer reports missing facts instead of inventing them."}
+  ]
+}

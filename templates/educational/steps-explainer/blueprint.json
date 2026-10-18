@@ -1,0 +1,267 @@
+{
+  "schema_version": "0.5.0",
+  "id": "educational.steps-explainer",
+  "version": "0.1.0",
+  "title": "Animated three-step explainer (16:9)",
+  "category": "educational",
+  "description": "A 15-second 16:9 process explainer: a title with an accent rule, then three numbered steps that pop in on a self-drawing connector with a one-line note each, turn into check marks and come back together as a recap. Code-rendered (scene.steps) with a procedural lo-fi bed and a soft click as each step lands.",
+  "tags": [
+    "educational",
+    "explainer",
+    "steps",
+    "process",
+    "how_to",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "What the viewer will understand, under 40 characters"
+    },
+    "step_1": {
+      "type": "string",
+      "required": true,
+      "description": "First step as a short imperative or statement, under 34 characters"
+    },
+    "note_1": {
+      "type": "string",
+      "required": true,
+      "description": "One-line detail for step 1, under 60 characters"
+    },
+    "step_2": {
+      "type": "string",
+      "required": true,
+      "description": "Second step, under 34 characters"
+    },
+    "note_2": {
+      "type": "string",
+      "required": true,
+      "description": "One-line detail for step 2, under 60 characters"
+    },
+    "step_3": {
+      "type": "string",
+      "required": true,
+      "description": "Third step, under 34 characters"
+    },
+    "note_3": {
+      "type": "string",
+      "required": true,
+      "description": "One-line detail for step 3, under 60 characters"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "night",
+        "paper",
+        "ocean",
+        "citrus"
+      ],
+      "default": "night",
+      "description": "Visual look: night (dark, mint), paper (cream, vermilion), ocean (deep blue, cyan), citrus (white, amber)"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The step animation; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.steps",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "steps": [
+              "{{step_1}}",
+              "{{step_2}}",
+              "{{step_3}}"
+            ],
+            "notes": [
+              "{{note_1}}",
+              "{{note_2}}",
+              "{{note_3}}"
+            ]
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.lofi-beat",
+          "preset": "focus"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click as each step lands",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Explain how to brew pour-over coffee for beginners: rinse the paper filter with hot water, bloom the grounds with a little water for 30 seconds, then pour the rest slowly in circles. Title it 'Better pour-over in three steps'.",
+      "inputs": {
+        "title": "Better pour-over in three steps",
+        "step_1": "Rinse the filter",
+        "note_1": "Hot water removes the papery taste",
+        "step_2": "Bloom the grounds",
+        "note_2": "A little water, then wait 30 seconds",
+        "step_3": "Pour slowly in circles",
+        "note_3": "Keep the bed evenly wet as it drains",
+        "look": "paper"
+      },
+      "note": "Steps are short imperatives in the brief's order; each note adds the why or the number from the brief in one line. The requested title is used unchanged."
+    }
+  ],
+  "style": {
+    "mood": "clear, calm, confident",
+    "palette": [
+      "#0E1116",
+      "#F2F4F7",
+      "#3DDC97"
+    ],
+    "typography": "Inter, bold labels with muted notes",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 420,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "explainer",
+      "role": "explanation",
+      "duration_frames": 450,
+      "shots": [
+        {
+          "id": "steps_scene",
+          "kind": "animation",
+          "duration_frames": 450,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Title, three steps in order, then a recap with every step checked"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "step_1",
+            "step_2",
+            "step_3"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_in_frames": 6,
+    "fade_out_frames": 15,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 450,
+        "gain_db": 0,
+        "fade_in_frames": 12,
+        "fade_out_frames": 36
+      },
+      {
+        "id": "click_1",
+        "input_ref": "click",
+        "start_frame": 33,
+        "duration_frames": 12,
+        "gain_db": -4
+      },
+      {
+        "id": "click_2",
+        "input_ref": "click",
+        "start_frame": 156,
+        "duration_frames": 12,
+        "gain_db": -4
+      },
+      {
+        "id": "click_3",
+        "input_ref": "click",
+        "start_frame": 279,
+        "duration_frames": 12,
+        "gain_db": -4
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/steps) rendered frame-exactly on a virtual clock.",
+      "Clicks sit where each step node pops (1.1 s, 5.2 s, 9.3 s), derived from the recipe's intro, beat and recap timing at 15 seconds."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -16 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17,
+        "max": -15
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "accuracy_review",
+      "mode": "human",
+      "description": "A subject-matter reviewer confirms the steps are correct, complete and in the right order."
+    }
+  ]
+}

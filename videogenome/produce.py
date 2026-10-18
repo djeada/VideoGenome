@@ -37,6 +37,17 @@ PLACEHOLDER_RIGHTS = {"license": "MIT", "evidence": "Procedurally generated plac
 MANIFEST = "manifest.json"
 
 
+class CopyTooLong(ProductionError):
+    """Generated speech overruns its locked slot: the copy, not the provider, must change."""
+
+    def __init__(self, input_name: str, seconds: float, need: float) -> None:
+        super().__init__(f"input {input_name!r}: generated speech runs {seconds:.2f}s but the locked "
+                         f"slot is {need:.2f}s; shorten the text")
+        self.input = input_name
+        self.seconds = seconds
+        self.need = need
+
+
 def _fill_text(template: str, inputs: dict, label: str) -> str:
     def replace(match: re.Match[str]) -> str:
         name = match.group(1)
@@ -56,9 +67,16 @@ def _fill_text(template: str, inputs: dict, label: str) -> str:
 def _fill_value(value, inputs: dict, label: str):
     """Templates inside request values; ``"{{slot}}"`` alone keeps the input's JSON type."""
     if isinstance(value, dict):
-        return {key: _fill_value(item, inputs, label) for key, item in value.items()}
+        # A param that is exactly "{{slot}}" for an input left out is omitted, so the recipe default applies.
+        return {key: _fill_value(item, inputs, label) for key, item in value.items()
+                if not (isinstance(item, str) and (whole := SLOT.fullmatch(item.strip()))
+                        and whole.group(1) not in inputs)}
     if isinstance(value, list):
-        return [_fill_value(item, inputs, label) for item in value]
+        # A whole-slot item whose (optional) input was left out is dropped, so a template can
+        # map value_1..value_6 onto a recipe array and supply only as many as the brief has.
+        return [_fill_value(item, inputs, label) for item in value
+                if not (isinstance(item, str) and (whole := SLOT.fullmatch(item.strip()))
+                        and whole.group(1) not in inputs)]
     if isinstance(value, str):
         whole = SLOT.fullmatch(value.strip())
         if whole and whole.group(1) in inputs and not isinstance(inputs[whole.group(1)], bool):
@@ -97,7 +115,8 @@ def _duration(metadata: dict, kind: str) -> float:
 
 
 def _conform(path: Path, media: str, capability: str, need: float | None, fps: int,
-             workdir: Path, label: str) -> tuple[Path, dict]:
+             workdir: Path, name: str) -> tuple[Path, dict]:
+    label = f"input {name!r}"
     metadata = _probe(path)
     kinds = {s.get("codec_type") for s in metadata.get("streams", [])}
     if media == "audio" and "audio" not in kinds:
@@ -112,8 +131,7 @@ def _conform(path: Path, media: str, capability: str, need: float | None, fps: i
             return path, facts
         if capability in ("speech", "voice_conversion"):
             if seconds > need + 1 / fps:
-                raise PluginError(f"{label}: generated speech runs {seconds:.2f}s but the locked slot "
-                                  f"is {need:.2f}s; shorten the text")
+                raise CopyTooLong(name, seconds, need)
             conformed = workdir / "conformed.wav"
             samples = round(need * 48000)
             # Pad speech with silence to the locked slot so timing checks hold.
@@ -213,8 +231,28 @@ def _rights(chain: list, steps: list[dict]) -> tuple[dict, bool, str]:
             placeholder, origin)
 
 
+def _recipe_hashes(chain: list, request: dict) -> dict[str, str]:
+    """Code hashes of every recipe the request or a provider default names: editing a
+    recipe's code must invalidate media made by its previous version."""
+    names = {request.get("recipe")} if isinstance(request.get("recipe"), str) else set()
+    for provider, _ in chain:
+        for default in (provider.config.get("defaults") or {}).values():
+            if isinstance(default, dict) and isinstance(default.get("recipe"), str):
+                names.add(default["recipe"])
+    if not names:
+        return {}
+    from videogenome.procedural import catalog
+    hashes = {}
+    for name in sorted(names):
+        try:
+            hashes[name] = catalog.get(name).sha256()
+        except ProductionError:
+            hashes[name] = "unknown"
+    return hashes
+
+
 def _cache_key(chain: list, request: dict) -> str:
-    material = {"request": request, "chain": [
+    material = {"request": request, "recipes": _recipe_hashes(chain, request), "chain": [
         {"name": p.name, "type": type(p).__name__, "capability": c, "config": p.config}
         for p, c in chain]}
     return hashlib.sha256(json.dumps(material, sort_keys=True, default=str).encode()).hexdigest()
@@ -318,7 +356,7 @@ def _produce_one(blueprint, job, name, spec, profile, assets, job_dir, generated
                 rights, placeholder, origin_type = _rights(chain, steps)
                 final, facts = _conform(result.path, request["media"], capability,
                                         timing_needs(blueprint, name), blueprint["output"]["fps"],
-                                        workdir, f"input {name!r}")
+                                        workdir, name)
                 generated_dir.mkdir(exist_ok=True)
                 destination = generated_dir / f"{name}{final.suffix.lower() or '.bin'}"
                 shutil.copyfile(final, destination)

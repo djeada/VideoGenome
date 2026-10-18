@@ -1,0 +1,16 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.quote-square",
+  "template": "social.quote-square",
+  "template_version": "0.1.0",
+  "inputs": {
+    "quote": "Nothing is so painful to the human mind as a great and sudden change.",
+    "attribution": "Mary Shelley",
+    "source": "Frankenstein, 1818",
+    "look": "nocturne",
+    "mood": "dreamy"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

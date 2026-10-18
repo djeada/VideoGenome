@@ -1,0 +1,18 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Event teaser briefs for social.event-teaser and social.event-days-teaser, including one without a date and one without a day count.",
+  "briefs": [
+    {"id": "harbour-lights", "template": "social.event-teaser",
+     "brief": "Vertical teaser for Harbour Lights Festival, live music on Sat 12 July at Riverside Park, Bristol. Call to action: Get tickets"},
+    {"id": "makers-fair-days", "template": "social.event-days-teaser",
+     "brief": "Countdown reel for Northside Makers Fair on 4 October at the Old Tram Depot, Leeds. It is 21 days away. Call to action: Register free"},
+    {"id": "chess-open", "template": "social.event-teaser",
+     "brief": "Hype video for the Valletta Rapid Chess Open, Sunday 3 May, 10am at Grand Harbour Hotel, Malta. Call to action: Enter now. Make it feel like a poster."},
+    {"id": "party-without-date", "template": "social.event-teaser", "expect": "incomplete",
+     "brief": "Make a hype countdown for our summer party at the beach club. Call to action: RSVP now",
+     "note": "No date and no place; both are verbatim, so the writer must report them missing. (\"summer party\" may be taken as the name: verbatim grounding ignores case.)"},
+    {"id": "book-fair-without-days", "template": "social.event-days-teaser", "expect": "incomplete",
+     "brief": "Countdown teaser for Riverside Book Fair on 2 May at City Library, Norwich. Call to action: Save the date",
+     "note": "The brief never states how many days are left; days_to_go is verbatim and must be reported missing, never computed."}
+  ]
+}

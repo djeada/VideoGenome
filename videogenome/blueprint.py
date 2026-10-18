@@ -145,7 +145,7 @@ MEDIA_INPUTS = {"audio": "audio", "image": "image", "video": "video"}
 ASSET_INPUTS = {"image", "image_array", "video", "video_array", "audio", "model_3d"}
 
 
-def _recipe_errors(label: str, request: dict, media: str) -> list[str]:
+def _recipe_errors(label: str, request: dict, media: str, inputs: dict | None = None) -> list[str]:
     """A procedural request must name a catalog recipe, preset and params it accepts."""
     from videogenome.procedural import catalog
     recipe_id = request.get("recipe")
@@ -159,8 +159,17 @@ def _recipe_errors(label: str, request: dict, media: str) -> list[str]:
     if media not in recipe.data["media"]:
         errors.append(f"{label}: recipe {recipe_id} cannot produce {media}")
     preset = request.get("preset")
-    if isinstance(preset, str) and not SLOT.search(preset) and preset not in recipe.data.get("presets", {}):
+    presets = recipe.data.get("presets", {})
+    if isinstance(preset, str) and not SLOT.search(preset) and preset not in presets:
         errors.append(f"{label}: recipe {recipe_id} has no preset {preset!r}")
+    whole = SLOT.fullmatch(preset.strip()) if isinstance(preset, str) else None
+    if whole and inputs is not None:  # "{{look}}": every value the slot allows must be a real preset.
+        spec = inputs.get(whole.group(1), {})
+        choices = list(spec.get("enum", [])) + ([spec["default"]] if "default" in spec else [])
+        missing = sorted({str(c) for c in choices} - set(presets))
+        if missing:
+            errors.append(f"{label}: recipe {recipe_id} has no preset(s) {missing} that input "
+                          f"{whole.group(1)!r} can choose")
     unknown = set(request.get("params", {})) - set(recipe.data["params"]["properties"])
     if unknown:
         errors.append(f"{label}: recipe {recipe_id} has no params {sorted(unknown)}")
@@ -192,7 +201,7 @@ def _produce_errors(data: dict) -> list[str]:
             if data["inputs"].get(slot, {}).get("type") not in (*TEXT_INPUT_TYPES, "boolean"):
                 errors.append(f"{label}: request slot {slot!r} must be a text, number or boolean input")
         if produce["capability"] == "procedural":
-            errors.extend(_recipe_errors(label, produce.get("request", {}), media))
+            errors.extend(_recipe_errors(label, produce.get("request", {}), media, data["inputs"]))
         for ref in produce.get("references", []):
             if data["inputs"].get(ref, {}).get("type") not in ASSET_INPUTS or ref == name:
                 errors.append(f"{label}: reference {ref!r} must be another media input")
@@ -229,9 +238,35 @@ def _v04_feature_errors(data: dict, shots: list[dict]) -> list[str]:
     return errors
 
 
+FILLABLE_TYPES = ("string", "string_array", "number", "boolean", "url")
+
+
+def _fill_errors(data: dict) -> list[str]:
+    errors = []
+    for name, spec in data["inputs"].items():
+        if "fill" in spec and spec["type"] not in FILLABLE_TYPES:
+            errors.append(f"input {name}: fill applies to text, number or boolean inputs only")
+        if spec.get("fill") == "verbatim" and spec["type"] not in ("string", "string_array", "number"):
+            errors.append(f"input {name}: verbatim fill applies to string and number inputs only")
+        if spec.get("whole_quote") and (spec.get("fill") != "verbatim" or spec["type"] != "string"):
+            errors.append(f"input {name}: whole_quote applies to verbatim string inputs only")
+        partner = spec.get("grounded_with")
+        if partner is not None:
+            other = data["inputs"].get(partner, {})
+            if spec.get("fill") != "verbatim" or other.get("fill") != "verbatim" or partner == name:
+                errors.append(f"input {name}: grounded_with must name another verbatim input, and both must be verbatim")
+    return errors
+
+
 def _version_errors(data: dict, shots: list[dict]) -> list[str]:
     """Features introduced in newer schemas must not leak into older contracts."""
     errors = []
+    if _version(data) < (0, 5, 0):
+        newer = [name for name, spec in data["inputs"].items() if "fill" in spec or "grounded_with" in spec or "whole_quote" in spec]
+        if newer:
+            errors.append(f"inputs {newer} use fill, which requires schema_version 0.5.0")
+        if "copy_examples" in data:
+            errors.append("copy_examples requires schema_version 0.5.0")
     if _version(data) < (0, 4, 0):
         newer = [name for name, spec in data["inputs"].items()
                  if "produce" in spec or spec["type"] == "model_3d" or "enum" in spec or "default" in spec]
@@ -259,15 +294,28 @@ def _version_errors(data: dict, shots: list[dict]) -> list[str]:
     return errors + [f"{feature} requires schema_version 0.3.0" for feature in used]
 
 
+_SCHEMA_CACHE: dict[tuple[float, int], tuple[dict, Draft202012Validator]] = {}
+
+
+def _cached_validator() -> tuple[dict, Draft202012Validator]:
+    """Check the schema against the meta-schema once per file version, not once per blueprint."""
+    stat = SCHEMA_PATH.stat()
+    key = (stat.st_mtime, stat.st_size)
+    if key not in _SCHEMA_CACHE:
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        _SCHEMA_CACHE.clear()
+        _SCHEMA_CACHE[key] = (schema, Draft202012Validator(schema))
+    return _SCHEMA_CACHE[key]
+
+
 def load_schema() -> dict:
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    Draft202012Validator.check_schema(schema)
-    return schema
+    return _cached_validator()[0]
 
 
 def validate_blueprint(data: object, schema: dict | None = None) -> list[str]:
     """Return portable, human-readable validation errors."""
-    validator = Draft202012Validator(schema or load_schema())
+    validator = Draft202012Validator(schema) if schema is not None else _cached_validator()[1]
     errors = []
     for error in sorted(validator.iter_errors(data), key=lambda e: str(list(e.absolute_path))):
         path = "/" + "/".join(str(part) for part in error.absolute_path)
@@ -323,4 +371,8 @@ def validate_blueprint(data: object, schema: dict | None = None) -> list[str]:
     errors.extend(_gate_errors(data))
     errors.extend(_produce_errors(data))
     errors.extend(_v04_feature_errors(data, shots))
+    errors.extend(_fill_errors(data))
+    if not errors and "copy_examples" in data:
+        from videogenome.fill import example_errors  # Late: fill depends on the compiler.
+        errors.extend(example_errors(data))
     return errors

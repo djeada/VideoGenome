@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.4.0",
+  "schema_version": "0.5.0",
   "id": "educational.narrated-slides",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Narrated three-slide explainer",
   "category": "educational",
   "description": "A 22-second explainer: title, three illustrated slides with narration and matching captions, closing line. Every illustration, narration and the music bed can be supplied by the job or produced by whichever image/speech/music providers the pipeline routes.",
@@ -166,6 +166,22 @@
       }
     }
   },
+  "copy_examples": [
+    {
+      "brief": "Explain to beginner gardeners why compost helps soil: microbes break scraps down into humus; humus holds water like a sponge; plants take up the nutrients it releases. Title: 'Why compost works'. Close by inviting them to start a small bin this week.",
+      "inputs": {
+        "title": "Why compost works",
+        "slide_1_script": "Microbes break kitchen scraps down into dark, crumbly humus.",
+        "slide_1_visual": "close-up of dark crumbly compost with vegetable peelings, soft morning light",
+        "slide_2_script": "Humus holds water like a sponge, so roots stay moist.",
+        "slide_2_visual": "a hand squeezing a handful of moist dark soil in a garden",
+        "slide_3_script": "As it breaks down, it releases nutrients plants take up.",
+        "slide_3_visual": "healthy green seedlings in rich dark soil, warm sunlight",
+        "closing": "Start a small bin this week"
+      },
+      "note": "The requested title is used unchanged. Each script is one spoken sentence of about ten words carrying one step of the brief, in order. Visuals describe a photographable scene, never text or diagrams."
+    }
+  ],
   "style": {
     "mood": "clear, calm, trustworthy",
     "palette": [

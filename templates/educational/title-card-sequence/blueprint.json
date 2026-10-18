@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.4.0",
+  "schema_version": "0.5.0",
   "id": "educational.title-card-sequence",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "title": "Brand-safe three-card explainer",
   "category": "educational",
   "description": "A fully renderable three-card typographic explainer over a slowly flowing procedural backdrop, with an optional procedural music bed. Balanced, measured copy fitting, staggered entrances and dips.",
@@ -76,6 +76,18 @@
       }
     }
   },
+  "copy_examples": [
+    {
+      "brief": "Internal video for our support team: every ticket is now answered within four hours, because tickets are routed by topic instead of arrival time. Ask the team to tag tickets by topic from Monday. Warm tone.",
+      "inputs": {
+        "headline": "Every ticket answered in four hours",
+        "insight": "Routing by topic, not arrival time, made it possible.",
+        "action": "Tag tickets by topic from Monday",
+        "mood": "warm"
+      },
+      "note": "Headline states the result with its number, the insight gives the single reason, the action is one concrete instruction with its date."
+    }
+  ],
   "style": {
     "mood": "minimal, assured and contemporary",
     "palette": [

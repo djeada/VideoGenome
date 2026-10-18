@@ -1,0 +1,17 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Briefs for the 3D product hero: packaged goods of different shapes, one with a colour cue, and one without an approved call to action.",
+  "briefs": [
+    {"id": "olive-oil", "template": "commercial.product-hero-3d",
+     "brief": "Hero spot for Casa Verde, a cold-pressed olive oil from a single grove in Puglia, sold in a dark green glass bottle. Call to action: Order now. Warm, premium look."},
+    {"id": "sparkling-water", "template": "commercial.product-hero-3d",
+     "brief": "Launch spot for Brisk Lime, a sparkling water in a 330 ml can with no sugar and no sweeteners. CTA: Find it in store. Bright and fresh."},
+    {"id": "earbuds-case", "template": "commercial.product-hero-3d",
+     "brief": "Teaser for Orbit Mini, our new wireless earbuds that last eight hours per charge. Call to action: Pre-order. Dark tech look."},
+    {"id": "tea-tin", "template": "commercial.product-hero-3d",
+     "brief": "Product video for Morning Field, a loose-leaf green tea sold in a tin. The call to action is: Shop the tea. Soft and calm."},
+    {"id": "hero-without-cta", "template": "commercial.product-hero-3d", "expect": "incomplete",
+     "brief": "Make a slick 3D video for Lumo, our new face serum in a glass dropper bottle. Make it feel luxurious.",
+     "note": "No call to action is given; the cta slot is verbatim, so the writer must report it missing rather than invent one."}
+  ]
+}

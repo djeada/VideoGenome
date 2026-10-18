@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.cc0-documentary",
   "template": "educational.cc0-documentary",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "The Restless Ocean",
     "topic_1": "ocean waves",

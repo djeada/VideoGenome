@@ -1,0 +1,27 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "captioned-explainer",
+  "title": "Captioned still explainer",
+  "summary": "One image, a narration track and a music bed under three frame-timed captions and a closing title.",
+  "family": "explainer",
+  "formats": [
+    "16:9"
+  ],
+  "duration_seconds": [
+    6,
+    15
+  ],
+  "recipes": [],
+  "templates": [
+    "educational.captioned-explainer"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "An image, narration and music (supplied)"
+  ],
+  "techniques": [
+    "layered audio",
+    "frame-timed captions"
+  ],
+  "limits": []
+}

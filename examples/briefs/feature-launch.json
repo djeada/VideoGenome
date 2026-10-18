@@ -1,0 +1,15 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "SaaS / app launch briefs for commercial.feature-launch: two complete, one with a quoted CTA and look, one that lacks the product name and call to action.",
+  "briefs": [
+    {"id": "ledgerly-launch", "template": "commercial.feature-launch",
+     "brief": "Launch video for Ledgerly, bookkeeping for freelancers. Features: snap a receipt and it files itself, invoices chase late payers automatically, and you get a nudge before a tax deadline. Call to action: Start free"},
+    {"id": "quayside-launch", "template": "commercial.feature-launch",
+     "brief": "Launch film for Quayside, a shared inbox for small support teams. Every customer email lands in one queue, you assign a conversation with one click, and you get alerted when a reply is overdue. Call to action: \"Try Quayside free\". Light, clean look, calm music."},
+    {"id": "greenhouse-launch", "template": "commercial.feature-launch",
+     "brief": "Product launch for Sproutline, an app that monitors home greenhouses: charts of soil moisture over the week, automatic watering you switch on per bed, and alerts when frost is forecast. Call to action: Join the beta. Green look."},
+    {"id": "launch-without-name", "template": "commercial.feature-launch", "expect": "incomplete",
+     "brief": "We are launching our new project management app next month. It has Kanban boards, automatic time tracking and Slack alerts. Make it slick.",
+     "note": "No product name and no call to action; both slots are verbatim, so the writer must report them missing."}
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "software-walkthrough",
+  "title": "Software walkthrough",
+  "summary": "A genuine screen recording with title, guided callouts and narration, ending on a summary card.",
+  "family": "explainer",
+  "formats": [
+    "16:9"
+  ],
+  "duration_seconds": [
+    20,
+    60
+  ],
+  "recipes": [],
+  "templates": [
+    "educational.software-explainer"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "A current screen recording and narration"
+  ],
+  "techniques": [
+    "screen capture",
+    "callouts"
+  ],
+  "limits": [
+    "Blueprint only: renders when you supply the recording"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.how-it-works",
+  "template": "educational.how-it-works",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "How a tap-to-pay payment goes through",
+    "node_1": "You tap to pay",
+    "node_2": "Shop's checkout",
+    "node_3": "Card network",
+    "node_4": "Your bank",
+    "caption_1": "Your phone sends a one-time token, never the card number",
+    "caption_2": "The checkout asks its payment processor to charge the token",
+    "caption_3": "The network routes the request to the bank that issued the card",
+    "caption_4": "Your bank checks the account and sends back approve or decline",
+    "icon_1": "phone",
+    "icon_2": "cart",
+    "icon_3": "globe",
+    "icon_4": "lock",
+    "takeaway": "Four hops, and the shop never sees your card number",
+    "layout": "auto",
+    "look": "chalkboard"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

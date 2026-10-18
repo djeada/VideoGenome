@@ -58,6 +58,22 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+\\.(py|html)$"
     },
+    "timing": {
+      "enum": [
+        "frame",
+        "clock"
+      ],
+      "description": "Browser recipes only. frame (default): the page defines vgSetup(spec) and vgRender(frame, t). clock: the page animates with ordinary requestAnimationFrame/performance.now/CSS/WAAPI/timers code, reads window.vgSpec, and a virtual clock advances one frame per screenshot."
+    },
+    "libraries": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "description": "Browser recipes only: shared libraries from recipes/_lib/<name>/ the page loads (served at ../../_lib/<name>/). Their files are part of the recipe's provenance hash."
+    },
     "params": {
       "type": "object",
       "required": [

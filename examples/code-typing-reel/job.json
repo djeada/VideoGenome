@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.code-typing-reel",
   "template": "educational.code-typing-reel",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "hook": "Python's walrus operator in 10 seconds",
     "code": "import re\n\nlines = [\"id=42\", \"name=Ada\", \"oops\"]\n\nfor line in lines:\n    if (match := re.match(r\"(\\w+)=(\\w+)\", line)):\n        key, value = match.groups()\n        print(f\"{key} -> {value}\")\n",

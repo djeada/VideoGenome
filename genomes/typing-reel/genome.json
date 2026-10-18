@@ -1,0 +1,32 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "typing-reel",
+  "title": "Code typing reel (terminal tool)",
+  "summary": "A hook card, code typed in an editor by Type-Simulator (or a supplied recording) with keyboard sound, and a takeaway card.",
+  "family": "code",
+  "formats": [
+    "9:16"
+  ],
+  "duration_seconds": [
+    10,
+    20
+  ],
+  "recipes": [
+    "visual.dot-wave",
+    "audio.lofi-beat"
+  ],
+  "templates": [
+    "educational.code-typing-reel"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "Type-Simulator in the pipeline, or a supplied screen recording"
+  ],
+  "techniques": [
+    "external typing tool",
+    "title cards"
+  ],
+  "limits": [
+    "Needs the Type-Simulator tool; see the code-snippet class for a browser-only version"
+  ]
+}

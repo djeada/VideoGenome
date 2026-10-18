@@ -1,0 +1,222 @@
+<!doctype html>
+<!--
+  Title sting: a brand or title reveal. Letters fly in from depth (scaled,
+  rotated, motion-blurred) and lock into place; on impact a flash ring and a
+  spark burst fire and the frame punches in; a light sweep crosses the name,
+  an accent rule extends beneath it and the tagline tracks in letter by letter.
+  Finishes: chrome (metallic gradient), flat or glow.
+
+  Timing: clock (requestAnimationFrame + performance.now on VideoGenome's
+  virtual clock). Parameters arrive in window.vgSpec.params; text is drawn
+  with fillText, never parsed as HTML.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="vg"></canvas>
+<script>
+"use strict";
+const spec = window.vgSpec || { params: {}, width: 1920, height: 1080, duration_seconds: 6, seed: 1 };
+const P = Object.assign({
+  name: "VideoGenome", tagline: "Design once. Produce anywhere.",
+  palette: ["#07080B", "#F4F4F2", "#FF5A36"], finish: "chrome", tempo: 1.0, sparks: 48, grain: 0.04,
+}, spec.params || {});
+const W = spec.width, H = spec.height, D = spec.duration_seconds;
+const canvas = document.getElementById("vg");
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext("2d");
+const unit = Math.min(W, H);
+const FONT = '"Inter", "Helvetica Neue", Arial, sans-serif';
+const [BG, INK, ACCENT] = P.palette;
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const outExpo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const outCubic = (x) => 1 - Math.pow(1 - x, 3);
+const inOutSine = (x) => -(Math.cos(Math.PI * x) - 1) / 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rgba = (hex, a) => { const v = parseInt(hex.slice(1), 16); return `rgba(${v >> 16 & 255},${v >> 8 & 255},${v & 255},${a})`; };
+
+// ---- name layout: per-glyph positions from cumulative measurement (keeps kerning) ----
+const name = String(P.name).trim();
+if (!name) throw new Error("title-sting: name is empty");
+let size = Math.round(unit * (W >= H ? 0.2 : 0.17));
+ctx.font = `900 ${size}px ${FONT}`;
+const tracking = () => size * -0.02;
+const measureName = () => ctx.measureText(name).width + tracking() * (name.length - 1);
+while (measureName() > W * 0.82 && size > unit * 0.04) { size -= 2; ctx.font = `900 ${size}px ${FONT}`; }
+const nameW = measureName();
+const baseline = H / 2 + size * 0.3;
+const startX = (W - nameW) / 2;
+const glyphs = [];
+for (let i = 0; i < name.length; i++) {
+  if (name[i] === " ") continue;
+  const x = startX + ctx.measureText(name.slice(0, i)).width + tracking() * i;
+  glyphs.push({ ch: name[i], x, w: ctx.measureText(name[i]).width,
+    // Each glyph starts somewhere around and in front of the camera.
+    a: Math.random() * Math.PI * 2, dist: unit * (0.35 + Math.random() * 0.45),
+    z: 2.2 + Math.random() * 2.2, rot: (Math.random() - 0.5) * 1.6,
+    delay: Math.random() * 0.35 });
+}
+const tagline = String(P.tagline || "").trim();
+let tagSize = Math.round(size * 0.26);
+ctx.font = `600 ${tagSize}px ${FONT}`;
+const tagTrack = () => tagSize * 0.18;
+const tagWidth = () => ctx.measureText(tagline).width + tagTrack() * Math.max(0, tagline.length - 1);
+while (tagline && tagWidth() > W * 0.8 && tagSize > 10) { tagSize -= 1; ctx.font = `600 ${tagSize}px ${FONT}`; }
+
+// ---- timeline (seconds), scaled by tempo and fitted to short durations ----
+const k = Math.min(1, D / 5.5) / P.tempo;
+const FLY = 0.25 * k, LAND = 1.45 * k, SWEEP = LAND + 0.35 * k, RULE = LAND + 0.2 * k, TAG = LAND + 0.55 * k;
+const sparks = Array.from({ length: Math.round(P.sparks) }, () => ({
+  a: Math.random() * Math.PI * 2, v: unit * (0.25 + Math.random() * 0.9), life: 0.5 + Math.random() * 0.8,
+  r: unit * (0.002 + Math.random() * 0.004),
+}));
+
+function nameFill(alpha) {
+  if (P.finish === "chrome") {
+    const g = ctx.createLinearGradient(0, baseline - size * 0.8, 0, baseline + size * 0.1);
+    g.addColorStop(0, rgba(INK, alpha)); g.addColorStop(0.48, rgba(INK, alpha * 0.92));
+    g.addColorStop(0.52, rgba("#B9BEC7", alpha)); g.addColorStop(0.75, rgba(INK, alpha * 0.95));
+    g.addColorStop(1, rgba("#9298A2", alpha));
+    return g;
+  }
+  return rgba(INK, alpha);
+}
+
+function background(t) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+  const pulse = clamp(1 - Math.abs(t - LAND) / (0.9 * k));
+  const glow = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, unit * 0.85);
+  glow.addColorStop(0, rgba(ACCENT, 0.1 + 0.18 * pulse)); glow.addColorStop(1, rgba(ACCENT, 0));
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+}
+
+function drawGlyphs(t) {
+  ctx.font = `900 ${size}px ${FONT}`;
+  ctx.textBaseline = "alphabetic";
+  for (const g of glyphs) {
+    const p = outExpo(clamp((t - FLY - g.delay * k) / (LAND - FLY - 0.35 * k)));
+    if (p <= 0) continue;
+    // Samples along the path give motion blur while the glyph is fast.
+    const samples = p < 0.98 ? 5 : 1;
+    for (let s = samples - 1; s >= 0; s--) {
+      const q = clamp(p - s * 0.035);
+      const scale = lerp(g.z, 1, q);
+      const ox = Math.cos(g.a) * g.dist * (1 - q), oy = Math.sin(g.a) * g.dist * (1 - q);
+      const cx = g.x + g.w / 2 + ox, cy = baseline - size * 0.35 + oy;
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(g.rot * (1 - q)); ctx.scale(scale, scale);
+      const alpha = clamp(q * 1.6) * (s === 0 ? 1 : 0.18);
+      if (P.finish === "glow") { ctx.shadowColor = rgba(ACCENT, 0.9 * alpha); ctx.shadowBlur = size * 0.25; }
+      ctx.fillStyle = nameFill(alpha);
+      ctx.fillText(g.ch, -g.w / 2, size * 0.35);
+      ctx.restore();
+    }
+  }
+}
+
+// Light sweep: a bright diagonal band clipped to the settled name.
+const sweepCanvas = document.createElement("canvas");
+sweepCanvas.width = W; sweepCanvas.height = H;
+const sweepCtx = sweepCanvas.getContext("2d");
+function sweep(t) {
+  const p = clamp((t - SWEEP) / (0.9 * k));
+  if (p <= 0 || p >= 1) return;
+  sweepCtx.clearRect(0, 0, W, H);
+  sweepCtx.font = `900 ${size}px ${FONT}`;
+  sweepCtx.fillStyle = "#fff";
+  for (const g of glyphs) sweepCtx.fillText(g.ch, g.x, baseline);
+  sweepCtx.globalCompositeOperation = "source-in";
+  const x = lerp(startX - size, startX + nameW + size, inOutSine(p));
+  const band = sweepCtx.createLinearGradient(x - size * 0.6, 0, x + size * 0.6, size * 0.4);
+  band.addColorStop(0, "rgba(255,255,255,0)"); band.addColorStop(0.5, "rgba(255,255,255,0.85)");
+  band.addColorStop(1, "rgba(255,255,255,0)");
+  sweepCtx.fillStyle = band; sweepCtx.fillRect(0, 0, W, H);
+  sweepCtx.globalCompositeOperation = "source-over";
+  ctx.drawImage(sweepCanvas, 0, 0);
+}
+
+function impact(t) {
+  const since = t - LAND;
+  if (since < 0) return;
+  const ring = outCubic(clamp(since / (0.8 * k)));
+  if (ring < 1) {
+    ctx.strokeStyle = rgba(ACCENT, (1 - ring) * 0.8); ctx.lineWidth = unit * 0.006 * (1 - ring) + 1;
+    ctx.beginPath(); ctx.ellipse(W / 2, baseline - size * 0.35, nameW * 0.3 + ring * nameW * 0.6,
+                                 size * 0.5 + ring * unit * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  for (const s of sparks) {
+    const life = since / (s.life * k);
+    if (life >= 1) continue;
+    const d = s.v * outCubic(life) * k;
+    const x = W / 2 + Math.cos(s.a) * (nameW * 0.25 + d), y = baseline - size * 0.35 + Math.sin(s.a) * d * 0.6;
+    ctx.fillStyle = rgba(life < 0.3 ? INK : ACCENT, 1 - life);
+    ctx.beginPath(); ctx.arc(x, y, s.r * (1 - life * 0.5), 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function rule(t) {
+  const p = outExpo(clamp((t - RULE) / (0.8 * k)));
+  if (p <= 0) return;
+  const w = nameW * 0.5 * p, y = baseline + size * 0.28;
+  ctx.fillStyle = ACCENT;
+  ctx.fillRect(W / 2 - w / 2, y, w, Math.max(3, size * 0.035));
+}
+
+function drawTagline(t) {
+  if (!tagline) return;
+  ctx.font = `600 ${tagSize}px ${FONT}`;
+  let x = (W - tagWidth()) / 2;
+  const y = baseline + size * 0.28 + tagSize * 2.1;
+  for (let i = 0; i < tagline.length; i++) {
+    const p = outCubic(clamp((t - TAG - i * 0.025 * k) / (0.35 * k)));
+    const w = ctx.measureText(tagline[i]).width;
+    if (p > 0) {
+      ctx.fillStyle = rgba(INK, p * 0.82);
+      ctx.fillText(tagline[i], x, y + (1 - p) * tagSize * 0.6);
+    }
+    x += w + tagTrack();
+  }
+}
+
+let grainCanvas = null;
+function grain(t) {
+  if (P.grain <= 0) return;
+  if (!grainCanvas) {
+    grainCanvas = document.createElement("canvas"); grainCanvas.width = grainCanvas.height = 256;
+    const g = grainCanvas.getContext("2d"), img = g.createImageData(256, 256);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  ctx.save(); ctx.globalAlpha = P.grain; ctx.globalCompositeOperation = "overlay";
+  ctx.translate(-Math.floor((t * 977) % 256), -Math.floor((t * 613) % 256));
+  ctx.fillStyle = ctx.createPattern(grainCanvas, "repeat"); ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+
+function frame(now) {
+  const t = now / 1000;
+  background(t);
+  // Camera: a punch on impact, then a slow push-in for the rest of the shot.
+  const punch = 0.035 * Math.exp(-Math.max(0, t - LAND) * 9) * (t >= LAND ? 1 : 0);
+  const push = 1 + 0.03 * clamp((t - LAND) / Math.max(0.5, D - LAND));
+  ctx.save();
+  ctx.translate(W / 2, H / 2); ctx.scale(push + punch, push + punch); ctx.translate(-W / 2, -H / 2);
+  impact(t);
+  drawGlyphs(t);
+  sweep(t);
+  rule(t);
+  drawTagline(t);
+  ctx.restore();
+  grain(t);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

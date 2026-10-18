@@ -1,0 +1,16 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.quote-loop",
+  "template": "social.quote-loop",
+  "template_version": "0.1.0",
+  "inputs": {
+    "quote": "I went to the woods because I wished to live deliberately, to front only the essential facts of life",
+    "attribution": "Henry David Thoreau",
+    "source": "Walden, 1854",
+    "look": "ember",
+    "mood": "reflective"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

@@ -1,0 +1,29 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.chart-story",
+  "template": "educational.chart-story",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "E-books now lead library loans",
+    "measure": "Loans by format, Westbrook libraries, 2025",
+    "unit": "k",
+    "label_1": "E-books",
+    "value_1": 412,
+    "label_2": "Print books",
+    "value_2": 385,
+    "label_3": "Audiobooks",
+    "value_3": 208,
+    "label_4": "Magazines",
+    "value_4": 96,
+    "label_5": "DVDs",
+    "value_5": 31,
+    "highlight": 1,
+    "takeaway": "For the first time, more readers borrowed e-books than print",
+    "source": "Westbrook Libraries loan records (sample data)",
+    "chart": "auto",
+    "look": "night"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

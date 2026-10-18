@@ -1,0 +1,42 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "beat-visualizer",
+  "title": "Tempo-synced beat visualizer",
+  "summary": "Rings, an equaliser or kinetic shapes hit on every kick of a music bed and accent each downbeat, under a show or mix title; picture and music share one locked tempo so every hit lands on its beat.",
+  "family": "music",
+  "formats": [
+    "9:16",
+    "1:1",
+    "16:9"
+  ],
+  "duration_seconds": [
+    8,
+    32
+  ],
+  "recipes": [
+    "scene.beat-visualizer"
+  ],
+  "templates": [
+    "social.beat-loop"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "A show, mix, channel or event name in the brief",
+    "For your own music: a cleared track at the locked tempo whose first downbeat is at 0 s"
+  ],
+  "techniques": [
+    "Canvas 2D",
+    "tempo clock (bpm, beats per bar, offset)",
+    "half-frame-lead hit envelopes",
+    "band-split kick/backbeat/off-beat accents",
+    "ripples",
+    "kinetic snaps",
+    "film grain"
+  ],
+  "gallery_share": "Audio visualizers for mixes, podcasts and radio shows are among the most requested music-driven loops.",
+  "limits": [
+    "Synced by tempo, not by analysing audio: the bars are not a real spectrum, and a track with tempo drift or a different BPM will not stay in sync",
+    "One typeface (Inter or the system sans)",
+    "Hits are frame-quantised: exact at tempos whose beat is a whole number of frames (120 BPM at 30 fps), otherwise within half a frame"
+  ]
+}

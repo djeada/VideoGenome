@@ -1,0 +1,44 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.motion-showreel",
+  "version": "0.1.0",
+  "title": "Motion design showreel (Canvas)",
+  "description": "An abstract motion-design reel in a five-colour brand palette, in six designed beats with one focal point each: a dot grid ripples and springs into a disc; the disc morphs circle, squircle, triangle, star on springs with colour echoes and orbiting satellites, then irises open; word 1 rises letter by letter through a mask; a staggered diagonal stripe wipe cuts to circular kinetic type (word 2 round a rotating ring around a sprung disc); the disc irises into word 3, revealed two-tone by a sliding mask panel; shutters close and the name lands with an impact ring, three sprung shapes and a tracked kicker. Beats scale with the duration; any aspect ratio.",
+  "media": ["video", "image"],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": ["vg-scene"],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "name": {"type": "string", "minLength": 1, "maxLength": 24, "default": "Northlight Studio",
+               "description": "Studio, brand or designer name for the closing lockup"},
+      "words": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "string", "minLength": 1, "maxLength": 16},
+                "default": ["Shape", "Rhythm", "Story"],
+                "description": "Three short words or phrases, one per beat (1-2 words each read best)"},
+      "kicker": {"type": "string", "maxLength": 28, "default": "Motion design",
+                 "description": "Small tracked line under the name (set in capitals; empty for none)"},
+      "palette": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                  "default": ["#0E0E10", "#F5F3EE", "#FF4D2E", "#2D5BFF", "#FFD23F"],
+                  "description": "Ground, ink and three brand colours (C1 carries word 1 and the impact, C2 the ring disc and word 3, C3 the echoes and the mask panel). Ink on every ground is chosen for 4.5:1 contrast"},
+      "grid": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.6, "description": "Strength of the dot grids"},
+      "grain": {"type": "number", "minimum": 0, "maximum": 0.12, "default": 0.04, "description": "Film grain amount"}
+    }
+  },
+  "presets": {
+    "studio": {},
+    "noir": {"palette": ["#0B0B0C", "#F2F2F2", "#FF3B30", "#2A2A2E", "#F2F2F2"], "grid": 0.5},
+    "acid": {"palette": ["#101010", "#F1F1F1", "#C6FF3D", "#7B61FF", "#FF5CA8"], "grain": 0.05},
+    "paper": {"palette": ["#F4F0E8", "#141414", "#FF5A36", "#1E3A8A", "#F2B705"], "grid": 0.7, "grain": 0.03}
+  },
+  "tags": ["scene", "showreel", "motion-design", "abstract", "kinetic-type", "shapes", "brand", "canvas"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": [
+    "Beats are designed at 15 s and scale with D (k = D / 15): dots 0-2.1 k; morph pops at 2.4, 3.0, 3.6 k and a pulse at 4.0 k; iris 4.1 k; word 1 from 4.6 k; stripe wipe from 6.5 k (covered at 6.92 k); ring and word 2 from about 7.0 k; ring iris 9.0 k; word 3 from 9.35 k with the mask sweep 9.9-11.25 k; shutters 11.4-11.72 k; name impact 12.2 k; kicker 12.6 k; hold to D. Works from about 10 s; at 15 s each word holds 1.6-2 s.",
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`. Uses the system's Inter when installed."
+  ],
+  "cost": {"seconds_per_output_second": 2.0}
+}

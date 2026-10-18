@@ -1,0 +1,44 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.steps",
+  "version": "0.1.0",
+  "title": "Step-by-step explainer (Canvas)",
+  "description": "An animated process explainer: the title rises in with an accent rule, numbered nodes pop in on a connector that draws itself, each step slides in with an optional note, finished steps dim and turn into check marks, and a closing beat recaps every step. Portrait stacks the title above the steps; landscape sets them side by side.",
+  "media": ["video", "image"],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {"type": "string", "minLength": 1, "maxLength": 48, "default": "How a blueprint becomes a video",
+                "description": "Title above or beside the steps"},
+      "steps": {"type": "array", "minItems": 1, "maxItems": 6,
+                "items": {"type": "string", "minLength": 1, "maxLength": 36},
+                "default": ["Pick a template", "Fill the text slots", "Produce the media", "Render and review"],
+                "description": "Step labels in order, a short imperative each"},
+      "notes": {"type": "array", "maxItems": 6, "items": {"type": "string", "maxLength": 64}, "default": [],
+                "description": "Optional one-line detail under each step (same order; empty string for none)"},
+      "palette": {"type": "array", "minItems": 4, "maxItems": 4,
+                  "items": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                  "default": ["#0E1116", "#F2F4F7", "#3DDC97", "#8B93A1"],
+                  "description": "Ground, ink, accent and muted (notes, track) colours"},
+      "grid": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.3, "description": "Opacity of the drifting dot grid"},
+      "grain": {"type": "number", "minimum": 0, "maximum": 0.12, "default": 0.03, "description": "Film grain amount"},
+      "recap": {"type": "boolean", "default": true, "description": "End with every step lit and checked"}
+    }
+  },
+  "presets": {
+    "night": {},
+    "paper": {"palette": ["#F5F2EB", "#16181D", "#E4572E", "#7A7F87"], "grid": 0.4},
+    "ocean": {"palette": ["#071A26", "#EAF6FA", "#4CC9F0", "#7FA3B5"]},
+    "citrus": {"palette": ["#FFFDF6", "#1E1E1E", "#F2A30F", "#8A8579"], "grain": 0.02}
+  },
+  "tags": ["scene", "explainer", "steps", "process", "canvas"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": ["Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+            "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial."],
+  "cost": {"seconds_per_output_second": 2.0}
+}

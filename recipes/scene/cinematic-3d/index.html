@@ -1,0 +1,581 @@
+<!doctype html>
+<!--
+  Cinematic 3D title: a generative world, a slow camera and a title.
+
+  world "terrain": a seeded mountain valley at golden hour, dawn or dusk. The camera
+  flies low along a river; a far ridge hides the low sun until the camera climbs
+  over it (the sun reveal), then the title and subtitle settle over the land.
+  world "planet": an orbital sunrise. The camera drifts above the night side of a
+  procedurally textured planet; the sun breaks over the limb with a glare, the
+  atmosphere lights up along the edge, then the title settles.
+
+  Beats (D = spec.duration_seconds):
+    0-0.9 s      exposure rises from 35% (never a black frame)
+    0-0.62D      camera move (flyover / drift), slow drift afterwards
+    0.46D        the sun clears the ridge or limb               (cue: swell peak or impact)
+    0.56D        kicker + title letters fade in, tracking settles (cue: soft hit)
+    0.66D        subtitle rises in
+    0.66D-D      everything holds (>= 1.5 s of reading time at D >= 8)
+
+  Legibility: the title's backdrop is measured from rendered pixels at setup
+  (gl.readPixels at the times the copy is on screen), and a soft scrim is drawn
+  only as strongly as needed for 4.5:1 contrast.
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock). Copy is
+  drawn with fillText and fitted with vg.fit, which throws when it cannot fit.
+  Randomness: only from spec.seed (terrain, planet, stars).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<script type="importmap">
+{"imports": {"three": "../../_lib/three/three.module.min.js", "three/addons/": "../../_lib/three/addons/"}}
+</script>
+<style>
+  html, body { margin: 0; overflow: hidden; background: #000; }
+  canvas { position: absolute; left: 0; top: 0; display: block; }
+</style>
+</head>
+<body>
+<canvas id="overlay"></canvas>
+<script type="module">
+import * as THREE from "three";
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { spec, P, W, H, D, unit } = vg.setup({
+  world: "terrain", atmosphere: "golden", planet: "terran", title: "The Long Light", subtitle: "A journey through the northern valleys",
+  kicker: "", title_style: "tracked", palette: ["#FFF6EA", "#F2B36B"], speed: 1.0, relief: 1.0, grain: 0.03, vignette: 0.35,
+  msaa: true,
+});
+const [INK_IN, ACCENT] = P.palette;
+const aspect = W / H, land = aspect > 1.2, portrait = aspect < 0.8;
+const seed = (spec.seed || 1) >>> 0;
+
+// ---- seeded gradient noise (2D and 3D) ------------------------------------------
+function makeNoise(s) {
+  const r = vg.rng(s * 2654435761 + 7), p = new Uint8Array(512), perm = [...Array(256).keys()];
+  for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+  for (let i = 0; i < 512; i++) p[i] = perm[i & 255];
+  const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+  const G3 = [[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];
+  function n2(x, y) {
+    const X = Math.floor(x), Y = Math.floor(y), xf = x - X, yf = y - Y, xi = X & 255, yi = Y & 255;
+    const g = (h, dx, dy) => { const v = G3[h % 12]; return v[0] * dx + v[1] * dy; };
+    const u = fade(xf), v = fade(yf);
+    const a = g(p[p[xi] + yi], xf, yf), b = g(p[p[xi + 1] + yi], xf - 1, yf);
+    const c = g(p[p[xi] + yi + 1], xf, yf - 1), d = g(p[p[xi + 1] + yi + 1], xf - 1, yf - 1);
+    return vg.lerp(vg.lerp(a, b, u), vg.lerp(c, d, u), v);
+  }
+  function n3(x, y, z) {
+    const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
+    const xf = x - X, yf = y - Y, zf = z - Z, xi = X & 255, yi = Y & 255, zi = Z & 255;
+    const g = (h, dx, dy, dz) => { const v = G3[h % 12]; return v[0] * dx + v[1] * dy + v[2] * dz; };
+    const u = fade(xf), v = fade(yf), w = fade(zf);
+    const A = p[xi] + yi, AA = p[A] + zi, AB = p[A + 1] + zi, B = p[xi + 1] + yi, BA = p[B] + zi, BB = p[B + 1] + zi;
+    return vg.lerp(
+      vg.lerp(vg.lerp(g(p[AA], xf, yf, zf), g(p[BA], xf - 1, yf, zf), u), vg.lerp(g(p[AB], xf, yf - 1, zf), g(p[BB], xf - 1, yf - 1, zf), u), v),
+      vg.lerp(vg.lerp(g(p[AA + 1], xf, yf, zf - 1), g(p[BA + 1], xf - 1, yf, zf - 1), u), vg.lerp(g(p[AB + 1], xf, yf - 1, zf - 1), g(p[BB + 1], xf - 1, yf - 1, zf - 1), u), v), w);
+  }
+  const fbm2 = (x, y, o = 5) => { let s = 0, a = 0.5, f = 1; for (let i = 0; i < o; i++) { s += a * n2(x * f, y * f); f *= 2.03; a *= 0.5; } return s; };
+  const ridged2 = (x, y, o = 5) => { let s = 0, a = 0.55, f = 1, prev = 1;
+    for (let i = 0; i < o; i++) { let n = 1 - Math.abs(n2(x * f, y * f)); n *= n; s += n * a * prev; prev = n; f *= 2.1; a *= 0.5; } return s; };
+  const fbm3 = (x, y, z, o = 5) => { let s = 0, a = 0.5, f = 1; for (let i = 0; i < o; i++) { s += a * n3(x * f, y * f, z * f); f *= 2.03; a *= 0.5; } return s; };
+  return { n2, n3, fbm2, ridged2, fbm3 };
+}
+const N = makeNoise(seed);
+
+// ---- looks -------------------------------------------------------------------------
+const lin = (hex) => new THREE.Color(hex);   // THREE.Color(hex) converts sRGB hex to linear working space
+const ATMOS = {
+  golden: { zenith: "#4F79B4", horizon: "#F3B47E", sun: "#FFC98A", sunI: 3.0, elev: 3.6, az: 0.14, haze: 0.0085,
+            amb: "#7A93BD", bounce: "#6B4A33", grass: "#56622F", forest: "#2E3A20", rock: "#7A6552", silt: "#8C7A5C",
+            snow: 0.0, water: "#1E3346", clouds: 0.55, exposure: 0.9 },
+  dawn:   { zenith: "#3A5C96", horizon: "#F7C9AC", sun: "#FFE4C8", sunI: 2.6, elev: 3.0, az: 0.06, haze: 0.0068,
+            amb: "#8EA8DA", bounce: "#6A6476", grass: "#3E5446", forest: "#22332B", rock: "#5D6678", silt: "#7A8090",
+            snow: 7.0, water: "#26406A", clouds: 0.5, exposure: 1.0 },
+  dusk:   { zenith: "#1A2350", horizon: "#E8754E", sun: "#FF9A5C", sunI: 2.8, elev: 1.9, az: 0.2, haze: 0.011,
+            amb: "#5A5A98", bounce: "#5C3426", grass: "#3D4226", forest: "#22281A", rock: "#5E4A44", silt: "#6E5A4A",
+            snow: 0.0, water: "#1A2238", clouds: 0.62, exposure: 1.0 },
+}[P.atmosphere];
+
+// ---- renderer, camera, overlay -------------------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias: P.msaa, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.insertBefore(renderer.domElement, document.getElementById("overlay"));
+const scene = new THREE.Scene();
+const vfov = portrait ? 62 : land ? 40 : 50;
+const camera = new THREE.PerspectiveCamera(vfov, aspect, 0.1, 2000);
+const ctx = vg.canvas2d("overlay");
+
+// Shared GLSL: one analytic sky drives the sky dome, the fog colour and water reflections.
+const SKY_GLSL = `
+uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uSun; uniform vec3 uSunDir; uniform float uHaze;
+uniform sampler2D uCloud; uniform float uCloudCover; uniform float uTime;
+vec3 skyColor(vec3 d, bool disc) {
+  float h = clamp(d.y, 0.0, 1.0);
+  vec3 c = mix(uHorizon, uZenith, pow(h, 0.42));
+  float s = max(dot(d, uSunDir), 0.0);
+  c += uSun * (pow(s, 8.0) * 0.16 + pow(s, 64.0) * 0.4);
+  if (disc) c += uSun * smoothstep(0.99955, 0.99975, s) * 9.0;
+  if (d.y < 0.0) c = mix(c, uHorizon * 0.7, clamp(-d.y * 6.0, 0.0, 1.0));
+  return c;
+}
+vec3 fogged(vec3 col, vec3 wp) {
+  vec3 v = wp - cameraPosition; float dist = length(v); vec3 d = v / dist;
+  float f = 1.0 - exp(-dist * uHaze);
+  f *= 0.6 + 0.4 * exp(-max(wp.y, 0.0) * 0.12);
+  vec3 fc = skyColor(normalize(vec3(d.x, max(d.y, 0.015), d.z)), false);
+  return mix(col, fc, clamp(f, 0.0, 1.0));
+}`;
+const OUT_GLSL = `
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>`;
+const skyUniforms = {
+  uZenith: { value: lin(ATMOS.zenith) }, uHorizon: { value: lin(ATMOS.horizon) }, uSun: { value: lin(ATMOS.sun).multiplyScalar(ATMOS.sunI) },
+  uSunDir: { value: new THREE.Vector3() }, uHaze: { value: ATMOS.haze }, uCloud: { value: null },
+  uCloudCover: { value: ATMOS.clouds }, uTime: { value: 0 },
+};
+
+// ---- grain + vignette: one multiplicative full-screen quad -----------------------
+const finishMat = new THREE.ShaderMaterial({
+  uniforms: { amount: { value: P.grain }, vig: { value: P.vignette }, frame: { value: 0 }, res: { value: new THREE.Vector2(W, H) } },
+  vertexShader: "void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }",
+  fragmentShader: `uniform float amount; uniform float vig; uniform float frame; uniform vec2 res;
+    float hash(vec2 p) { p += frame * vec2(37.0, 17.0); vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+    void main() { vec2 q = gl_FragCoord.xy / res - 0.5; q.x *= res.x / res.y;
+      float v = 1.0 - vig * smoothstep(0.35, 1.05, length(q) * 1.25);
+      float n = (hash(floor(gl_FragCoord.xy)) - 0.5) * amount * 2.0;
+      gl_FragColor = vec4(vec3(clamp(0.5 * v + n, 0.0, 1.0)), 1.0); }`,
+  transparent: true, depthTest: false, depthWrite: false,
+  blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstColorFactor, blendDst: THREE.SrcColorFactor,
+});
+const finishQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), finishMat);
+finishQuad.frustumCulled = false; finishQuad.renderOrder = 999;
+if (P.grain > 0 || P.vignette > 0) scene.add(finishQuad);
+
+// ---- world: terrain ---------------------------------------------------------------
+const T_REVEAL = D * 0.46, T_TITLE = D * 0.56, T_SUB = D * 0.66, MOVE_END = D * 0.62;
+let update;   // update(t): positions everything for time t
+
+function buildTerrain() {
+  const el = THREE.MathUtils.degToRad(ATMOS.elev);
+  const sunDir = new THREE.Vector3(Math.sin(ATMOS.az) * Math.cos(el), Math.sin(el), -Math.cos(ATMOS.az) * Math.cos(el)).normalize();
+  skyUniforms.uSunDir.value.copy(sunDir);
+  // Tileable cloud noise for the sky.
+  const CS = 256, cloud = new Uint8Array(CS * CS * 4);
+  for (let y = 0; y < CS; y++) for (let x = 0; x < CS; x++) {
+    const a = (x / CS) * Math.PI * 2, b = (y / CS) * Math.PI * 2;   // a torus in 4D folded to 3D keeps it tileable
+    const v = N.fbm3(Math.cos(a) * 1.6 + 10, Math.sin(a) * 1.6 + Math.cos(b) * 0.9, Math.sin(b) * 0.9, 5) * 0.5
+            + N.fbm3(Math.cos(b) * 3 + 4, Math.sin(b) * 3, Math.cos(a) * 1.2 - 7, 4) * 0.5;
+    const i = (y * CS + x) * 4; cloud[i] = cloud[i + 1] = cloud[i + 2] = vg.clamp(128 + v * 300, 0, 255); cloud[i + 3] = 255;
+  }
+  const cloudTex = new THREE.DataTexture(cloud, CS, CS);
+  cloudTex.wrapS = cloudTex.wrapT = THREE.RepeatWrapping; cloudTex.magFilter = THREE.LinearFilter;
+  cloudTex.minFilter = THREE.LinearMipmapLinearFilter; cloudTex.generateMipmaps = true; cloudTex.needsUpdate = true;
+  skyUniforms.uCloud.value = cloudTex;
+
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 24), new THREE.ShaderMaterial({
+    uniforms: skyUniforms, side: THREE.BackSide, depthWrite: false,
+    vertexShader: "varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
+    fragmentShader: SKY_GLSL + `varying vec3 vW;
+      void main() { vec3 d = normalize(vW - cameraPosition); vec3 c = skyColor(d, true);
+        if (d.y > 0.0) {
+          vec2 uv = d.xz / (d.y + 0.06) * 0.07 + vec2(uTime * 0.003, uTime * 0.001);
+          float n = texture2D(uCloud, uv).r;
+          float k = smoothstep(uCloudCover, uCloudCover + 0.22, n) * smoothstep(0.0, 0.14, d.y) * (1.0 - smoothstep(0.35, 0.8, d.y));
+          float s = max(dot(d, uSunDir), 0.0);
+          vec3 cc = mix(uHorizon * 0.62 + uZenith * 0.25, uSun * 0.55, pow(s, 3.0));
+          c = mix(c, cc, k * 0.85);
+        }
+        gl_FragColor = vec4(c, 1.0);` + OUT_GLSL + "}",
+  }));
+  sky.frustumCulled = false; sky.renderOrder = -10;
+  scene.add(sky);
+
+  // Heightfield: a river valley between ridged mountains, closed by a far ridge that hides the sun.
+  const X0 = -95, X1 = 95, Z0 = 24, Z1 = -118, NX = 190, NZ = 200;
+  const river = (z) => 6 * Math.sin(z * 0.045) + 2.6 * Math.sin(z * 0.11 + 1.3);
+  const relief = P.relief;
+  function height(x, z) {
+    const dv = Math.abs(x - river(z));
+    const mask = vg.smooth(vg.clamp((dv - 4) / 20));
+    // Taller toward the sides; beyond the far ridge the land falls away to a sea at the horizon.
+    const far = (1 + 0.012 * Math.abs(x)) * (1 - vg.smooth(vg.clamp((-z - 92) / 16))) * (1 - vg.smooth(vg.clamp((Math.abs(x) - 68) / 22)));
+    const m = (0.62 * N.ridged2(x * 0.028 + 3.1, z * 0.028 - 7.7, 5) + 0.38 * (N.fbm2(x * 0.055, z * 0.055, 4) + 0.5)) * 15 * relief * far;
+    const ridge = 9.5 * Math.exp(-Math.pow((z + 90) / 10, 2)) * (0.88 + 0.24 * N.fbm2(x * 0.05 + 40, 3.3, 3));
+    const floor = 0.55 + N.fbm2(x * 0.12, z * 0.12, 3) * 0.7 + dv * 0.05 - 1.6 * Math.exp(-Math.pow(dv / 2.6, 2));
+    const edge = 1 - vg.smooth(vg.clamp((Math.abs(x) - 70) / 20));
+    return m * mask * (0.4 + 0.6 * mask) + ridge * edge + floor - (1 - edge) * 2.5 - vg.smooth(vg.clamp((-z - 100) / 12)) * 2.5;
+  }
+  const hs = new Float32Array((NX + 1) * (NZ + 1));
+  const geo = new THREE.PlaneGeometry(X1 - X0, Z0 - Z1, NX, NZ);
+  geo.rotateX(-Math.PI / 2);
+  geo.translate((X0 + X1) / 2, 0, (Z0 + Z1) / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const h = height(pos.getX(i), pos.getZ(i)); pos.setY(i, h); hs[i] = h; }
+  geo.computeVertexNormals();
+  // Grid lookup for baked sun shadows and ambient occlusion.
+  const dx = (X1 - X0) / NX, dz = (Z0 - Z1) / NZ;
+  const at = (x, z) => {
+    const gx = vg.clamp((x - X0) / dx, 0, NX - 1.001), gz = vg.clamp((z - Z1) / dz, 0, NZ - 1.001);
+    const ix = Math.floor(gx), iz = Math.floor(gz), fx = gx - ix, fz = gz - iz;
+    const row = (r) => r;   // after rotateX(-90deg) vertex row r sits at z = Z1 + r * dz
+    const h00 = hs[row(iz) * (NX + 1) + ix], h10 = hs[row(iz) * (NX + 1) + ix + 1];
+    const h01 = hs[row(iz + 1) * (NX + 1) + ix], h11 = hs[row(iz + 1) * (NX + 1) + ix + 1];
+    return vg.lerp(vg.lerp(h00, h10, fx), vg.lerp(h01, h11, fx), fz);
+  };
+  const nrm = geo.attributes.normal, tint = new Float32Array(pos.count * 3), shade = new Float32Array(pos.count);
+  const C = (hex) => lin(hex);
+  const cGrass = C(ATMOS.grass), cForest = C(ATMOS.forest), cRock = C(ATMOS.rock), cSilt = C(ATMOS.silt), cSnow = C("#E9EEF6");
+  const tmpC = new THREE.Color();
+  const tanEl = Math.tan(el), stepLen = 0.9, sx = sunDir.x / Math.hypot(sunDir.x, sunDir.z), sz = sunDir.z / Math.hypot(sunDir.x, sunDir.z);
+  let hmax = 0; for (const h of hs) hmax = Math.max(hmax, h);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), h = hs[i], ny = nrm.getY(i);
+    // Sun visibility: march toward the sun; soft by how far the terrain rises above the ray.
+    let block = 0;
+    for (let k = 1; k < 90; k++) {
+      const d = k * stepLen, th = at(x + sx * d, z + sz * d), ray = h + 0.15 + d * tanEl;
+      block = Math.max(block, (th - ray) / (0.25 + d * 0.04));
+      if (ray > hmax) break;
+    }
+    const sun = 1 - vg.smooth(vg.clamp(block));
+    let avg = 0; for (const [ox, oz] of [[3, 0], [-3, 0], [0, 3], [0, -3], [2, 2], [-2, -2], [2, -2], [-2, 2]]) avg += at(x + ox, z + oz);
+    const ao = vg.clamp(1 - (avg / 8 - h) * 0.12, 0.45, 1);
+    shade[i] = sun * ao;
+    // Albedo by slope, height and a little noise.
+    const n = N.fbm2(x * 0.09 + 11, z * 0.09, 3);
+    tmpC.copy(cGrass).lerp(cForest, vg.clamp(0.5 + n * 1.6));
+    if (h < 0.5) tmpC.lerp(cSilt, vg.clamp((0.5 - h) * 1.4));
+    tmpC.lerp(cRock, vg.smooth(vg.clamp((0.86 - ny) * 5)));
+    if (ATMOS.snow > 0) tmpC.lerp(cSnow, vg.smooth(vg.clamp((h - ATMOS.snow * relief) * 0.35 + n * 1.5)) * vg.clamp((ny - 0.5) * 4));
+    tmpC.multiplyScalar(0.85 + 0.3 * ao);
+    tint[i * 3] = tmpC.r; tint[i * 3 + 1] = tmpC.g; tint[i * 3 + 2] = tmpC.b;
+  }
+  geo.setAttribute("tint", new THREE.BufferAttribute(tint, 3));
+  geo.setAttribute("shade", new THREE.BufferAttribute(shade, 1));
+  const terrainMesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+    uniforms: { ...skyUniforms, uAmb: { value: lin(ATMOS.amb) }, uBounce: { value: lin(ATMOS.bounce) } },
+    vertexShader: `attribute vec3 tint; attribute float shade; varying vec3 vT; varying float vS; varying vec3 vN; varying vec3 vW;
+      void main() { vT = tint; vS = shade; vN = normal; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: SKY_GLSL + `uniform vec3 uAmb; uniform vec3 uBounce; varying vec3 vT; varying float vS; varying vec3 vN; varying vec3 vW;
+      void main() { vec3 n = normalize(vN);
+        float ndl = max(dot(n, uSunDir), 0.0);
+        vec3 light = uSun * ndl * vS * 0.9 + mix(uBounce, uAmb, n.y * 0.5 + 0.5) * (0.38 + 0.22 * vS);
+        // Per-pixel detail from the tiling noise: tree clumps and rock strata the mesh is too coarse for.
+        float d1 = texture2D(uCloud, vW.xz * 0.045).r, d2 = texture2D(uCloud, vW.xz * 0.21 + vec2(0.37, 0.71)).r;
+        vec3 albedo = vT * (0.62 + 0.55 * d1) * (0.8 + 0.4 * d2);
+        gl_FragColor = vec4(fogged(albedo * light, vW), 1.0);` + OUT_GLSL + "}",
+  }));
+  scene.add(terrainMesh);
+
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000, 1, 1).rotateX(-Math.PI / 2),
+    new THREE.ShaderMaterial({
+      uniforms: { ...skyUniforms, uWater: { value: lin(ATMOS.water) } },
+      vertexShader: "varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
+      fragmentShader: SKY_GLSL + `uniform vec3 uWater; varying vec3 vW;
+        void main() {
+          vec2 q = vW.xz;
+          vec3 n = normalize(vec3(sin(q.x * 1.7 + uTime * 1.1) * 0.03 + sin(q.y * 2.9 - uTime * 1.6 + q.x) * 0.025,
+                                  1.0, sin(q.y * 1.3 + uTime * 0.9) * 0.035 + sin(q.x * 3.1 + q.y * 2.2 + uTime * 2.0) * 0.02));
+          vec3 v = normalize(vW - cameraPosition);
+          vec3 r = reflect(v, n); r.y = abs(r.y);
+          float fres = 0.04 + 0.96 * pow(1.0 - max(dot(-v, n), 0.0), 5.0);
+          vec3 c = mix(uWater * 0.6, skyColor(r, true), fres);
+          gl_FragColor = vec4(fogged(c, vW), 1.0);` + OUT_GLSL + "}",
+    }));
+  scene.add(water);
+
+  // Camera: low along the river, then a climb over the far ridge that reveals the sun.
+  const zStart = 16, zEnd = -40;
+  const pathX = (z) => river(z) * 0.85;
+  const lookAhead = 9, look = new THREE.Vector3();
+  update = (t) => {
+    const m = vg.clamp(t / MOVE_END);
+    const along = vg.ease.inOutSine(m) * 0.25 + m * 0.75;            // gentle start, steady cruise
+    const z = vg.lerp(zStart, zEnd, along) - Math.max(0, t - MOVE_END) * 0.9 * P.speed;
+    const x = pathX(z);
+    const ground = Math.max(0, at(x, z));
+    const climb = vg.ease.inOutCubic(vg.clamp((t - D * 0.3) / (D * 0.32)));
+    const y = ground + 2.3 + climb * 8.5;
+    camera.position.set(x, y, z);
+    const zl = z - lookAhead, xl = pathX(zl);
+    const pitch = vg.lerp(-0.1, -0.035, climb);
+    look.set(xl, y + Math.tan(pitch) * lookAhead, zl);
+    camera.lookAt(look);
+    const bank = (pathX(z - 4) - 2 * x + pathX(z + 4)) * 0.06;    // roll into the river's bends
+    camera.rotateZ(vg.clamp(-bank, -0.06, 0.06));
+    skyUniforms.uTime.value = t;
+  };
+  renderer.toneMappingExposure = ATMOS.exposure;
+}
+
+// ---- world: planet ----------------------------------------------------------------
+const PLANETS = {
+  terran: { ocean: "#0B2A55", shallow: "#1F5C86", lands: ["#4C6B2F", "#7A6A42", "#A88E62"], ice: "#E8EEF4", sea: 0.02, clouds: 0.08, atmo: "#4D8DFF", glow: "#FFB070" },
+  dust:   { ocean: null, lands: ["#7A3B22", "#A65A35", "#C98A5A"], ice: "#E8DCCC", sea: -1, clouds: 0.32, atmo: "#E39A6E", glow: "#FFC48A" },
+  ice:    { ocean: "#1B3F5E", shallow: "#5E9BB8", lands: ["#9FB7C8", "#C9D8E2", "#EEF3F7"], ice: "#F6FAFF", sea: -0.04, clouds: 0.18, atmo: "#7FD4FF", glow: "#D8F0FF" },
+};
+function buildPlanet() {
+  const PL = PLANETS[P.planet];
+  const R = 10;
+  const sunDir = new THREE.Vector3(0.24, 0.17, -1).normalize();
+  // Stars: seeded points on a far sphere, a few bright ones.
+  const rs = vg.rng(seed * 31 + 5), NS = 2600, sp = new Float32Array(NS * 3), sc = new Float32Array(NS * 3);
+  for (let i = 0; i < NS; i++) {
+    const u = rs() * 2 - 1, a = rs() * Math.PI * 2, s = Math.sqrt(1 - u * u);
+    sp.set([Math.cos(a) * s * 800, u * 800, Math.sin(a) * s * 800], i * 3);
+    const b = Math.pow(rs(), 5) * 1.6 + 0.12, warm = rs();
+    sc.set([b * (0.85 + 0.15 * warm), b * 0.92, b * (1.05 - 0.2 * warm)], i * 3);
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute("position", new THREE.BufferAttribute(sp, 3));
+  starGeo.setAttribute("color", new THREE.BufferAttribute(sc, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ size: Math.max(1.5, unit / 700), sizeAttenuation: false, vertexColors: true }));
+  scene.add(stars);
+
+  // Bake the surface: equirectangular albedo (rgb) + ocean mask (a), and a cloud map.
+  const TW = 768, TH = 384, alb = new Uint8Array(TW * TH * 4), cl = new Uint8Array(TW * TH * 4);
+  const lands = PL.lands.map(lin), ocean = PL.ocean ? lin(PL.ocean) : null, shallow = PL.shallow ? lin(PL.shallow) : null, ice = lin(PL.ice);
+  const c = new THREE.Color();
+  for (let y = 0; y < TH; y++) {
+    const lat = (0.5 - (y + 0.5) / TH) * Math.PI;
+    for (let x = 0; x < TW; x++) {
+      const lon = ((x + 0.5) / TW) * Math.PI * 2;
+      const px = Math.cos(lat) * Math.cos(lon), py = Math.sin(lat), pz = Math.cos(lat) * Math.sin(lon);
+      const e = N.fbm3(px * 1.8 + 5, py * 1.8, pz * 1.8, 6) + (P.planet === "dust" ? 0.25 * N.fbm3(px * 6, py * 6, pz * 6, 3) : 0);
+      const band = P.planet === "ice" ? 0.15 * Math.sin(py * 9 + N.fbm3(px * 2, py * 2, pz * 2, 3) * 4) : 0;
+      let oceanMask = 0;
+      if (ocean && e + band < PL.sea) { oceanMask = 1; c.copy(ocean).lerp(shallow, vg.smooth(vg.clamp(1 - (PL.sea - e) * 9))); }
+      else {
+        const k = vg.clamp((e - PL.sea) * 2.6 + 0.5 * N.fbm3(px * 5, py * 5 + 3, pz * 5, 3) + 0.2);
+        c.copy(lands[0]).lerp(lands[1], vg.smooth(vg.clamp(k * 1.6))).lerp(lands[2], vg.smooth(vg.clamp(k * 1.6 - 0.8)));
+      }
+      const pole = vg.smooth(vg.clamp((Math.abs(py) - 0.86 + N.fbm3(px * 4, py * 4, pz * 4, 3) * 0.12) * 9));
+      c.lerp(ice, pole);
+      const i = (y * TW + x) * 4;
+      alb[i] = Math.round(Math.pow(c.r, 1 / 2.2) * 255); alb[i + 1] = Math.round(Math.pow(c.g, 1 / 2.2) * 255);
+      alb[i + 2] = Math.round(Math.pow(c.b, 1 / 2.2) * 255); alb[i + 3] = oceanMask * 255;
+      const w = N.fbm3(px * 3 + 9, py * 7, pz * 3, 3);
+      const cv = N.fbm3(px * 2.6 + w, py * 5.2 + w * 1.4, pz * 2.6 - w, 5);
+      cl[i] = cl[i + 2] = 255 * vg.smooth(vg.clamp((cv + PL.clouds) * 3.2)); cl[i + 3] = 255;
+      // City lights (terran only): sparse clusters on low land away from the poles.
+      const city = P.planet === "terran" && !oceanMask && pole < 0.2
+        ? vg.clamp((N.n3(px * 95, py * 95, pz * 95) * 0.7 + N.fbm3(px * 11, py * 11, pz * 11, 2) - 0.42) * 5) : 0;
+      cl[i + 1] = 255 * city;
+    }
+  }
+  const albTex = new THREE.DataTexture(alb, TW, TH); albTex.colorSpace = THREE.SRGBColorSpace;
+  const clTex = new THREE.DataTexture(cl, TW, TH);
+  for (const t of [albTex, clTex]) { t.wrapS = THREE.RepeatWrapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; }
+  const pU = { uAlb: { value: albTex }, uCl: { value: clTex }, uSunDir: { value: sunDir }, uRot: { value: 0 }, uCloudRot: { value: 0 },
+               uAtmo: { value: lin(PL.atmo) }, uGlow: { value: lin(PL.glow) }, uSun: { value: new THREE.Color(1, 0.96, 0.9).multiplyScalar(2.2) } };
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(R, 160, 96), new THREE.ShaderMaterial({
+    uniforms: pU,
+    vertexShader: `varying vec3 vO; varying vec3 vN; varying vec3 vW;
+      void main() { vO = normalize(position); vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `uniform sampler2D uAlb; uniform sampler2D uCl; uniform vec3 uSunDir; uniform float uRot; uniform float uCloudRot;
+      uniform vec3 uAtmo; uniform vec3 uGlow; uniform vec3 uSun; varying vec3 vO; varying vec3 vN; varying vec3 vW;
+      const float PI = 3.14159265;
+      void main() {
+        vec3 o = normalize(vO);
+        float lon = atan(o.z, o.x); float lat = asin(clamp(o.y, -1.0, 1.0));
+        vec2 uv = vec2(lon / (2.0 * PI) + uRot, 0.5 + lat / PI);
+        vec4 a = texture2D(uAlb, uv);
+        float cloud = texture2D(uCl, vec2(uv.x + uCloudRot, uv.y)).r;
+        vec3 n = normalize(vN), v = normalize(cameraPosition - vW);
+        float ndl = dot(n, uSunDir);
+        float lit = smoothstep(-0.08, 0.35, ndl);
+        vec3 col = a.rgb * uSun * max(ndl, 0.0) * 0.9 + a.rgb * 0.012;
+        col += a.rgb * uGlow * (smoothstep(-0.12, 0.06, ndl) - smoothstep(0.06, 0.3, ndl)) * 0.6;   // warm terminator
+        vec3 hv = normalize(uSunDir + v);
+        col += uSun * a.a * pow(max(dot(n, hv), 0.0), 90.0) * 0.6 * lit;                               // ocean glint
+        col = mix(col, vec3(1.0) * (max(ndl, 0.0) * 1.6 + 0.008) + uGlow * (smoothstep(-0.1, 0.05, ndl) - smoothstep(0.05, 0.25, ndl)) * 0.5, cloud * 0.92);
+        float rim = pow(1.0 - max(dot(n, v), 0.0), 4.0);
+        float fwd = pow(max(dot(-v, uSunDir), 0.0), 6.0);
+        col += uAtmo * rim * (smoothstep(-0.2, 0.4, ndl) * 1.1 + fwd * smoothstep(-0.45, 0.0, ndl) * 1.6);
+        float lights = texture2D(uCl, uv).g;
+        col += vec3(1.0, 0.72, 0.42) * lights * (1.0 - lit) * (1.0 - cloud) * 0.07;
+        gl_FragColor = vec4(col, 1.0);` + OUT_GLSL + "}",
+  }));
+  scene.add(planet);
+  // Atmosphere shell: a back-faced glow, strongest where the sun shines through the limb.
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(R * 1.045, 96, 48), new THREE.ShaderMaterial({
+    uniforms: pU, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: "varying vec3 vN; varying vec3 vW; void main() { vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
+    fragmentShader: `uniform vec3 uSunDir; uniform vec3 uAtmo; uniform vec3 uGlow; varying vec3 vN; varying vec3 vW;
+      void main() { vec3 n = normalize(vN), v = normalize(vW - cameraPosition);
+        // Back faces: dot(n, v) is ~0 at the shell's outer edge and ~0.29 where it meets the planet's limb.
+        float k = pow(clamp(dot(n, v) / 0.3, 0.0, 1.0), 1.8);
+        float sunSide = smoothstep(-0.45, 0.3, dot(n, uSunDir));
+        float fwd = pow(max(dot(v, uSunDir), 0.0), 24.0);
+        vec3 c = (uAtmo * (0.34 * sunSide + 0.04) + uGlow * fwd * 1.6) * k;
+        gl_FragColor = vec4(c, 1.0);` + OUT_GLSL + "}",
+  }));
+  scene.add(shell);
+  // The sun: a disc that the limb can cover, and a glare that fades with how much of it is visible.
+  const glowTex = (() => { const cv = document.createElement("canvas"); cv.width = cv.height = 256; const g = cv.getContext("2d");
+    const r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.08, "rgba(255,246,230,0.9)"); r.addColorStop(0.25, "rgba(255,210,160,0.25)");
+    r.addColorStop(1, "rgba(255,180,120,0)"); g.fillStyle = r; g.fillRect(0, 0, 256, 256);
+    g.globalCompositeOperation = "lighter"; g.strokeStyle = "rgba(255,240,220,0.35)";
+    for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 + 0.3; g.lineWidth = k % 2 ? 1.2 : 2.2; g.beginPath();
+      g.moveTo(128 - Math.cos(a) * 126, 128 - Math.sin(a) * 126); g.lineTo(128 + Math.cos(a) * 126, 128 + Math.sin(a) * 126); g.stroke(); }
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const disc = new THREE.Mesh(new THREE.SphereGeometry(6, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(8, 7.4, 6.6) }));
+  disc.position.copy(sunDir).multiplyScalar(700);
+  scene.add(disc);
+  const glare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true }));
+  glare.position.copy(disc.position); glare.renderOrder = 50;
+  scene.add(glare);
+
+  const centreDir = new THREE.Vector3();
+  update = (t) => {
+    const m = vg.clamp(t / MOVE_END), e = vg.ease.inOutSine(m);
+    const drift = Math.max(0, t - MOVE_END);
+    const y = vg.lerp(1.2, 7.4, e) + drift * 0.15, x = vg.lerp(-2.2, 1.0, e) + drift * 0.08;
+    camera.position.set(x, y, 18.5 - e * 0.8);
+    camera.lookAt(sunDir.x * 60 + x * 0.6, sunDir.y * 60 + y * 0.42 - 3.2, -60);
+    camera.rotateZ(vg.lerp(0.07, -0.02, e));
+    planet.rotation.y = 0.6 + t * 0.012;
+    pU.uCloudRot.value = t * 0.002;
+    // How much of the sun clears the limb (angular margin), for the glare and the swell.
+    centreDir.copy(camera.position).negate().normalize();
+    const ang = Math.acos(vg.clamp(centreDir.dot(sunDir), -1, 1)), rad = Math.asin(Math.min(1, R / camera.position.length()));
+    const vis = vg.smooth(vg.clamp(((ang - rad) + 0.004) / 0.03));
+    const flash = Math.exp(-Math.pow(((ang - rad) - 0.006) / 0.006, 2));
+    glare.material.opacity = Math.min(1, vis * 0.9 + flash * 0.6);
+    const s = 95 * (0.55 + vis * 0.8 + flash * 1.4);
+    glare.scale.set(s, s, 1);
+  };
+  renderer.toneMappingExposure = 1.0;
+}
+
+if (P.world === "planet") buildPlanet(); else buildTerrain();
+
+// ---- copy ---------------------------------------------------------------------------
+const title = String(P.title).trim(), subtitle = String(P.subtitle || "").trim(), kicker = String(P.kicker || "").trim();
+if (!title) throw new Error("cinematic-3d: title is empty");
+const tracked = P.title_style === "tracked";
+const titleText = tracked ? title.toUpperCase() : title;
+const colW = W * (portrait ? 0.84 : 0.72);
+const TRACK = tracked ? 0.2 : -0.01, TRACK_FROM = tracked ? 0.42 : 0.08;
+function fitTitle(scale) {
+  ctx.letterSpacing = `${(TRACK_FROM * unit * (tracked ? 0.085 : 0.12) * scale).toFixed(1)}px`;   // fit at the widest tracking it animates from
+  const b = vg.fit(ctx, titleText, { maxSize: unit * (tracked ? 0.085 : 0.12) * scale, minSize: unit * 0.04, weight: tracked ? 500 : 800,
+                                      maxWidth: colW, maxLines: 2, leading: tracked ? 1.25 : 1.05, label: "title" });
+  ctx.letterSpacing = "0px";
+  return b;
+}
+let titleB = fitTitle(1);
+ctx.letterSpacing = "0px";
+const subB = subtitle ? vg.fit(ctx, subtitle, { maxSize: unit * 0.04, minSize: unit * 0.03, weight: 400, maxWidth: colW * 0.92,
+                                                maxLines: 2, leading: 1.3, label: "subtitle" }) : null;
+const kickSize = unit * 0.03;
+if (kicker) { vg.font(ctx, kickSize, 600); ctx.letterSpacing = `${(kickSize * 0.3).toFixed(1)}px`;
+  if (ctx.measureText(kicker.toUpperCase()).width > colW) throw new Error(`kicker "${kicker}" does not fit; shorten it`); ctx.letterSpacing = "0px"; }
+const gap = unit * 0.035;
+const blockH = (kicker ? kickSize * 1.2 + gap * 0.8 : 0) + titleB.height + (subB ? gap + unit * 0.012 + subB.height : 0);
+const centreY = H * (portrait ? 0.6 : land ? 0.64 : 0.62);
+const top = centreY - blockH / 2;
+if (portrait && (top < H * 0.12 || top + blockH > H * 0.78)) throw new Error("cinematic-3d: copy is too tall for the safe area; shorten it");
+const kickY = top, titleY = top + (kicker ? kickSize * 1.2 + gap * 0.8 : 0), ruleY = titleY + titleB.height + gap * 0.55;
+const subY = ruleY + gap * 0.45 + unit * 0.012;
+
+// Measure the rendered backdrop under the copy at the times it is on screen, then pick the scrim.
+const gl = renderer.getContext();
+const box = { x: Math.max(0, Math.round(W / 2 - Math.max(titleB.width, subB ? subB.width : 0) / 2 - unit * 0.02)), y: Math.round(top - unit * 0.02),
+              w: 0, h: Math.round(blockH + unit * 0.04) };
+box.w = Math.min(W - box.x, Math.round(W - 2 * box.x));
+const lums = [];
+for (const tt of [T_TITLE + 0.6, (T_TITLE + D) / 2, D - 1 / 30]) {
+  update(tt); finishQuad.visible = false; renderer.render(scene, camera); finishQuad.visible = true;
+  const px = new Uint8Array(box.w * box.h * 4);
+  gl.readPixels(box.x, H - box.y - box.h, box.w, box.h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  for (let i = 0; i < px.length; i += 4 * 7) {
+    const c = [px[i], px[i + 1], px[i + 2]].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    lums.push(0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]);
+  }
+}
+lums.sort((a, b) => a - b);
+const bgL = lums[Math.floor(lums.length * 0.92)] || 0;
+const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+// A scrim of alpha a scales the backdrop in sRGB toward black (light ink) or white (dark ink).
+const needed = (ink, light) => {
+  const srgb = Math.pow(bgL, 1 / 2.4), L = vg.luminance(ink);
+  for (let a = 0; a <= 0.9; a += 0.02) {
+    const s = light ? srgb * (1 - a) : srgb + (1 - srgb) * a;
+    if (ratio(L, Math.pow(s, 2.4)) >= 4.6) return a;
+  }
+  return 0.9;
+};
+const inkInLight = vg.luminance(INK_IN) > 0.4;
+const ALT = inkInLight ? vg.mix(INK_IN, "#0B0B0D", 0.9) : vg.mix(INK_IN, "#FFFFFF", 0.92);
+const aIn = needed(INK_IN, inkInLight), aAlt = needed(ALT, !inkInLight);
+// Keep the requested ink unless it would need a heavy scrim and the other polarity needs much less.
+const useAlt = aIn > 0.5 && aAlt + 0.15 < aIn;
+const INK = useAlt ? ALT : INK_IN, inkLight = useAlt ? !inkInLight : inkInLight, scrim = useAlt ? aAlt : aIn;
+const SCRIM_RGB = inkLight ? "0,0,0" : "255,255,255";
+const SOFT = vg.mix(INK, inkLight ? "#000000" : "#FFFFFF", 0.12);
+
+function drawCopy(t) {
+  const a0 = vg.clamp((t - T_TITLE + 0.4) / 1.2);
+  if (scrim > 0 && a0 > 0) {   // a full-width soft band, only as strong as the measurement requires
+    const pad = unit * 0.16, y0 = top - pad, y1 = top + blockH + pad;
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, `rgba(${SCRIM_RGB},0)`); g.addColorStop(0.3, `rgba(${SCRIM_RGB},${scrim * a0})`);
+    g.addColorStop(0.7, `rgba(${SCRIM_RGB},${scrim * a0})`); g.addColorStop(1, `rgba(${SCRIM_RGB},0)`);
+    ctx.fillStyle = g; ctx.fillRect(0, y0, W, y1 - y0);
+  }
+  ctx.textBaseline = "alphabetic";
+  if (kicker) {
+    const p = vg.tween(t, T_TITLE - 0.25, 0.9);
+    if (p > 0) {
+      vg.font(ctx, kickSize, 600); ctx.letterSpacing = `${(kickSize * (0.3 + 0.2 * (1 - p))).toFixed(1)}px`;
+      const k = kicker.toUpperCase(), w = ctx.measureText(k).width;
+      ctx.globalAlpha = p; ctx.fillStyle = ACCENT; ctx.fillText(k, W / 2 - w / 2, kickY + kickSize * 0.9); ctx.globalAlpha = 1;
+      ctx.letterSpacing = "0px";
+    }
+  }
+  // Title: letters fade in from the centre outwards while the tracking settles.
+  const tp = vg.tween(t, T_TITLE, 2.2, vg.ease.outCubic);
+  if (tp > 0) {
+    vg.font(ctx, titleB.size, titleB.weight);
+    const track = (TRACK_FROM + (TRACK - TRACK_FROM) * tp) * titleB.size * (tracked ? 1 : 1);
+    titleB.lines.forEach((line, li) => {
+      const chars = [...line], widths = chars.map((ch) => ctx.measureText(ch).width);
+      const total = widths.reduce((s, w) => s + w, 0) + track * (chars.length - 1);
+      let x = W / 2 - total / 2;
+      const y = titleY + titleB.size * 0.8 + li * titleB.size * titleB.leading;
+      chars.forEach((ch, i) => {
+        const fromCentre = Math.abs(i - (chars.length - 1) / 2) / Math.max(1, chars.length / 2);
+        const a = vg.tween(t, T_TITLE + fromCentre * 0.45 + li * 0.15, 0.9, vg.ease.inOutSine);
+        if (a > 0) { ctx.globalAlpha = a; ctx.fillStyle = INK; ctx.fillText(ch, x, y); }
+        x += widths[i] + track;
+      });
+    });
+    ctx.globalAlpha = 1;
+  }
+  // Accent rule grows from the centre, then the subtitle rises.
+  const rp = vg.tween(t, T_TITLE + 0.5, 1.0, vg.ease.outExpo);
+  if (rp > 0) { const rw = unit * 0.12 * rp; ctx.fillStyle = ACCENT; ctx.fillRect(W / 2 - rw / 2, ruleY, rw, Math.max(2, unit * 0.003)); }
+  if (subB) {
+    const p = vg.tween(t, T_SUB, 0.9);
+    if (p > 0) vg.drawLines(ctx, subB, W / 2, subY + (1 - p) * subB.size * 0.5, { color: SOFT, align: "center", alpha: p });
+  }
+}
+const COPY_SETTLED = Math.max(T_TITLE + 2.2, T_SUB + 0.9) + 1 / 15;
+
+vg.loop((t) => {
+  update(t);
+  renderer.toneMappingExposure = (P.world === "planet" ? 1.0 : ATMOS.exposure) * vg.lerp(0.35, 1, vg.ease.outCubic(vg.clamp(t / 0.9)));
+  finishMat.uniforms.frame.value = Math.floor(t * 30) % 97;
+  renderer.render(scene, camera);
+  if (t >= T_TITLE - 0.45 && t <= COPY_SETTLED) { ctx.clearRect(0, 0, W, H); drawCopy(t); }
+});
+</script>
+</body>
+</html>

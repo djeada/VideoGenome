@@ -1,0 +1,239 @@
+{
+  "schema_version": "0.5.0",
+  "id": "social.beat-loop",
+  "version": "0.1.0",
+  "title": "Beat visualizer loop (9:16)",
+  "category": "social",
+  "description": "A 16-second vertical music-visualizer loop for a show, mix, channel or label ident: rings, a mirrored equaliser or snapping kinetic shapes hit exactly on the kick of a procedural four-on-the-floor bed, with a kicker, the title, a credit line and a beat counter. Picture and music are locked to the same tempo (120 BPM, 8 bars; every beat falls on a whole frame at 30 fps). Synced by tempo, not by analysing audio. Code-rendered (scene.beat-visualizer + audio.pulse).",
+  "tags": [
+    "social",
+    "vertical",
+    "music",
+    "visualizer",
+    "beat",
+    "loop",
+    "motion_graphics",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The show, mix, channel, label or event name exactly as written in the brief, at most 32 characters"
+    },
+    "credit": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional line under the title copied exactly from the brief: host, artist, or schedule (e.g. 'hosted by Mara Ellis'), at most 44 characters; empty if the brief gives none"
+    },
+    "kicker": {
+      "type": "string",
+      "required": true,
+      "description": "Two or three word label above the title naming the format (e.g. Weekly mix, Live set, New episode); no dates, numbers or claims the brief does not make"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "signal",
+        "club",
+        "studio",
+        "lagoon"
+      ],
+      "default": "signal",
+      "description": "Visual look: signal (night navy, coral rings), club (black, lime and cyan equaliser), studio (light, kinetic square), lagoon (deep teal, mint rings)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "product",
+        "night",
+        "upbeat"
+      ],
+      "default": "night",
+      "description": "Music energy: product (steady), night (dark, minor), upbeat (claps and busy hats); all locked to 120 BPM"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The visualizer animation, locked to 120 BPM with the first downbeat at 0 s",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.beat-visualizer",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "credit": "{{credit}}",
+            "kicker": "{{kicker}}",
+            "bpm": 120,
+            "beats_per_bar": 4,
+            "offset": 0,
+            "loop": true
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed at 120 BPM with its first kick at 0 s; produced procedurally. A supplied track must be cleared, exactly 120 BPM and start on a downbeat, or the picture will not be in sync",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "{{energy}}",
+          "params": {
+            "bpm": 120
+          }
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Visualizer loop for Low Tide Radio, our Sunday ambient-house show hosted by Mara Ellis. Late-night feel.",
+      "inputs": {
+        "title": "Low Tide Radio",
+        "credit": "hosted by Mara Ellis",
+        "kicker": "Sunday show",
+        "look": "lagoon",
+        "energy": "night"
+      },
+      "note": "Title and credit are copied exactly from the brief. The kicker names the format in two words without inventing a time, date or episode number."
+    }
+  ],
+  "style": {
+    "mood": "rhythmic, nocturnal, precise",
+    "palette": [
+      "#07080D",
+      "#F3F4F6",
+      "#FF5A36",
+      "#3D7BFF"
+    ],
+    "typography": "Inter ExtraBold title, tracked capitals kicker, medium credit",
+    "pacing": "dynamic"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 240,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "loop",
+      "role": "visualizer",
+      "duration_frames": 480,
+      "shots": [
+        {
+          "id": "visualizer",
+          "kind": "animation",
+          "duration_frames": 480,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Hits on every kick (frames 0, 15, 30...), accented downbeats every 60 frames; kicker on beat 1, title on beat 2, credit on beat 3; copy leaves in the last bar (frame 420)"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "credit",
+            "kicker"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 480,
+        "gain_db": 0,
+        "fade_out_frames": 30
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "Sync is by tempo: the scene and the bed are both locked to 120 BPM, 4/4, first downbeat at 0 s (audio.pulse places its kick at k * 0.5 s from 0). At 30 fps every beat is a whole frame (15 frames), so each hit peaks on the kick's own frame. The music track starts at frame 0 with no fade-in so the first kick is heard.",
+      "The visuals do not analyse the audio. Replacing the music with another track keeps sync only if it is exactly 120 BPM and its first downbeat is at 0 s.",
+      "Title and credit are VERBATIM. The procedural bed is not anyone's song: the title must name a show, mix, channel or event, not present the bed as a named artist's release.",
+      "Full-frame brightness changes stay at one soft glow per beat (2 Hz); faster accents move only small elements."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "music_present",
+      "mode": "automated",
+      "description": "The bed plays throughout: no silence (below -50 dB) longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_silence_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "sync_review",
+      "mode": "human",
+      "description": "A reviewer watches with sound and confirms the hits land on the kick (no analyzer measures audio-visual sync)."
+    },
+    {
+      "id": "title_review",
+      "mode": "human",
+      "description": "The owner confirms the title and credit are approved and the video does not present the procedural bed as a named artist's track."
+    }
+  ]
+}

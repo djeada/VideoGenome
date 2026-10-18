@@ -1,0 +1,43 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "history-timeline",
+  "title": "History timeline: camera along the axis",
+  "summary": "The camera travels along a timeline axis from one dated event to the next while year ticks and a ghost year counter roll by; each event lands as a pin with a card (date, headline, note), a progress track fills, and the piece ends zoomed out on every pin with a summary line.",
+  "family": "explainer",
+  "formats": [
+    "9:16",
+    "16:9",
+    "1:1"
+  ],
+  "duration_seconds": [
+    14,
+    45
+  ],
+  "recipes": [
+    "scene.history-timeline"
+  ],
+  "templates": [
+    "educational.history-timeline"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "A year for every event, stated in the brief (years are verbatim numbers in the template)"
+  ],
+  "techniques": [
+    "Canvas 2D",
+    "camera travel along a world axis with eased holds",
+    "per-segment year ticks",
+    "odometer year counter",
+    "x-only zoom-out to an overview",
+    "measured text fitting",
+    "parallax rules"
+  ],
+  "gallery_share": "Animated history timelines are a staple of model-made educational shorts and documentary explainers.",
+  "limits": [
+    "3-7 events in one linear chronology; no parallel tracks or eras",
+    "Even spacing by default, so distances are not to scale; proportional spacing keeps a minimum gap between pins",
+    "The ghost counter and labelled ticks need a year in every date; otherwise the axis shows plain ticks",
+    "Very long dates ('Late autumn of 1066') shrink the date size for every card",
+    "The template takes whole AD years as verbatim numbers; month-day or BC dates need the recipe directly. Whether the history is right is a human review"
+  ]
+}

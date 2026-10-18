@@ -1,0 +1,34 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "tips-listicle",
+  "title": "Vertical tips listicle",
+  "summary": "A hook, three numbered tips and a call to action as measured title cards over drifting bokeh, with whooshes on each cut: the everyday Reels and Shorts format.",
+  "family": "social",
+  "formats": [
+    "9:16"
+  ],
+  "duration_seconds": [
+    10,
+    20
+  ],
+  "recipes": [
+    "visual.bokeh",
+    "audio.pulse",
+    "audio.transition"
+  ],
+  "templates": [
+    "social.vertical-tips"
+  ],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "FFmpeg title cards",
+    "measured copy fitting",
+    "procedural bokeh",
+    "dips"
+  ],
+  "gallery_share": "Short vertical listicles are the most common social format.",
+  "limits": [
+    "Typography and abstract backdrop only; no b-roll per tip"
+  ]
+}

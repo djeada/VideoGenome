@@ -1,0 +1,20 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.code-snippet",
+  "template": "educational.code-snippet",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "Merge two dicts with |",
+    "filename": "settings.py",
+    "language": "python",
+    "code": "defaults = {\"theme\": \"light\", \"font\": 14}\nuser = {\"font\": 16}\n\nsettings = defaults | user\nprint(settings)",
+    "key_line": "settings = defaults | user",
+    "output": "{'theme': 'light', 'font': 16}",
+    "takeaway": "The right-hand dict wins on shared keys",
+    "look": "midnight",
+    "energy": "focus"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

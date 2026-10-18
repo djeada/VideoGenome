@@ -1,0 +1,40 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "code-snippet",
+  "title": "Code snippet reveal",
+  "summary": "An editor window types a short program with a human rhythm and syntax highlighting, the key line lights up while the rest dims, a terminal shows what it prints and a takeaway closes the piece.",
+  "family": "code",
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "duration_seconds": [
+    10,
+    20
+  ],
+  "recipes": [
+    "scene.code-snippet"
+  ],
+  "templates": [
+    "educational.code-snippet",
+    "educational.code-snippet-vertical"
+  ],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "Canvas 2D",
+    "line-based tokenizer (Python, JavaScript, Rust, Bash)",
+    "seeded human typing rhythm scaled to a beat",
+    "measured monospace fitting",
+    "highlight and dim",
+    "stacked or overlapping terminal panel"
+  ],
+  "gallery_share": "Code reels and coding-tip shorts are among the most common developer-education videos on social platforms.",
+  "limits": [
+    "The tokenizer is line-based, not a parser: unusual syntax may stay uncoloured",
+    "Code and output are displayed, never run: a person must confirm the output is correct",
+    "Up to 16 lines of 56 characters (about 40 in 9:16 at a legible size)",
+    "One monospace face from the system (JetBrains Mono, DejaVu Sans Mono or Noto Sans Mono)"
+  ]
+}

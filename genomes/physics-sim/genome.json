@@ -1,0 +1,27 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "physics-sim",
+  "title": "Physics simulation loop",
+  "summary": "Satisfying physics: bodies falling into a container, cloth, chains, Newton's cradle or marble runs, simulated deterministically and shot with a calm camera and a title.",
+  "family": "generative",
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "duration_seconds": [
+    6,
+    20
+  ],
+  "recipes": [],
+  "templates": [],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "fixed-timestep integration",
+    "Verlet or impulse solver",
+    "Canvas 2D or three.js"
+  ],
+  "gallery_share": "Physics toys appear regularly among model-made videos.",
+  "limits": []
+}

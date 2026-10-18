@@ -1,4 +1,4 @@
-"""CLI: discover templates, validate, compile and render content-only production jobs."""
+"""CLI: discover templates, fill them from briefs, produce media, render and measure."""
 from __future__ import annotations
 
 import argparse
@@ -16,6 +16,7 @@ from videogenome.produce import produce
 from videogenome.profile import Profile, discover_pipelines
 
 EXIT_GATE_FAILED = 3
+EXIT_INCOMPLETE = 4
 
 
 def _template_option(parser: argparse.ArgumentParser) -> None:
@@ -30,6 +31,66 @@ def _pipeline_option(parser: argparse.ArgumentParser) -> None:
                         help="Pipeline profile (default: $VIDEOGENOME_PIPELINE or FFmpeg-only)")
     parser.add_argument("--pipelines", type=Path, action="append", default=[], metavar="DIR",
                         help="Extra directory of pipeline profiles (also VIDEOGENOME_PIPELINE_PATH)")
+
+
+def _brief_options(parser: argparse.ArgumentParser) -> None:
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--brief", help="Plain-language brief: who it is for, what to say, facts to use")
+    source.add_argument("--brief-file", type=Path, help="Read the brief from a UTF-8 text file")
+    parser.add_argument("--set", action="append", default=[], metavar="INPUT=VALUE",
+                        help="Fix a text input yourself; VALUE is parsed as JSON when possible (repeatable)")
+    parser.add_argument("--max-attempts", type=int, default=3,
+                        help="Writer replies to try before giving up (default 3)")
+
+
+def _brief(args: argparse.Namespace) -> str:
+    if args.brief_file:
+        try:
+            return args.brief_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise ProductionError(f"Cannot read brief: {exc}") from exc
+    return args.brief
+
+
+def _pairs(items: list[str]) -> dict:
+    values = {}
+    for item in items:
+        key, separator, raw = item.partition("=")
+        if not separator or not key:
+            raise ProductionError(f"Expected INPUT=VALUE, got {item!r}")
+        try:
+            values[key] = json.loads(raw)
+        except json.JSONDecodeError:
+            values[key] = raw
+    return values
+
+
+def _print_fill(result, job_path: Path, record: Path) -> None:
+    for attempt in result.record["attempts"]:
+        state = "ok" if not attempt["issues"] else f"{len(attempt['issues'])} problem(s)"
+        print(f"Attempt:  {attempt['attempt']} ({attempt['seconds']:.1f}s) {state}")
+        for issue in attempt["issues"][:8]:
+            print(f"          - {', '.join(issue['slots']) + ': ' if issue['slots'] else ''}{issue['problem'][:160]}")
+    for name in result.record["written_inputs"]:
+        print(f"Input:    {name:<18} {json.dumps(result.job['inputs'][name], ensure_ascii=False)[:110]}")
+    for entry in result.missing:
+        print(f"Missing:  {entry['input']:<18} {entry['reason'][:110]}")
+    print(f"Wrote {'job' if result.status == 'complete' else 'draft job'}: {job_path}")
+    print(f"Wrote fill record: {record}")
+
+
+def _fill_context(job: Path) -> dict | None:
+    """Carry a `fill` record (``<job>.fill.json``) into the receipt and review page."""
+    record = job.with_name(f"{job.stem.removesuffix('.produced')}.fill.json")
+    if not record.is_file():
+        return None
+    try:
+        data = json.loads(record.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return {"fill": {"record": str(record), "status": data.get("status"), "writer": data.get("writer", {}),
+                     "attempts": len(data.get("attempts", [])), "brief": data.get("brief", ""),
+                     "written_inputs": data.get("written_inputs", []), "caveat": data.get("caveat", "")}}
 
 
 def _print_production(report: list[dict], produced: Path) -> None:
@@ -100,6 +161,37 @@ def _render_recipe(args: argparse.Namespace) -> int:
     return 0
 
 
+def _click(value: str) -> bool | list[float]:
+    if value == "center":
+        return True
+    x, _, y = value.partition(",")
+    try:
+        return [float(x), float(y)]
+    except ValueError as exc:
+        raise ProductionError("--click takes X,Y in pixels, or nothing for the centre") from exc
+
+
+def _capture(args: argparse.Namespace) -> int:
+    """Render any self-contained HTML animation frame-exactly on a virtual clock."""
+    from videogenome.service import capture_page
+    info = capture_page(args.page, args.output, size=args.size, fps=args.fps, duration=args.duration,
+                        seed=args.seed, click=_click(args.click) if args.click else None,
+                        audio=not args.no_audio, params=_pairs(args.set), at=args.at, timing=args.timing)
+    if info["media"] == "video":
+        sound = {"recorded": "with recorded Web Audio", "silent": "page made no sound"}.get(info["audio"], "no audio")
+        print(f"Captured {info['frames']} frames ({args.duration:g}s at {args.fps} fps, {args.size}, {sound}) "
+              f"-> {args.output}")
+    else:
+        print(f"Captured still -> {args.output}")
+    return 0
+
+
+def _service(args: argparse.Namespace):
+    from videogenome.service import Service, Workspace
+    profile = Profile.load(args.pipeline, search=args.pipelines)
+    return Service(profile, Workspace(args.workspace), template_dirs=args.templates)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="videogenome",
@@ -160,6 +252,76 @@ def main(argv: list[str] | None = None) -> int:
     recipe.add_argument("--size", default="1280x720")
     recipe.add_argument("--fps", type=int, default=24)
     recipe.add_argument("--seed", type=int, default=1)
+    capture = commands.add_parser("capture", help="Render a self-contained HTML animation frame-exactly to MP4")
+    capture.add_argument("page", type=Path, help="HTML file; it may load files from its own directory only")
+    capture.add_argument("-o", "--output", type=Path, required=True, help=".mp4, or .png/.jpg for one still")
+    capture.add_argument("--size", default="1920x1080", help="WIDTHxHEIGHT (default 1920x1080)")
+    capture.add_argument("--fps", type=int, default=30)
+    capture.add_argument("--duration", type=float, default=10.0, help="Seconds (default 10)")
+    capture.add_argument("--seed", type=int, default=1, help="Seed for Math.random")
+    capture.add_argument("--at", type=float, help="Time of the still, in seconds (stills only)")
+    capture.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                         help="Expose a value to the page as window.vgSpec.params (repeatable)")
+    capture.add_argument("--click", nargs="?", const="center", metavar="X,Y",
+                         help="Click once after loading (default: the centre), for click-to-play pages")
+    capture.add_argument("--no-audio", action="store_true",
+                         help="Do not record the page's Web Audio (default: record it in sync)")
+    capture.add_argument("--timing", choices=["clock", "frame"], default="clock",
+                         help="clock (default): ordinary rAF/CSS/timer code on a virtual clock; "
+                              "frame: the page defines vgSetup/vgRender")
+    fill = commands.add_parser("fill", help="Write a job's text inputs from a brief with the pipeline's writer")
+    fill.add_argument("template", help="Template id, or an existing job .json whose text inputs to complete")
+    _brief_options(fill)
+    fill.add_argument("-o", "--output", type=Path, required=True, help="Job JSON to write")
+    fill.add_argument("--id", help="Job id (default: derived from the template and brief)")
+    fill.add_argument("--force", action="store_true", help="Overwrite an existing output file")
+    _template_option(fill)
+    _pipeline_option(fill)
+    create = commands.add_parser("create", help="Brief to finished video: fill, produce, render")
+    create.add_argument("template", help="Template id (see `videogenome catalog`)")
+    _brief_options(create)
+    create.add_argument("-o", "--output", type=Path, required=True, help="Programme .mp4 to write")
+    create.add_argument("--workdir", type=Path, help="Job directory (default: <output>.job next to the output)")
+    create.add_argument("--receipt", type=Path, help="Write QA/provenance receipt JSON")
+    create.add_argument("--no-deliverables", action="store_true", help="Skip sidecar exporters")
+    _template_option(create)
+    _pipeline_option(create)
+    bench = commands.add_parser("bench", help="Measure how reliably the pipeline's writer fills templates")
+    bench.add_argument("suite", type=Path, help="Brief suite JSON (see examples/briefs/smoke.json)")
+    bench.add_argument("-o", "--output", type=Path, help="Write the full report JSON")
+    bench.add_argument("--render", type=Path, metavar="DIR", help="Also produce, render and gate each video into DIR")
+    bench.add_argument("--max-attempts", type=int, default=3)
+    _template_option(bench)
+    _pipeline_option(bench)
+    lib = commands.add_parser("library", help="Every class of video, by readiness: template, code or prompt")
+    lib.add_argument("--level", choices=["template", "code", "prompt"])
+    lib.add_argument("--family")
+    lib.add_argument("--json", action="store_true", help="Full machine-readable descriptions")
+    genome = commands.add_parser("genome", help="Show one class: its templates, recipes and authoring prompt")
+    genome.add_argument("genome_id")
+    genome.add_argument("--prompt", action="store_true", help="Print only the authoring prompt")
+    scaffold_recipe = commands.add_parser("recipe-new", help="Start a clock-timed scene recipe from the toolkit")
+    scaffold_recipe.add_argument("recipe_id", help="area.name, e.g. scene.my-reveal")
+    scaffold_recipe.add_argument("-o", "--output", type=Path, required=True, help="New recipe directory")
+    scaffold_recipe.add_argument("--three", action="store_true", help="Include the vendored three.js")
+    studio = commands.add_parser("studio", help="Local web UI: browse, fill, render, tune code, connect agents")
+    studio.add_argument("--workspace", type=Path, default=Path("videogenome-workspace"),
+                        help="Where runs are written (default ./videogenome-workspace)")
+    studio.add_argument("--port", type=int, default=8765, help="Port on 127.0.0.1 (0 picks a free one)")
+    studio.add_argument("--open", action="store_true", help="Open the browser")
+    _template_option(studio)
+    _pipeline_option(studio)
+    previews = commands.add_parser("previews", help="Render each template's sample job for the Studio library")
+    previews.add_argument("--workspace", type=Path, default=Path("videogenome-workspace"))
+    previews.add_argument("--only", action="append", default=[], metavar="TEMPLATE")
+    previews.add_argument("--force", action="store_true", help="Re-render previews that already exist")
+    _template_option(previews)
+    _pipeline_option(previews)
+    mcp = commands.add_parser("mcp", help="MCP server on stdio, so agents can make videos")
+    mcp.add_argument("--workspace", type=Path, default=Path("videogenome-workspace"),
+                     help="Where runs are written (default ./videogenome-workspace)")
+    _template_option(mcp)
+    _pipeline_option(mcp)
     pipelines = commands.add_parser("pipelines", help="List available pipeline profiles")
     pipelines.add_argument("--pipelines", type=Path, action="append", default=[], metavar="DIR")
     args = parser.parse_args(argv)
@@ -201,10 +363,121 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "recipe":
             return _render_recipe(args)
+        if args.command == "capture":
+            return _capture(args)
         if args.command == "pipelines":
             for entry in discover_pipelines(args.pipelines):
-                print(f"{entry['id']:<28} routes: {', '.join(entry['routes']) or '-':<34} "
+                writer = f" writer: {entry['writer']}" if entry.get("writer") else ""
+                print(f"{entry['id']:<28} routes: {', '.join(entry['routes']) or '-':<34}{writer} "
                       f"[{entry['verification']}]\n  {entry['description']}")
+            return 0
+        if args.command == "studio":
+            from videogenome.studio import Studio
+            app = Studio(_service(args), port=args.port)
+            if args.open:
+                import threading
+                import webbrowser
+                threading.Timer(0.8, lambda: webbrowser.open(app.url)).start()
+            app.serve()
+            return 0
+        if args.command == "previews":
+            service = _service(args)
+            failed = 0
+            for template_id in sorted(args.only or service.sample_jobs()):
+                if (service.previews_dir / f"{template_id}.mp4").is_file() and not args.force:
+                    print(f"cached   {template_id}")
+                    continue
+                try:
+                    result = service.build_preview(template_id)
+                    state = "gates failed" if result["automated_gates_failed"] else "ok"
+                    print(f"{state:<8} {template_id:<38} {result['output']}")
+                except ProductionError as exc:
+                    failed += 1
+                    print(f"skipped  {template_id:<38} {str(exc)[:120]}")
+            return 1 if failed and args.only else 0
+        if args.command == "mcp":
+            from videogenome.mcp_server import Server
+            Server(_service(args)).serve()
+            return 0
+        if args.command == "library":
+            from videogenome.genomes import library
+            rows = library(level=args.level, family=args.family)
+            if args.json:
+                print(json.dumps(rows, indent=2, ensure_ascii=False))
+                return 0
+            badge = {"template": "TEMPLATE", "code": "CODE", "prompt": "PROMPT"}
+            for row in rows:
+                links = ", ".join(row.get("templates") or row.get("recipes") or ["videogenome genome " + row["id"] + " --prompt"])
+                print(f"{badge[row['level']]:<9} {row['family']:<12} {row['id']:<24} {row['title']}\n"
+                      f"{'':<23}{'/'.join(row['formats']):<12} -> {links}")
+            counts = {level: sum(r["level"] == level for r in rows) for level in badge}
+            print(f"\n{counts['template']} ready to fill, {counts['code']} ready code, {counts['prompt']} prompt only")
+            return 0
+        if args.command == "genome":
+            from videogenome.genomes import get
+            entry = get(args.genome_id)
+            if args.prompt:
+                print(entry.prompt())
+                return 0
+            print(json.dumps(entry.describe(), indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "recipe-new":
+            from videogenome.authoring import scaffold_recipe
+            for path in scaffold_recipe(args.recipe_id, args.output, three=args.three):
+                print(f"Wrote {path}")
+            print(f"Preview: videogenome capture {args.output / 'index.html'} -o preview.mp4 --duration 6")
+            return 0
+        if args.command == "bench":
+            from videogenome.bench import run_bench
+            profile = Profile.load(args.pipeline, search=args.pipelines)
+            report = run_bench(args.suite, profile, template_dirs=args.templates, render_dir=args.render,
+                               max_attempts=args.max_attempts)
+            if args.output:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                args.output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            print("Summary:  " + ", ".join(f"{k}={v}" for k, v in report["summary"].items()))
+            return 0 if report["summary"]["as_expected"] == report["summary"]["briefs"] else 1
+        if args.command == "fill":
+            from videogenome.create import make_filler, save_fill
+            if args.output.exists() and not args.force:
+                raise ProductionError(f"Refusing to overwrite existing file: {args.output} (use --force)")
+            profile = Profile.load(args.pipeline, search=args.pipelines)
+            filler = make_filler(args.template, _brief(args), profile, template_dirs=args.templates,
+                                 pinned=_pairs(args.set), max_attempts=args.max_attempts, job_id=args.id)
+            result = filler.run()
+            record = save_fill(result, args.output)
+            _print_fill(result, args.output, record)
+            if result.status == "incomplete":
+                print("INCOMPLETE: the brief lacks what the inputs above need; add it to the brief "
+                      "or set them with --set", file=sys.stderr)
+                return EXIT_INCOMPLETE
+            if result.status == "failed":
+                print("ERROR: the writer's copy still breaks the template; see the problems above",
+                      file=sys.stderr)
+                return 1
+            return 0
+        if args.command == "create":
+            from videogenome.create import FillIncomplete, create as create_video
+            if args.output.suffix.lower() != ".mp4":
+                raise ProductionError("Output must be an .mp4 file")
+            profile = Profile.load(args.pipeline, search=args.pipelines)
+            try:
+                receipt, _, _ = create_video(
+                    args.template, _brief(args), profile, args.output, template_dirs=args.templates,
+                    pinned=_pairs(args.set), max_attempts=args.max_attempts, workdir=args.workdir,
+                    write_deliverables=not args.no_deliverables)
+            except ProductionError as exc:
+                print(f"ERROR: {exc}", file=sys.stderr)
+                return EXIT_INCOMPLETE if isinstance(exc, FillIncomplete) else 1
+            if args.receipt:
+                args.receipt.parent.mkdir(parents=True, exist_ok=True)
+                args.receipt.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+            _print_receipt_summary(receipt)
+            print(f"Copy:     written by {receipt['fill']['writer'].get('model', {}).get('name') or receipt['fill']['writer']['name']}"
+                  " from the brief; review claims before publishing")
+            if any(gate["status"] == "failed" for gate in receipt["quality_gates"]):
+                print("ERROR: an automated quality gate failed; output kept for inspection", file=sys.stderr)
+                return EXIT_GATE_FAILED
             return 0
         if args.command == "catalog":
             entries = discover(category=args.category, tag=args.tag,
@@ -243,9 +516,11 @@ def main(argv: list[str] | None = None) -> int:
             if args.command == "produce":
                 return 0
             args.job = produced
-        plan = compile_job(args.job, template_dirs=args.templates)
+        plan = compile_job(args.job, template_dirs=args.templates, allow_pending=args.command == "validate")
         if args.command == "validate":
-            print(f"PASS {args.job}: {len(plan['segments'])} shots, {plan['total_frames']} frames")
+            pending = plan.get("pending_inputs", [])
+            print(f"PASS {args.job}: {len(plan['segments'])} shots, {plan['total_frames']} frames"
+                  + (f"; to produce before rendering: {', '.join(pending)}" if pending else ""))
         elif args.command == "compile":
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
@@ -254,7 +529,8 @@ def main(argv: list[str] | None = None) -> int:
             if args.command == "render":
                 profile = Profile.load(args.pipeline, search=args.pipelines)
             receipt = run_render(plan, args.job.resolve().parent, args.output, profile,
-                                 write_deliverables=not args.no_deliverables)
+                                 write_deliverables=not args.no_deliverables,
+                                 context=_fill_context(args.job))
             if args.receipt:
                 args.receipt.parent.mkdir(parents=True, exist_ok=True)
                 args.receipt.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")

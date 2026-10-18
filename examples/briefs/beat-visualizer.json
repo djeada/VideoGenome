@@ -1,0 +1,28 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Beat visualizer loops for shows and mixes, including one brief with no name to put on screen.",
+  "briefs": [
+    {
+      "id": "radio-show",
+      "template": "social.beat-loop",
+      "brief": "Loop for Harbour Lights, a Thursday deep-house show on Coastline FM hosted by Theo Park. Teal colours, night energy."
+    },
+    {
+      "id": "club-night",
+      "template": "social.beat-loop",
+      "brief": "Teaser loop for Warehouse 9, a monthly techno night. Line under the title: every first Saturday. Loud, club look, upbeat energy."
+    },
+    {
+      "id": "podcast-ident",
+      "template": "social.beat-loop",
+      "brief": "Short music loop for the Second Draft podcast feed, new episodes every Tuesday. Clean light studio look."
+    },
+    {
+      "id": "beat-without-name",
+      "template": "social.beat-loop",
+      "expect": "incomplete",
+      "brief": "We need a looping visualizer with a heavy beat and neon colours for our socials. Make it pop.",
+      "note": "No show, mix or event name is given; the title slot is verbatim, so the writer must report it missing. (A brief that merely mentions 'my DJ mix' is not enough to make this refusal reliable: the verbatim check accepts any exact span, so 'DJ Mix' passes as a title.)"
+    }
+  ]
+}

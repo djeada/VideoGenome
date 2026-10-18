@@ -63,7 +63,21 @@ production with provenance, and verified local routes (Piper, Type-Simulator,
 Blender, blender-mcp-server). Still missing from Stage 2: cost estimates,
 asynchronous jobs with cancellation, and budget limits before generation.
 
+v0.6 makes the thesis executable and measurable. `fill`/`create` let any
+writer model fill expert-locked templates from a brief under measured
+contracts, with verbatim grounding; `bench` reports fill and honest-refusal
+rates for a writer; and clock-timed browser recipes plus `capture` turn
+model-written animation code into deterministic, parameterised scenes. The
+three-condition benchmark above still needs blinded human quality review;
+`bench` covers validity, honesty and timing only.
+
 Next:
+- **Multi-format delivery**: one job rendered to 16:9, 9:16 and 1:1 (scene
+  recipes already lay out for any aspect ratio).
+- **Quality evaluators**: a second model or human panel scoring copy against the
+  brief (faithfulness, specificity), fed into `bench`.
+- **More scene recipes from the gallery classes**: data/stat reveals, maps and
+  routes, UI walkthroughs, Three.js product scenes (with a vendored, offline build).
 - **Takes and judges**: generate N takes and select by analyzer scores (WER via
   faster-whisper, speaker similarity via ECAPA), as proven in the drama TTS work.
 - **Audio-driven timing**: templates whose slots stretch to the produced

@@ -1,0 +1,427 @@
+<!doctype html>
+<!--
+  Chart story: one animated chart that makes one point.
+
+  What the viewer sees: the title rises in with an accent rule and a muted
+  line saying what is measured; the baseline draws itself; then bars (or
+  columns) grow from zero in a quick stagger with their values counting up at
+  the tips, or a line draws itself across the points with a glowing head. A
+  beat later the story lands: every other mark recedes to grey, the key mark
+  keeps the accent, a light sheen runs along it and its value grows. Finally
+  the takeaway rises in beside an accent rule, and the source line sits at
+  the foot of the frame throughout.
+
+  Honesty rules: bars and columns always start at zero; every bar is labelled
+  directly with its value; a line chart that does not start at zero says so
+  with labelled gridlines. Values below zero are refused (this class shows
+  magnitudes, not gains and losses).
+
+  Beat timing (seconds, D = duration; independent of the number of values):
+    intro    I = min(1.0, 0.1 D)                       title, subtitle, baseline
+    growth   from I for G = clamp(0.24 D, 1.4, 3.2) / tempo   bars grow / line draws
+    focus    F = max(I + G + 0.4, 0.45 D)              others recede, key mark sheen
+    takeaway K = F + 0.7                                takeaway rises, holds to the end
+  At D = 12, tempo 1: growth 1.00-3.88, focus 5.40, takeaway 6.10.
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Parameters arrive in window.vgSpec.params. Copy is drawn with fillText,
+  never parsed as HTML, and fitted with measured glyphs; the page throws when
+  copy cannot fit.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit } = vg.setup({
+  title: "Solar now leads new power",
+  subtitle: "New generating capacity added in 2025, gigawatts",
+  labels: ["Solar", "Wind", "Gas", "Hydro", "Nuclear"],
+  values: [42.5, 18.2, 9.6, 3.1, 1.4],
+  prefix: "", suffix: "GW", decimals: -1, separator: ",",
+  highlight: 0, takeaway: "Solar added more than everything else combined",
+  source: "Source: VideoGenome sample data", form: "auto", sort: "none", y_from_zero: true, tempo: 1.0,
+  palette: ["#0B0F14", "#F3F5F7", "#3DDC97", "#7D8794"], grid: 0.2, grain: 0.03,
+});
+const ctx = vg.canvas2d();
+const [BG, INK0, ACCENT, MUTED0] = P.palette;
+const INK = vg.readable(BG, [INK0, "#FFFFFF", "#000000"]);
+const MUTED = vg.readable(BG, [MUTED0, vg.mix(INK, BG, 0.3), vg.mix(INK, BG, 0.15), INK]);
+const RECEDE = vg.mix(BG, INK, 0.22);     // marks that are not the story
+const HAIR = vg.mix(BG, INK, 0.28);
+const portrait = H > W * 1.05;
+
+// ---- data --------------------------------------------------------------------
+const rawLabels = (P.labels || []).map((s) => String(s).trim());
+const rawValues = (P.values || []).map(Number);
+if (rawLabels.length !== rawValues.length)
+  throw new Error(`chart-story: ${rawValues.length} values but ${rawLabels.length} labels; give one label per value`);
+let items = [];
+rawLabels.forEach((label, i) => {
+  const value = rawValues[i];
+  if (!label && value === -1) return;                       // an unused slot
+  if (!label) throw new Error(`chart-story: value ${i + 1} (${value}) has no label`);
+  if (value === -1) throw new Error(`chart-story: "${label}" has no value`);
+  if (!Number.isFinite(value) || value < 0) throw new Error(`chart-story: "${label}" must be zero or more (got ${value})`);
+  items.push({ label, value, slot: i + 1 });
+});
+if (items.length < 2 || items.length > 8) throw new Error(`chart-story: give two to eight values (got ${items.length})`);
+let key;
+if (P.highlight > 0) {
+  key = items.find((it) => it.slot === P.highlight);
+  if (!key) throw new Error(`chart-story: highlight ${P.highlight} names no value`);
+} else key = items.reduce((a, b) => (b.value > a.value ? b : a));
+if (P.sort === "descending") items = items.slice().sort((a, b) => b.value - a.value);
+const N = items.length, K = items.indexOf(key);
+
+const asWritten = (v) => { const s = String(v); return s.includes("e") ? 0 : (s.split(".")[1] || "").length; };
+const dec = P.decimals >= 0 ? P.decimals : Math.min(3, Math.max(...items.map((it) => asWritten(it.value))));
+const NOSPACE = new Set(["%", "k", "K", "M", "m", "B", "b", "bn", "Bn", "tn", "x", "×", "+", "°"]);
+let suffix = String(P.suffix || "").trim();
+if (suffix && /^[A-Za-z]/.test(suffix) && !NOSPACE.has(suffix)) suffix = " " + suffix;
+const prefix = String(P.prefix || "").trim();
+// "860,000M" is never meant: a scale unit only follows numbers already shortened (860k, 4.2M).
+if (["k", "K", "M", "B", "bn", "Bn", "tn"].includes(suffix) && items.some((it) => it.value >= 1000))
+  throw new Error(`chart-story: values are written in full but have the scale unit "${suffix}"; shorten the values or drop the unit`);
+function fmt(v) {
+  const fixed = Math.abs(v).toFixed(dec);
+  const [whole, frac] = fixed.split(".");
+  const sep = P.separator === "none" ? "" : P.separator === "space" ? " " : P.separator;
+  return prefix + whole.replace(/\B(?=(\d{3})+(?!\d))/g, sep) + (frac ? (P.separator === "." ? "," : ".") + frac : "") + suffix;
+}
+const maxV = Math.max(...items.map((it) => it.value));
+if (maxV <= 0) throw new Error("chart-story: every value is zero; there is nothing to compare");
+
+// ---- timeline ----------------------------------------------------------------
+const I = Math.min(1.0, D * 0.1);
+const G = vg.clamp(D * 0.24, 1.4, 3.2) / P.tempo;
+const F = Math.max(I + G + 0.4, D * 0.45);
+const TK = F + 0.7;
+window.vgBeats = { intro: I, growth: [I, I + G], focus: F, takeaway: TK };
+
+// ---- layout ------------------------------------------------------------------
+const minText = unit * 0.028;
+function width(text, size, weight) { vg.font(ctx, size, weight); return ctx.measureText(text).width; }
+const m = Math.round(portrait ? W * 0.08 : W * 0.06);
+const panelW = portrait ? W - 2 * m : W * 0.3;
+const title = vg.fit(ctx, P.title, { maxSize: unit * (portrait ? 0.08 : 0.07), minSize: minText * 1.4, weight: 800,
+  maxWidth: panelW, maxLines: portrait ? 3 : 4, leading: 1.06, label: "title" });
+const subtitle = P.subtitle.trim() ? vg.fit(ctx, P.subtitle, { maxSize: unit * 0.034, minSize: minText, weight: 500,
+  maxWidth: panelW, maxLines: 2, leading: 1.25, label: "subtitle" }) : null;
+const takeaway = P.takeaway.trim() ? vg.fit(ctx, P.takeaway, { maxSize: unit * (portrait ? 0.056 : 0.05), minSize: minText * 1.2,
+  weight: 700, maxWidth: panelW - unit * 0.04, maxLines: 3, leading: 1.14, label: "takeaway" }) : null;
+const source = P.source.trim() ? vg.fit(ctx, P.source, { maxSize: unit * 0.03, minSize: unit * 0.026, weight: 500,
+  maxWidth: portrait ? W - 2 * m : W * 0.3, maxLines: 2, leading: 1.25, label: "source" }) : null;
+
+const titleY = portrait ? H * 0.125 : H * 0.12;
+const subY = titleY + title.height + unit * 0.025;
+const headBottom = subY + (subtitle ? subtitle.height : 0);
+const sourceBottom = portrait ? H * 0.775 : H * 0.9;
+const sourceY = source ? sourceBottom - source.height : sourceBottom;
+let takeY, A;
+if (portrait) {
+  takeY = takeaway ? sourceY - unit * 0.05 - takeaway.height : sourceY;
+  A = { x: m, y: headBottom + unit * 0.07, w: W - 2 * m };
+  A.h = takeY - unit * 0.06 - A.y;
+} else {
+  takeY = headBottom + unit * 0.09;
+  if (takeaway && takeY + takeaway.height > sourceY - unit * 0.04) throw new Error("chart-story: title, subtitle and takeaway do not fit together; shorten them");
+  const x = m + panelW + W * 0.07;
+  A = { x, y: H * 0.13, w: W - m - x, h: H * 0.75 };
+}
+if (A.h < unit * 0.3) throw new Error("chart-story: the copy leaves no room for the chart; shorten the title, subtitle or takeaway");
+
+// Shared label size: the largest at which every label fits its slot.
+function fitShared(texts, { maxSize, minSize, weight, maxWidth, maxLines, label }) {
+  for (let s = Math.floor(maxSize); s >= minSize; s -= 1) {
+    const blocks = texts.map((t) => vg.wrap(ctx, t, s, weight, maxWidth, maxLines));
+    if (blocks.every(Boolean)) return { size: s, lines: blocks };
+  }
+  throw new Error(`chart-story: ${label} do not fit; shorten them`);
+}
+
+// auto: horizontal bars in portrait; columns in landscape unless their labels only fit as bars.
+function layoutFor(form) {
+const L = {};
+if (form === "bars") {
+  const rowH = Math.min(A.h / N, unit * 0.2);
+  const texts = items.map((it) => it.label);
+  // Labels sit in a right-aligned column beside the bars when they are short enough, else above each bar.
+  let inline = null;
+  for (let size = Math.floor(Math.min(rowH * 0.44, unit * 0.046)); size >= minText; size -= 1) {
+    const w = Math.max(...texts.map((t) => width(t, size, 600)));
+    if (w <= A.w * 0.34) { inline = { size, w }; break; }
+  }
+  let labels, thick, labelW = 0, content;
+  if (inline) {
+    labels = { size: inline.size, lines: texts.map((t) => [t]) };
+    labelW = inline.w + unit * 0.03;
+    thick = Math.min(rowH * 0.42, unit * 0.075);
+    content = Math.max(thick, labels.size);
+  } else {
+    labels = fitShared(texts, { maxSize: Math.min(rowH * 0.3, unit * 0.048), minSize: minText,
+      weight: 600, maxWidth: A.w, maxLines: 1,
+      label: `labels (${N} rows of ${Math.round(rowH)} px: shorten the labels, title or takeaway, or give fewer values)` });
+    thick = Math.min(rowH * 0.34, unit * 0.075);
+    content = labels.size * 1.3 + thick;
+  }
+  const vSize = Math.max(minText, Math.min(labels.size * 1.1, thick * 0.95));
+  const vW = Math.max(...items.map((it) => width(fmt(it.value), vSize * 1.2, 800)));
+  const maxLen = A.w - labelW - vW - unit * 0.03;
+  if (maxLen < A.w * 0.35) throw new Error("chart-story: the values are too wide for the bars; use a scale suffix (M, bn)");
+  const top = A.y + (A.h - rowH * N) / 2;
+  Object.assign(L, { rowH, labels, thick, vSize, maxLen, content, top, inline: !!inline, labelW });
+} else {
+  const band = A.w / N;
+  const labels = fitShared(items.map((it) => it.label), { maxSize: Math.min(unit * 0.034, band * 0.22), minSize: minText,
+    weight: 600, maxWidth: band * 0.92, maxLines: 3, label: "labels" });
+  const lines = Math.max(...labels.lines.map((l) => l.length));
+  const xlH = lines * labels.size * 1.15;
+  let vSize = Math.min(unit * 0.042, band * 0.3);
+  while (vSize > minText && Math.max(...items.map((it) => width(fmt(it.value), vSize * 1.15, 800))) > band * 0.98) vSize -= 1;
+  if (vSize <= minText) throw new Error("chart-story: the values are too wide for the columns; use a scale suffix (M, bn)");
+  const base = A.y + A.h - xlH - unit * 0.03;
+  const top = A.y + vSize * 1.9;
+  const colW = Math.min(band * 0.56, unit * 0.13);
+  let lo = 0, hi = maxV, ticks = null;
+  if (form === "line" && !P.y_from_zero) {
+    const minV = Math.min(...items.map((it) => it.value));
+    const step = niceStep((maxV - minV) / 3 || maxV / 3);
+    lo = Math.floor(minV / step) * step; hi = Math.ceil(maxV / step) * step;
+    if (hi === lo) hi = lo + step;
+    ticks = [lo, hi];
+  }
+  Object.assign(L, { band, labels, xlH, vSize, base, top, colW, lo, hi, ticks });
+}
+return L;
+}
+let form = P.form === "auto" ? (portrait ? "bars" : "columns") : P.form, L;
+try { L = layoutFor(form); }
+catch (error) { if (P.form !== "auto" || form === "bars") throw error; form = "bars"; L = layoutFor(form); }
+function niceStep(raw) {
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+}
+
+// ---- drawing -----------------------------------------------------------------
+const TAU = Math.PI * 2;
+function background(t) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+  const gx = A.x + A.w * 0.6 + Math.sin(t * 0.3) * unit * 0.05, gy = A.y + A.h * 0.4;
+  const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, unit * 0.8);
+  glow.addColorStop(0, vg.rgba(ACCENT, 0.09)); glow.addColorStop(1, vg.rgba(ACCENT, 0));
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  if (P.grid > 0) vg.dotGrid(ctx, t, INK, { alpha: P.grid * 0.3, spacing: 0.045, size: 0.0026, drift: 0.1 });
+}
+
+function riseLines(block, x, y, start, color, t, align = "left") {
+  block.lines.forEach((line, i) => {
+    const p = vg.tween(t, start + i * 0.08, 0.75, vg.ease.outExpo);
+    if (p <= 0) return;
+    const ly = y + i * block.size * block.leading;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, ly - block.size * 0.12, W, block.size * block.leading + block.size * 0.18); ctx.clip();
+    vg.drawLines(ctx, { ...block, lines: [line] }, x, ly + (1 - p) * block.size * 1.4, { color, align });
+    ctx.restore();
+  });
+}
+
+function drawHeader(t) {
+  ctx.fillStyle = ACCENT;
+  ctx.fillRect(m, titleY - unit * 0.03, unit * 0.09 * vg.tween(t, 0.3, 0.8, vg.ease.outExpo), Math.max(3, unit * 0.007));
+  riseLines(title, m, titleY, 0.05, INK, t);
+  if (subtitle) {
+    const p = vg.tween(t, 0.4, 0.8, vg.ease.outCubic);
+    vg.drawLines(ctx, subtitle, m, subY + (1 - p) * unit * 0.015, { color: MUTED, alpha: p });
+  }
+  if (source) {
+    const p = vg.tween(t, 0.6, 0.8, vg.ease.outCubic);
+    vg.drawLines(ctx, source, m, sourceY, { color: MUTED, alpha: p });
+  }
+  if (takeaway) {
+    const p = vg.tween(t, TK, 0.6, vg.ease.outExpo);
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(m, takeY, Math.max(4, unit * 0.008), takeaway.height * p);
+    riseLines(takeaway, m + unit * 0.035, takeY, TK + 0.08, INK, t);
+  }
+}
+
+// Progress of mark k growing (staggered inside the growth window).
+function grow(k, t) {
+  const spread = N > 1 ? (G * 0.45) * k / (N - 1) : 0;
+  return vg.ease.outCubic(vg.clamp((t - I - spread) / (G * 0.55)));
+}
+const focus = (t) => vg.tween(t, F, 0.6, vg.ease.inOutCubic);
+function sheen(x, y, w, h, t, horizontal) {
+  const s = vg.clamp((t - F - 0.15) / 0.9);
+  if (s <= 0 || s >= 1) return;
+  const pos = horizontal ? x + (w + h * 4) * s - h * 2 : y + h - (h + w * 4) * s + w * 2;
+  const g = horizontal ? ctx.createLinearGradient(pos - h * 2, 0, pos + h * 2, 0) : ctx.createLinearGradient(0, pos + w * 2, 0, pos - w * 2);
+  g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,0.45)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.save(); vg.roundRect(ctx, x, y, w, h, Math.min(w, h) * 0.18); ctx.clip();
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.restore();
+}
+// A bar rounded at its data end only (square at the baseline).
+function bar(x, y, w, h, r, horizontal) {
+  r = Math.min(r, horizontal ? w : h, horizontal ? h / 2 : w / 2);
+  ctx.beginPath();
+  if (horizontal) {
+    ctx.moveTo(x, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x, y + h);
+  } else {
+    ctx.moveTo(x, y + h); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+    ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h);
+  }
+  ctx.closePath(); ctx.fill();
+}
+function glow(x, y, r, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, vg.rgba(ACCENT, a)); g.addColorStop(1, vg.rgba(ACCENT, 0));
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+}
+
+function drawBars(t) {
+  const f = focus(t);
+  const axis = vg.tween(t, I * 0.5, 0.7, vg.ease.outExpo);
+  const x0 = A.x + L.labelW;
+  ctx.fillStyle = HAIR;
+  ctx.fillRect(x0 - 1, L.top + L.rowH * 0.1, Math.max(2, unit * 0.003), (L.rowH * N - L.rowH * 0.2) * axis);
+  items.forEach((it, k) => {
+    const isKey = k === K, g = grow(k, t);
+    const rowTop = L.top + k * L.rowH + (L.rowH - L.content) / 2;
+    const lp = vg.tween(t, I + k * 0.06, 0.6, vg.ease.outExpo);
+    const labelColor = isKey ? INK : vg.mix(INK, MUTED, f);
+    const by = L.inline ? rowTop + (L.content - L.thick) / 2 : rowTop + L.labels.size * 1.3;
+    vg.font(ctx, L.labels.size, 600); ctx.fillStyle = labelColor; ctx.textBaseline = "alphabetic";
+    if (L.inline) {
+      ctx.globalAlpha = lp; ctx.textAlign = "right";
+      ctx.fillText(L.labels.lines[k][0], x0 - unit * 0.03 + (1 - lp) * unit * 0.03, by + L.thick / 2 + L.labels.size * 0.36);
+      ctx.textAlign = "left"; ctx.globalAlpha = 1;
+    } else {
+      ctx.save(); ctx.beginPath(); ctx.rect(x0, rowTop - L.labels.size * 0.2, A.w, L.labels.size * 1.35); ctx.clip();
+      ctx.fillText(L.labels.lines[k][0], x0 + unit * 0.004, rowTop + L.labels.size * 0.9 + (1 - lp) * L.labels.size * 1.2);
+      ctx.restore();
+    }
+    const len = L.maxLen * (it.value / maxV) * g;
+    if (isKey && f > 0) glow(x0 + len, by + L.thick / 2, L.thick * 2.2, 0.35 * f * (0.85 + 0.15 * Math.sin(t * 2.4)));
+    ctx.fillStyle = isKey ? ACCENT : vg.mix(ACCENT, RECEDE, f);
+    if (len > 0.5) bar(x0, by, len, L.thick, L.thick * 0.22, true);
+    if (isKey) sheen(x0, by, len, L.thick, t, true);
+    if (g > 0.02) {
+      const vs = L.vSize * (isKey ? 1 + 0.2 * f : 1);
+      vg.font(ctx, vs, isKey ? 800 : 700);
+      ctx.fillStyle = isKey ? INK : vg.mix(INK, MUTED, f);
+      ctx.globalAlpha = vg.clamp(g * 3);
+      ctx.fillText(fmt(it.value * g), x0 + len + unit * 0.018, by + L.thick / 2 + vs * 0.36);
+      ctx.globalAlpha = 1;
+    }
+  });
+}
+
+function drawColumns(t) {
+  const f = focus(t);
+  const axis = vg.tween(t, I * 0.5, 0.8, vg.ease.outExpo);
+  ctx.fillStyle = HAIR;
+  ctx.fillRect(A.x, L.base, A.w * axis, Math.max(2, unit * 0.003));
+  items.forEach((it, k) => {
+    const isKey = k === K, g = grow(k, t);
+    const cx = A.x + L.band * (k + 0.5);
+    const h = (L.base - L.top) * (it.value / maxV) * g;
+    if (isKey && f > 0) glow(cx, L.base - h, L.colW * 1.3, 0.35 * f * (0.85 + 0.15 * Math.sin(t * 2.4)));
+    ctx.fillStyle = isKey ? ACCENT : vg.mix(ACCENT, RECEDE, f);
+    if (h > 0.5) bar(cx - L.colW / 2, L.base - h, L.colW, h, L.colW * 0.12, false);
+    if (isKey) sheen(cx - L.colW / 2, L.base - h, L.colW, h, t, false);
+    // x label under the baseline
+    const lp = vg.tween(t, I + k * 0.05, 0.6, vg.ease.outExpo);
+    vg.font(ctx, L.labels.size, 600);
+    ctx.fillStyle = isKey ? INK : vg.mix(INK, MUTED, f); ctx.globalAlpha = lp; ctx.textAlign = "center";
+    L.labels.lines[k].forEach((line, i) => ctx.fillText(line, cx, L.base + unit * 0.03 + L.labels.size * (0.8 + i * 1.15) + (1 - lp) * unit * 0.02));
+    ctx.globalAlpha = 1;
+    if (g > 0.02) {
+      const vs = L.vSize * (isKey ? 1 + 0.18 * f : 1);
+      vg.font(ctx, vs, isKey ? 800 : 700);
+      ctx.fillStyle = isKey ? INK : vg.mix(INK, MUTED, f); ctx.globalAlpha = vg.clamp(g * 3);
+      ctx.fillText(fmt(it.value * g), cx, L.base - h - vs * 0.45);
+      ctx.globalAlpha = 1;
+    }
+    ctx.textAlign = "left";
+  });
+}
+
+const yOf = (v) => L.base - (L.base - L.top) * (v - L.lo) / (L.hi - L.lo);
+function drawLine(t) {
+  const f = focus(t);
+  const axis = vg.tween(t, I * 0.5, 0.8, vg.ease.outExpo);
+  ctx.fillStyle = HAIR;
+  ctx.fillRect(A.x, L.base, A.w * axis, Math.max(2, unit * 0.003));
+  if (L.ticks) {   // Not from zero: say so with two labelled gridlines.
+    vg.font(ctx, minText * 1.05, 600);
+    L.ticks.forEach((v) => {
+      const y = yOf(v);
+      ctx.fillStyle = HAIR; ctx.globalAlpha = axis * 0.6; ctx.fillRect(A.x, y, A.w, 1.5);
+      ctx.globalAlpha = axis; ctx.fillStyle = MUTED; ctx.fillText(fmt(v), A.x, y - minText * 0.5);
+      ctx.globalAlpha = 1;
+    });
+  }
+  const pts = items.map((it, k) => ({ x: A.x + L.band * (k + 0.5), y: yOf(it.value) }));
+  const head = vg.ease.inOutCubic(vg.clamp((t - I) / G)) * (N - 1);   // in point units
+  const reached = Math.floor(head), frac = head - reached;
+  const path = pts.slice(0, reached + 1);
+  if (reached < N - 1) path.push({ x: vg.lerp(pts[reached].x, pts[reached + 1].x, frac), y: vg.lerp(pts[reached].y, pts[reached + 1].y, frac) });
+  const lw = Math.max(3, unit * 0.007);
+  if (t > I) {
+    // Area wash under the line.
+    const g = ctx.createLinearGradient(0, L.top, 0, L.base);
+    g.addColorStop(0, vg.rgba(ACCENT, 0.2)); g.addColorStop(1, vg.rgba(ACCENT, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(path[0].x, L.base);
+    path.forEach((p) => ctx.lineTo(p.x, p.y)); ctx.lineTo(path[path.length - 1].x, L.base); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = lw; ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.beginPath(); path.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke();
+    const hp = path[path.length - 1];
+    if (head < N - 1) glow(hp.x, hp.y, lw * 6, 0.6);
+  }
+  // Key point: drop line to the baseline.
+  if (f > 0) {
+    ctx.strokeStyle = vg.rgba(ACCENT, 0.6 * f); ctx.lineWidth = Math.max(2, lw * 0.4);
+    ctx.beginPath(); ctx.moveTo(pts[K].x, pts[K].y); ctx.lineTo(pts[K].x, pts[K].y + (L.base - pts[K].y) * f); ctx.stroke();
+  }
+  const labelled = new Set([0, N - 1, K]);
+  items.forEach((it, k) => {
+    const isKey = k === K, p = pts[k];
+    const pop = t < I ? 0 : vg.ease.outBack(vg.clamp((head - k + 0.15) / 0.5));
+    if (pop > 0) {
+      const r = Math.max(5, unit * 0.009) * pop * (isKey ? 1 + 0.6 * f : 1);
+      if (isKey && f > 0) glow(p.x, p.y, r * 5, 0.4 * f);
+      ctx.fillStyle = BG; ctx.beginPath(); ctx.arc(p.x, p.y, r + lw * 0.6, 0, TAU); ctx.fill();
+      ctx.fillStyle = isKey || f === 0 ? ACCENT : vg.mix(ACCENT, RECEDE, f * 0.8);
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+    }
+    const lp = vg.tween(t, I + k * 0.05, 0.6, vg.ease.outExpo);
+    vg.font(ctx, L.labels.size, 600);
+    ctx.fillStyle = isKey ? INK : vg.mix(INK, MUTED, f); ctx.globalAlpha = lp; ctx.textAlign = "center";
+    L.labels.lines[k].forEach((line, i) => ctx.fillText(line, p.x, L.base + unit * 0.03 + L.labels.size * (0.8 + i * 1.15)));
+    ctx.globalAlpha = 1;
+    if (labelled.has(k) && pop > 0) {
+      const vs = L.vSize * (isKey ? 1 + 0.25 * f : 0.9);
+      vg.font(ctx, vs, isKey ? 800 : 700);
+      ctx.fillStyle = isKey ? INK : vg.mix(INK, MUTED, f); ctx.globalAlpha = vg.clamp(pop);
+      const tx = vg.clamp(p.x, A.x + width(fmt(it.value), vs, 800) / 2, A.x + A.w - width(fmt(it.value), vs, 800) / 2);
+      ctx.fillText(fmt(it.value), tx, p.y - vs * 0.9);
+      ctx.globalAlpha = 1;
+    }
+    ctx.textAlign = "left";
+  });
+}
+
+vg.loop((t) => {
+  background(t);
+  if (form === "bars") drawBars(t); else if (form === "columns") drawColumns(t); else drawLine(t);
+  drawHeader(t);
+  if (P.grain > 0) vg.grain(ctx, t, P.grain);
+});
+</script>
+</body>
+</html>

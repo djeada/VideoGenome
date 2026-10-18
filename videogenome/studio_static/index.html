@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VideoGenome Studio</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span>VideoGenome <span class="muted">Studio</span></div>
+  <nav class="tabs" role="tablist">
+    <button data-view="library" class="tab active">Library</button>
+    <button data-view="make" class="tab">Make a video</button>
+    <button data-view="code" class="tab">Code</button>
+    <button data-view="runs" class="tab">Runs</button>
+    <button data-view="connect" class="tab">Connect</button>
+  </nav>
+  <div class="chips" id="state"></div>
+</header>
+
+<main>
+  <!-- Library -->
+  <section id="view-library" class="view active">
+    <div class="intro">
+      <h1>What you can make</h1>
+      <p>Every class of video, by how ready it is. <b>Template</b>: give a brief, get a finished video.
+        <b>Code</b>: a ready animation you tune with parameters. <b>Prompt</b>: an authoring brief to hand
+        to your agent, which writes the code.</p>
+    </div>
+    <div class="filters" id="level-filters">
+      <button class="chip-btn active" data-level="">All</button>
+      <button class="chip-btn" data-level="template">Templates</button>
+      <button class="chip-btn" data-level="code">Code</button>
+      <button class="chip-btn" data-level="prompt">Prompts</button>
+    </div>
+    <div class="grid" id="library"></div>
+  </section>
+
+  <!-- Make -->
+  <section id="view-make" class="view">
+    <div class="split">
+      <div class="col">
+        <label class="field">
+          <span>Template</span>
+          <select id="template-select"></select>
+        </label>
+        <div id="template-info" class="card subtle"></div>
+        <div class="card">
+          <h2>Start from a brief</h2>
+          <p class="muted small">Who it is for, what to say, and the facts to use. Names, quotes and numbers are
+            copied from here exactly; nothing is invented.</p>
+          <textarea id="brief" rows="5" placeholder="Promo for Harbourline, a ferry app: buy tickets in ten seconds, see live departures, board by scanning your phone."></textarea>
+          <div class="row">
+            <button id="btn-write" class="btn">Write the copy</button>
+            <button id="btn-create" class="btn primary">Brief to video</button>
+            <span id="writer-note" class="muted small"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row spread"><h2>Copy</h2><button id="btn-sample" class="btn ghost small">Use the sample</button></div>
+          <form id="slots" autocomplete="off"></form>
+          <div id="check-summary" class="notice hidden"></div>
+          <div class="row">
+            <button id="btn-check" class="btn">Check</button>
+            <button id="btn-render" class="btn primary">Render</button>
+          </div>
+        </div>
+      </div>
+      <div class="col sticky">
+        <div class="card" id="make-output">
+          <h2>Result</h2>
+          <div id="make-preview" class="player empty">Your video appears here.</div>
+          <div id="make-job" class="job hidden"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Code -->
+  <section id="view-code" class="view">
+    <div class="split">
+      <div class="col">
+        <div class="card">
+          <h2>Recipes</h2>
+          <p class="muted small">Ready code: scenes, backgrounds, music and sound. Pick one, choose a preset, tune
+            any parameter within its bounds, preview.</p>
+          <select id="recipe-select"></select>
+          <div id="recipe-info" class="small muted"></div>
+          <div class="row">
+            <label class="field inline"><span>Preset</span><select id="recipe-preset"></select></label>
+            <label class="field inline"><span>Format</span>
+              <select id="recipe-size">
+                <option value="1280x720">16:9 small</option><option value="1920x1080">16:9 1080p</option>
+                <option value="720x1280">9:16 small</option><option value="1080x1920">9:16 1080p</option>
+                <option value="1080x1080">1:1</option>
+              </select></label>
+            <label class="field inline"><span>Seconds</span><input id="recipe-duration" type="number" min="1" max="60" step="0.5" value="8"></label>
+          </div>
+          <form id="recipe-params"></form>
+          <div class="row"><button id="btn-preview" class="btn primary">Preview</button></div>
+        </div>
+        <div class="card">
+          <h2>Run your own code</h2>
+          <p class="muted small">Paste or open a self-contained HTML animation (requestAnimationFrame, CSS,
+            timers, GSAP-style code, Three.js from <code>/_lib/three/</code>). It runs unmodified on a virtual
+            clock, so every frame is exact, and its Web Audio is recorded in sync. Network is blocked.</p>
+          <textarea id="html" rows="10" spellcheck="false" placeholder="&lt;!doctype html&gt; ..."></textarea>
+          <div class="row">
+            <input id="html-file" type="file" accept=".html,.htm">
+            <label class="field inline"><span>Format</span>
+              <select id="html-size">
+                <option value="1920x1080">16:9</option><option value="1080x1920">9:16</option>
+                <option value="1080x1080">1:1</option><option value="1280x720">16:9 small</option>
+              </select></label>
+            <label class="field inline"><span>Seconds</span><input id="html-duration" type="number" min="1" max="120" step="0.5" value="8"></label>
+            <label class="check"><input id="html-click" type="checkbox"> Click to start</label>
+            <label class="check"><input id="html-audio" type="checkbox" checked> Record audio</label>
+          </div>
+          <div class="row"><button id="btn-capture" class="btn primary">Render my code</button></div>
+        </div>
+      </div>
+      <div class="col sticky">
+        <div class="card">
+          <h2>Preview</h2>
+          <div id="code-preview" class="player empty">Previews appear here.</div>
+          <div id="code-job" class="job hidden"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Runs -->
+  <section id="view-runs" class="view">
+    <div class="intro"><h1>Runs</h1><p>Everything rendered in this workspace, newest first.</p></div>
+    <div class="grid" id="runs"></div>
+  </section>
+
+  <!-- Connect -->
+  <section id="view-connect" class="view">
+    <div class="intro"><h1>Connect</h1><p>Three ways in, one engine underneath.</p></div>
+    <div class="grid three" id="connect"></div>
+  </section>
+</main>
+
+<dialog id="genome-dialog">
+  <div class="dialog-head"><h2 id="genome-title"></h2><button class="btn ghost small" id="genome-close">Close</button></div>
+  <div id="genome-body"></div>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

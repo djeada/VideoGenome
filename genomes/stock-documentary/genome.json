@@ -1,0 +1,34 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "stock-documentary",
+  "title": "Mini documentary from open footage",
+  "summary": "A title, three b-roll shots found by topic in CC0 and public-domain libraries, narration and captions per shot, crossfades and a closing line.",
+  "family": "documentary",
+  "formats": [
+    "16:9"
+  ],
+  "duration_seconds": [
+    15,
+    40
+  ],
+  "recipes": [
+    "audio.ambient-pad",
+    "visual.aurora"
+  ],
+  "templates": [
+    "educational.cc0-documentary"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "Network access for CC0 search, or your own clips"
+  ],
+  "techniques": [
+    "CC0 retrieval with provenance",
+    "crossfades",
+    "captions",
+    "ducking"
+  ],
+  "limits": [
+    "Footage quality depends on what open libraries hold for a topic"
+  ]
+}

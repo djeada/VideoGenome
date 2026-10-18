@@ -1,0 +1,21 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "cinematic-3d",
+  "title": "Cinematic 3D world with a title",
+  "summary": "A generative 3D world under a slow camera that ends on a film-style title: a low flight along a river through a mountain valley that climbs over a ridge to reveal the low sun, or an orbital sunrise breaking over a planet's limb.",
+  "family": "3d",
+  "formats": ["9:16", "16:9", "1:1"],
+  "duration_seconds": [8, 15],
+  "recipes": ["scene.cinematic-3d"],
+  "templates": ["social.cinematic-title"],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": ["Three.js (software WebGL)", "seeded heightfield with ridged noise", "baked heightfield sun shadows and ambient occlusion", "analytic sky shared by sky, fog and water", "procedural equirectangular planet bake", "limb-scattering atmosphere shell", "pixel-measured title scrim", "measured text fitting"],
+  "gallery_share": "Generated landscape flyovers and space openers with a title are a staple of model-made video galleries.",
+  "limits": [
+    "Stylised, painterly worlds: no trees, buildings, volumetric clouds or water reflections of the land",
+    "Two worlds (terrain, planet) and a fixed camera grammar per world",
+    "The sun reveal time depends a little on the seeded terrain (about 0.42-0.5 of the duration)",
+    "Software WebGL: about 6.6 s (terrain) and 3.9 s (planet) of render per output second at 1080x1920"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "infinite-zoom",
+  "title": "Infinite zoom",
+  "summary": "An endless zoom through nested worlds or fractal structure, every level drawn in code, optionally with a caption that changes per level.",
+  "family": "generative",
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "duration_seconds": [
+    8,
+    30
+  ],
+  "recipes": [],
+  "templates": [],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "self-similar layers",
+    "log-scale camera",
+    "Canvas 2D or WebGL shaders"
+  ],
+  "limits": []
+}

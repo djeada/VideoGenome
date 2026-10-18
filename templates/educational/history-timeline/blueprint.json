@@ -1,0 +1,445 @@
+{
+  "schema_version": "0.5.0",
+  "id": "educational.history-timeline",
+  "version": "0.1.0",
+  "title": "History timeline: camera along the axis (9:16)",
+  "category": "educational",
+  "description": "A 30-second vertical history explainer: the title rises and slides into a header while a timeline axis draws itself; the camera glides along the axis to five events, one year each, as year ticks and a ghost year counter roll by; at each one a pin drops with a ripple and a card lands with the date, a headline and a one-line note; the travelled axis lights and a progress track fills; the camera zooms out to every pin with its date and a summary line. Code-rendered (scene.history-timeline) with a procedural ambient pad, a whoosh on every camera move, a click on every pin and a swell into the summary.",
+  "tags": [
+    "educational",
+    "history",
+    "timeline",
+    "chronology",
+    "explainer",
+    "vertical",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "What the timeline covers, under 44 characters"
+    },
+    "year_1": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Year of event 1 as a whole number exactly as the brief states it (e.g. 1903); events in chronological order, so each year is the same as or later than the one before"
+    },
+    "year_2": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Year of event 2 as a whole number exactly as the brief states it (e.g. 1903); events in chronological order, so each year is the same as or later than the one before"
+    },
+    "year_3": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Year of event 3 as a whole number exactly as the brief states it (e.g. 1903); events in chronological order, so each year is the same as or later than the one before"
+    },
+    "year_4": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Year of event 4 as a whole number exactly as the brief states it (e.g. 1903); events in chronological order, so each year is the same as or later than the one before"
+    },
+    "year_5": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Year of event 5 as a whole number exactly as the brief states it (e.g. 1903); events in chronological order, so each year is the same as or later than the one before"
+    },
+    "event_1": {
+      "type": "string",
+      "required": true,
+      "description": "What happened in year 1, a headline under 30 characters; keep names exactly as the brief spells them and add nothing the brief does not say"
+    },
+    "event_2": {
+      "type": "string",
+      "required": true,
+      "description": "What happened in year 2, a headline under 30 characters; keep names exactly as the brief spells them and add nothing the brief does not say"
+    },
+    "event_3": {
+      "type": "string",
+      "required": true,
+      "description": "What happened in year 3, a headline under 30 characters; keep names exactly as the brief spells them and add nothing the brief does not say"
+    },
+    "event_4": {
+      "type": "string",
+      "required": true,
+      "description": "What happened in year 4, a headline under 30 characters; keep names exactly as the brief spells them and add nothing the brief does not say"
+    },
+    "event_5": {
+      "type": "string",
+      "required": true,
+      "description": "What happened in year 5, a headline under 30 characters; keep names exactly as the brief spells them and add nothing the brief does not say"
+    },
+    "note_1": {
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional one-line detail for event 1, under 46 characters, only from the brief; leave empty if the brief gives none"
+    },
+    "note_2": {
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional one-line detail for event 2, under 46 characters, only from the brief; leave empty if the brief gives none"
+    },
+    "note_3": {
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional one-line detail for event 3, under 46 characters, only from the brief; leave empty if the brief gives none"
+    },
+    "note_4": {
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional one-line detail for event 4, under 46 characters, only from the brief; leave empty if the brief gives none"
+    },
+    "note_5": {
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional one-line detail for event 5, under 46 characters, only from the brief; leave empty if the brief gives none"
+    },
+    "summary": {
+      "type": "string",
+      "required": true,
+      "description": "Closing line over the whole timeline, under 60 characters; no claim the brief does not make"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "archive",
+        "museum",
+        "space",
+        "civic"
+      ],
+      "default": "archive",
+      "description": "Visual look: archive (dark sepia, amber), museum (ivory, crimson), space (midnight, periwinkle), civic (teal, gold)"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The timeline animation; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.history-timeline",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "dates": [
+              "{{year_1}}",
+              "{{year_2}}",
+              "{{year_3}}",
+              "{{year_4}}",
+              "{{year_5}}"
+            ],
+            "labels": [
+              "{{event_1}}",
+              "{{event_2}}",
+              "{{event_3}}",
+              "{{event_4}}",
+              "{{event_5}}"
+            ],
+            "notes": [
+              "{{note_1}}",
+              "{{note_2}}",
+              "{{note_3}}",
+              "{{note_4}}",
+              "{{note_5}}"
+            ],
+            "summary": "{{summary}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.ambient-pad",
+          "preset": "reflective"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft whoosh under each camera move along the axis",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click as each pin lands on the axis",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    },
+    "swell": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell as the timeline zooms out to the summary",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "A short history of the bicycle for a cycling club's channel: in 1817 Karl Drais rode his running machine with no pedals; in 1861 Pierre Michaux added pedals to the front wheel; in 1871 the high-wheel penny-farthing arrived; in 1885 John Kemp Starley's Rover safety bicycle brought the chain-driven rear wheel; in 1888 John Boyd Dunlop patented the pneumatic tyre. Point: the bike we ride today was settled by 1890.",
+      "inputs": {
+        "title": "How the bicycle got its shape",
+        "year_1": 1817,
+        "event_1": "Drais's running machine",
+        "note_1": "No pedals: riders pushed off the ground",
+        "year_2": 1861,
+        "event_2": "Michaux adds pedals",
+        "note_2": "Fixed to the front wheel",
+        "year_3": 1871,
+        "event_3": "The penny-farthing",
+        "note_3": "A huge front wheel for more speed",
+        "year_4": 1885,
+        "event_4": "Starley's Rover safety bike",
+        "note_4": "A chain drives the rear wheel",
+        "year_5": 1888,
+        "event_5": "Dunlop's air-filled tyre",
+        "note_5": "He patented the pneumatic tyre",
+        "summary": "By 1890 the bike we ride today was settled",
+        "look": "museum"
+      },
+      "note": "Years are the numbers the brief states; names keep the brief's spelling; each note is one detail the brief gives, and the summary restates its point without new facts."
+    }
+  ],
+  "style": {
+    "mood": "documentary, warm, unhurried",
+    "palette": [
+      "#14110F",
+      "#F3EEE6",
+      "#F2A541"
+    ],
+    "typography": "Inter, heavy title and dates, bold headlines, medium notes",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 405,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "timeline",
+      "role": "explanation",
+      "duration_frames": 900,
+      "shots": [
+        {
+          "id": "timeline_scene",
+          "kind": "animation",
+          "duration_frames": 900,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Title into header and the axis draws; the camera travels to five events in order, each pin lands and its card follows; the camera zooms out to every pin and the summary"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "year_1",
+            "event_1",
+            "year_2",
+            "event_2",
+            "year_3",
+            "event_3",
+            "year_4",
+            "event_4",
+            "year_5",
+            "event_5"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_in_frames": 6,
+    "fade_out_frames": 20,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 900,
+        "gain_db": 0,
+        "fade_in_frames": 15,
+        "fade_out_frames": 60
+      },
+      {
+        "id": "travel_1",
+        "input_ref": "whoosh",
+        "start_frame": 44,
+        "duration_frames": 24,
+        "gain_db": -10
+      },
+      {
+        "id": "pin_1",
+        "input_ref": "click",
+        "start_frame": 69,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "travel_2",
+        "input_ref": "whoosh",
+        "start_frame": 188,
+        "duration_frames": 24,
+        "gain_db": -10
+      },
+      {
+        "id": "pin_2",
+        "input_ref": "click",
+        "start_frame": 213,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "travel_3",
+        "input_ref": "whoosh",
+        "start_frame": 332,
+        "duration_frames": 24,
+        "gain_db": -10
+      },
+      {
+        "id": "pin_3",
+        "input_ref": "click",
+        "start_frame": 357,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "travel_4",
+        "input_ref": "whoosh",
+        "start_frame": 476,
+        "duration_frames": 24,
+        "gain_db": -10
+      },
+      {
+        "id": "pin_4",
+        "input_ref": "click",
+        "start_frame": 501,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "travel_5",
+        "input_ref": "whoosh",
+        "start_frame": 620,
+        "duration_frames": 24,
+        "gain_db": -10
+      },
+      {
+        "id": "pin_5",
+        "input_ref": "click",
+        "start_frame": 645,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "summary_swell",
+        "input_ref": "swell",
+        "start_frame": 772,
+        "duration_frames": 48,
+        "gain_db": -6
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/history-timeline) rendered frame-exactly on a virtual clock; the content model supplies copy and a look.",
+      "Years are VERBATIM numbers: a writer may only use a number the brief states, never compute, round or invent one; a brief without a year for an event ends incomplete. The template takes whole AD years; richer dates ('July 1969', 'c. 3000 BCE') need the recipe directly. Event headlines are written but must keep names exactly as the brief spells them.",
+      "Copy is fitted with measured glyphs: dates, headlines and notes each share one size across all cards, and the recipe throws rather than overflow (headlines max 34 characters, notes 52, summary 72).",
+      "At 30 s the camera moves into each event over 1.0 s and the pins land at 2.3, 7.1, 11.9, 16.7, 21.5 s (clicks; whooshes peak mid-move); the zoom-out starts at 26.4 s and the summary lands at 27.0 s (swell peak), derived from the recipe's intro, beat and outro formulas.",
+      "When every date contains a year, the ticks and the ghost counter follow those years; even spacing is locked, so distances between pins are not to scale (the rolling counter shows the years in between)."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "accuracy_review",
+      "mode": "human",
+      "description": "A reviewer checks every date and headline against a cited source and confirms the events are in chronological order."
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms the notes and summary add no claim, number or name the brief and its sources do not support."
+    }
+  ]
+}

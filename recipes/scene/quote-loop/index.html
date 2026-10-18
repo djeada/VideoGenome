@@ -1,0 +1,456 @@
+<!doctype html>
+<!--
+  Quote loop: a quote or lyric card over a slow generative backdrop.
+
+  What the viewer sees, beat by beat (D = duration):
+    0.00 s        the backdrop is already moving: a soft mesh-gradient ground
+                  with silk flow lines, drifting bokeh dust, or the gradient alone
+    0.30-1.00 s   a large opening quotation mark settles in the accent colour
+    0.90 s        the first phrase arrives word by word (soft-focus fade and rise,
+                  warm accent tint cooling to ink); each later phrase starts when
+                  the previous one has had time to be read (about 14 characters
+                  per second times tempo, at least 0.9 s per phrase)
+    reveal end    an accent rule draws and the attribution tracks in, then the
+                  optional source line
+    D-1.1 s       (loop on) the copy dissolves upward so the last frame matches
+                  the first; the backdrop motion is periodic in D, so the clip loops
+
+  Typesetting is phrase-aware: largest size that fits, breaks balanced and
+  preferably after punctuation. The recipe throws if the quote cannot fit the
+  frame or cannot be read in the duration. Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Copy is drawn with fillText, never parsed as HTML.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, portrait, seed } = vg.setup({
+  quote: "We read to know we are not alone.", attribution: "William Nicholson", source: "Shadowlands",
+  backdrop: "silk", palette: ["#0E0A08", "#F6EEE3", "#E9A15B", "#B2452C"], typeface: "serif",
+  align: "center", tempo: 1.0, motion: 0.6, density: 0.6, scrim: 0.65, caps: true, loop: true, grain: 0.05,
+});
+const [BG, INK0, ACCENT, GLOW] = P.palette;
+const ctx = vg.canvas2d();
+const TAU = Math.PI * 2;
+const square = !portrait && Math.abs(W - H) < Math.min(W, H) * 0.2;
+const landscape = W > H && !square;
+const light = vg.luminance(BG) > 0.4;
+const INK = vg.readable(BG, [INK0, light ? "#111111" : "#FFFFFF", light ? "#000000" : "#F5F5F5"]);
+const MUTED = vg.readable(BG, [vg.mix(INK, BG, 0.28), vg.mix(INK, BG, 0.15), INK]);
+
+const SERIF = '"EB Garamond", "Cormorant Garamond", "Libre Baskerville", "Noto Serif Display", "Noto Serif", Georgia, "Liberation Serif", "Times New Roman", serif';
+const SANS = '"Inter", "Helvetica Neue", Arial, sans-serif';
+const QFAMILY = P.typeface === "sans" ? SANS : SERIF;
+const QWEIGHT = P.typeface === "sans" ? 300 : P.typeface === "italic" ? "italic 400" : 400;
+
+// ---- copy ------------------------------------------------------------------------
+const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
+// Surrounding quotation marks are drawn by the scene, so strip any in the copy.
+const quote = clean(P.quote).replace(/^["'“”‘’«»]+|["'“”‘’«»]+$/g, "").trim();
+if (!quote) throw new Error("quote-loop: the quote is empty");
+const attribution = clean(P.attribution).replace(/^[—–~-]+\s*/, "");
+const source = clean(P.source);
+
+// ---- layout ----------------------------------------------------------------------
+const box = landscape ? { w: W * 0.6, h: H * 0.5, lines: 5, max: unit * 0.1, cy: H * 0.46 }
+          : square ? { w: W * 0.76, h: H * 0.48, lines: 6, max: unit * 0.085, cy: H * 0.46 }
+          : { w: W * 0.8, h: H * 0.36, lines: 8, max: unit * 0.11, cy: H * 0.44 };
+const minSize = Math.max(unit * 0.036, 14);
+// Phrase-aware typesetting: the largest size that fits, then the line breaks that
+// balance the measure, prefer breaking after punctuation and avoid ending a line
+// on a short function word or leaving a single-word last line.
+const WEAK = new Set(["a", "an", "the", "of", "to", "and", "or", "in", "on", "at", "for", "by", "with", "from",
+                      "my", "your", "our", "his", "her", "its", "their", "is", "be", "but", "as", "if", "so",
+                      "we", "i", "you", "they", "he", "she", "it", "that", "who"]);
+function typeset(text, { maxSize, minSize, weight, family, maxWidth, maxLines, maxHeight, leading, label }) {
+  const words = text.split(" ");
+  const n = words.length;
+  const penalty = words.map((w, i) => i === n - 1 ? 0
+    : /[,;:.!?\u2026\u2014\u2013]["'\u201D\u2019)]*$/.test(w) ? -0.18 : WEAK.has(w.toLowerCase()) ? 0.3 : 0);
+  // Search from the largest size down; once something fits, also try sizes down to
+  // 85% of it, so a slightly smaller, better-broken setting can win.
+  let first = 0, best = null;
+  for (let size = Math.floor(maxSize); size >= minSize && (!first || size >= first * 0.85); size -= 1) {
+    vg.font(ctx, size, weight, family);
+    const ww = words.map((w) => ctx.measureText(w).width), sp = ctx.measureText(" ").width;
+    if (Math.max(...ww) > maxWidth) continue;
+    const cap = Math.min(maxLines, Math.floor(maxHeight / (size * leading) + 0.25));
+    const pre = [0]; ww.forEach((w, i) => pre.push(pre[i] + w));
+    const span = (j, i) => pre[i] - pre[j] + sp * (i - j - 1);
+    // Exactly L lines at measure M: minimum of sum((M - w)/M)^2 plus break penalties.
+    const solve = (M, L) => {
+      const cost = Array.from({ length: n + 1 }, () => new Float64Array(L + 1).fill(Infinity));
+      const from = Array.from({ length: n + 1 }, () => new Int32Array(L + 1));
+      cost[0][0] = 0;
+      for (let i = 1; i <= n; i++) for (let j = i - 1; j >= 0; j--) {
+        const w = span(j, i);
+        if (w > M) break;
+        const c = ((M - w) / M) ** 2 + penalty[i - 1] + (i === n && i - j === 1 && n > 2 ? 0.6 : 0);
+        for (let l = 1; l <= L; l++) if (cost[j][l - 1] + c < cost[i][l]) { cost[i][l] = cost[j][l - 1] + c; from[i][l] = j; }
+      }
+      if (!isFinite(cost[n][L])) return null;
+      const lines = [];
+      for (let i = n, l = L; l > 0; l--) { const j = from[i][l]; lines.unshift(words.slice(j, i).join(" ")); i = j; }
+      return { cost: cost[n][L], lines };
+    };
+    let Lmin = 0;
+    for (let L = 1; L <= cap; L++) if (solve(maxWidth, L)) { Lmin = L; break; }
+    if (!Lmin) continue;
+    if (!first) first = size;
+    for (let L = Lmin; L <= Math.min(cap, Lmin + 1); L++) {
+      for (let M = maxWidth; M > maxWidth * 0.45; M -= Math.max(2, size * 0.12)) {
+        const r = solve(M, L);
+        if (!r) break;
+        const score = r.cost + 0.25 * (L - Lmin) + 2.0 * (1 - size / first);
+        if (!best || score < best.score) best = { score, lines: r.lines, size };
+      }
+    }
+  }
+  if (best) {
+    vg.font(ctx, best.size, weight, family);
+    const width = Math.max(...best.lines.map((l) => ctx.measureText(l).width));
+    return { size: best.size, lines: best.lines, leading, weight, family, width, height: best.lines.length * best.size * leading };
+  }
+  throw new Error(`${label} "${String(text).slice(0, 40)}" does not fit the layout; shorten it`);
+}
+const Q = typeset(quote, { maxSize: box.max, minSize, weight: QWEIGHT, family: QFAMILY, maxWidth: box.w,
+                           maxLines: box.lines, maxHeight: box.h, leading: 1.24, label: "quote" });
+const attrSize = Math.max(minSize * 0.82, Q.size * 0.36, unit * 0.03);
+const srcSize = attrSize * 1.12;
+// Attribution: tracked capitals when they fit, else as written, else on two lines.
+function fitAttribution() {
+  const tries = (P.caps ? [[attribution.toUpperCase(), "0.16em", 1]] : []).concat([[attribution, "0.04em", 1], [attribution, "0.04em", 2]]);
+  for (const [text, spacing, lines] of tries) {
+    ctx.letterSpacing = spacing;
+    try {
+      const b = vg.fit(ctx, text, { maxSize: attrSize, minSize: Math.max(12, unit * 0.028), weight: 600, family: SANS,
+                                    maxWidth: W * 0.7, maxLines: lines, leading: 1.3, label: "attribution" });
+      return Object.assign(b, { spacing });
+    } catch (e) { /* try the next setting */ } finally { ctx.letterSpacing = "0px"; }
+  }
+  throw new Error(`attribution "${attribution.slice(0, 40)}" does not fit the layout; shorten it`);
+}
+const A = attribution ? fitAttribution() : null;
+const S = source ? vg.fit(ctx, source, { maxSize: srcSize, minSize: Math.max(12, unit * 0.03), weight: "italic 400",
+                                       family: SERIF, maxWidth: W * 0.78, maxLines: 1, label: "source" }) : null;
+
+const markSize = Q.size * 2.1;
+vg.font(ctx, markSize, 400, SERIF);
+const markBox = ctx.measureText("\u201C");
+const markGlyphH = markBox.actualBoundingBoxAscent + markBox.actualBoundingBoxDescent;
+const markH = markGlyphH + Q.size * 0.3;   // space the opening mark takes above the text
+const gapA = Q.size * 0.85, gapS = (A ? A.size : 0) * 0.7;
+const blockH = markH + Q.height + (A ? gapA + A.height : 0) + (S ? gapS + S.size * 1.1 : 0);
+let top = box.cy - blockH / 2;
+if (portrait) top = vg.clamp(top, H * 0.13, H * 0.78 - blockH);   // platform UI zones
+const qTop = top + markH;
+const centered = P.align === "center";
+const left = centered ? W / 2 : (W - Math.max(Q.width, box.w * 0.82)) / 2;
+
+// Word positions from measured prefixes (keeps kerning) and the line each sits on.
+vg.font(ctx, Q.size, Q.weight, Q.family);
+const words = [];
+Q.lines.forEach((line, li) => {
+  const lw = ctx.measureText(line).width;
+  const x0 = centered ? W / 2 - lw / 2 : left;
+  const parts = line.split(" ");
+  let prefix = "";
+  parts.forEach((word) => {
+    const x = x0 + (prefix ? ctx.measureText(prefix + " ").width : 0);
+    words.push({ word, x, y: qTop + Q.size * 0.78 + li * Q.size * Q.leading, line: li });
+    prefix = prefix ? prefix + " " + word : word;
+  });
+});
+
+// Phrases: break after punctuation, merge one-word scraps, split runs over 7 words.
+let phrases = [[]];
+words.forEach((w, i) => {
+  phrases[phrases.length - 1].push(i);
+  if (/[,;:.!?…—–]["'”’)]*$/.test(w.word) && i < words.length - 1) phrases.push([]);
+});
+phrases = phrases.filter((p) => p.length);
+for (let k = 0; k < phrases.length - 1; k++) {
+  if (phrases[k].length < 2) { phrases[k + 1] = phrases[k].concat(phrases[k + 1]); phrases.splice(k, 1); k--; }
+}
+if (phrases.length > 1 && phrases[phrases.length - 1].length < 2) {
+  const last = phrases.pop(); phrases[phrases.length - 1] = phrases[phrases.length - 1].concat(last);
+}
+phrases = phrases.flatMap((p) => {
+  if (p.length <= 7) return [p];
+  const parts = Math.ceil(p.length / 6), size = Math.ceil(p.length / parts), out = [];
+  for (let i = 0; i < p.length; i += size) out.push(p.slice(i, i + size));
+  return out;
+});
+const phraseChars = phrases.map((p) => p.reduce((n, i) => n + words[i].word.length + 1, 0));
+
+// ---- timeline ------------------------------------------------------------------------
+const INTRO = Math.min(0.9, D * 0.08), OUTRO = P.loop ? Math.min(1.1, D * 0.1) : 0;
+const textOut = D - OUTRO;
+const attrRead = A ? 1.2 + (attribution.length + source.length) / 25 : 0;
+const holdMin = Math.max(2.0, attrRead);       // the whole quote stays readable this long
+const rate = 14 * P.tempo;                            // characters per second as phrases arrive
+let durs = phraseChars.map((c) => Math.max(0.9, c / rate));
+const natural = durs.reduce((a, b) => a + b, 0);
+const window_ = textOut - INTRO - holdMin;
+// Fill spare time gently (up to 1.15x slower), compress up to 20 characters per second.
+const scale = vg.clamp(window_ / natural, (14 * P.tempo) / 20, 1.15);
+durs = durs.map((d) => d * scale);
+const starts = [];
+durs.reduce((at, d) => { starts.push(at); return at + d; }, INTRO);
+const revealEnd = starts[starts.length - 1] + durs[durs.length - 1];
+if (textOut - revealEnd < holdMin - 1e-6 || durs.some((d) => d < 0.6)) {
+  throw new Error(`quote-loop: the quote needs about ${(natural * (14 * P.tempo) / 20 + INTRO + holdMin + OUTRO).toFixed(1)} s ` +
+                  `to be read; shorten it or lengthen the shot (${D.toFixed(1)} s)`);
+}
+const ATTR = revealEnd + 0.15;
+const wordStart = new Float32Array(words.length);
+phrases.forEach((p, k) => p.forEach((wi, j) => { wordStart[wi] = starts[k] + j * Math.min(0.11, durs[k] * 0.5 / p.length); }));
+
+// ---- noise (seeded improved Perlin) ---------------------------------------------------
+const perm = new Uint8Array(512);
+{
+  const r = vg.rng(seed * 7919 + 17), p = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+}
+const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+const grad = (h, x, y, z) => {
+  h &= 15; const u = h < 8 ? x : y, v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+};
+function noise3(x, y, z) {
+  const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
+  x -= X; y -= Y; z -= Z;
+  const xi = X & 255, yi = Y & 255, zi = Z & 255, u = fade(x), v = fade(y), w = fade(z);
+  const a = perm[xi] + yi, aa = perm[a] + zi, ab = perm[a + 1] + zi;
+  const b = perm[xi + 1] + yi, ba = perm[b] + zi, bb = perm[b + 1] + zi;
+  const l = vg.lerp;
+  return l(l(l(grad(perm[aa], x, y, z), grad(perm[ba], x - 1, y, z), u),
+             l(grad(perm[ab], x, y - 1, z), grad(perm[bb], x - 1, y - 1, z), u), v),
+           l(l(grad(perm[aa + 1], x, y, z - 1), grad(perm[ba + 1], x - 1, y, z - 1), u),
+             l(grad(perm[ab + 1], x, y - 1, z - 1), grad(perm[bb + 1], x - 1, y - 1, z - 1), u), v), w);
+}
+
+// ---- backdrop layer ------------------------------------------------------------------
+// The whole backdrop (ground, silk or dust, vignette, scrim, grain) is composed at
+// half resolution and scaled up once with bilinear smoothing; only the copy is drawn
+// at full resolution. Drawing code uses full-frame coordinates through a 0.5 scale.
+const BS = 0.5, bw = Math.ceil(W * BS), bh = Math.ceil(H * BS);
+const back = document.createElement("canvas"); back.width = bw; back.height = bh;
+const bctx = back.getContext("2d");
+bctx.setTransform(BS, 0, 0, BS, 0, 0);
+
+// ---- backdrop: mesh-gradient ground (every look) ------------------------------------
+const meshW = Math.max(48, Math.round(W / 10)), meshH = Math.max(48, Math.round(H / 10));
+const mesh = document.createElement("canvas"); mesh.width = meshW; mesh.height = meshH;
+const mctx = mesh.getContext("2d");
+const R = vg.rng(seed * 31 + 5);
+const blobs = [GLOW, ACCENT, GLOW, vg.mix(GLOW, ACCENT, 0.5), vg.mix(BG, GLOW, 0.6)].map((color, i) => ({
+  color, x: 0.2 + R() * 0.6, y: 0.15 + R() * 0.7, ax: 0.12 + R() * 0.18, ay: 0.1 + R() * 0.16,
+  n1: 1 + (i % 2), n2: 1 + ((i + 1) % 3 === 0 ? 1 : 0), p1: R() * TAU, p2: R() * TAU,
+  r: 0.3 + R() * 0.3, a: (i === 1 ? 0.3 : 0.42) * (light ? 0.55 : 1),
+}));
+function ground(theta) {
+  mctx.globalCompositeOperation = "source-over";
+  mctx.fillStyle = BG; mctx.fillRect(0, 0, meshW, meshH);
+  mctx.globalCompositeOperation = light ? "multiply" : "screen";
+  const m = 0.35 + 0.65 * P.motion;
+  for (const b of blobs) {
+    const x = (b.x + b.ax * m * Math.sin(theta * b.n1 + b.p1)) * meshW;
+    const y = (b.y + b.ay * m * Math.cos(theta * b.n2 + b.p2)) * meshH;
+    const r = b.r * Math.max(meshW, meshH) * (0.9 + 0.1 * Math.sin(theta + b.p1));
+    const g = mctx.createRadialGradient(x, y, 0, x, y, r);
+    const tone = light ? vg.mix("#FFFFFF", b.color, 0.55) : b.color;
+    g.addColorStop(0, vg.rgba(tone, b.a)); g.addColorStop(0.55, vg.rgba(tone, b.a * 0.35)); g.addColorStop(1, vg.rgba(tone, 0));
+    mctx.fillStyle = g; mctx.fillRect(0, 0, meshW, meshH);
+  }
+  bctx.imageSmoothingEnabled = true; bctx.imageSmoothingQuality = "low";
+  bctx.drawImage(mesh, 0, 0, W, H);
+}
+
+// ---- backdrop: silk ribbons ------------------------------------------------------------
+// Ribbons of near-parallel streamlines through a slowly turning noise field: each
+// ribbon is a bundle of lines seeded side by side, so they flow together like silk.
+const freq = 1.1 / unit, flowAngle = -0.55 + (R() - 0.5) * 0.6;
+const ribbons = Math.round(6 + 8 * P.density), perRibbon = 26;
+const steps = 120, stepLen = Math.hypot(W, H) / 380;
+const lines = [];
+for (let r = 0; r < ribbons; r++) {
+  const x = (0.05 + R() * 0.9) * W, y = (0.05 + R() * 0.9) * H, spread = unit * (0.14 + R() * 0.26);
+  const nx = -Math.sin(flowAngle + Math.PI / 2), ny = Math.cos(flowAngle + Math.PI / 2);
+  const color = r % 3 === 2 ? vg.mix(GLOW, INK, 0.2) : r % 3 === 1 ? vg.mix(ACCENT, GLOW, 0.35) : ACCENT;
+  const strength = 0.6 + R() * 0.4, ph = R() * TAU;
+  for (let j = 0; j < perRibbon; j++) {
+    const f = j / (perRibbon - 1), o = (f - 0.5) * spread;
+    lines.push({ x: x + nx * o, y: y + ny * o, c: color, a: 0.2 * strength * Math.pow(Math.sin(Math.PI * (0.04 + 0.92 * f)), 1.5),
+                 w: unit * 0.0019, ph });
+  }
+}
+const pts = new Float32Array((steps + 1) * 2);
+function silk(theta) {
+  const r = 0.35 + 0.6 * P.motion, cx = r * Math.cos(theta), cy = r * Math.sin(theta);
+  bctx.save();
+  bctx.globalCompositeOperation = light ? "multiply" : "lighter";
+  bctx.lineCap = "round"; bctx.lineJoin = "round";
+  const half = steps / 2;
+  for (const L of lines) {
+    // Integrate half the steps backwards, then forwards, so the seed sits mid-line.
+    for (let pass = -1; pass <= 1; pass += 2) {
+      let x = L.x, y = L.y;
+      for (let s = 0; s < half; s++) {
+        const a = flowAngle + Math.PI * 0.8 * noise3(x * freq + cx, y * freq + cy, 3.7);
+        x += Math.cos(a) * stepLen * pass; y += Math.sin(a) * stepLen * pass;
+        const idx = pass < 0 ? half - 1 - s : half + 1 + s;
+        pts[idx * 2] = x; pts[idx * 2 + 1] = y;
+      }
+    }
+    pts[half * 2] = L.x; pts[half * 2 + 1] = L.y;
+    const breathe = 0.7 + 0.3 * Math.sin(theta + L.ph);
+    bctx.strokeStyle = vg.rgba(light ? vg.mix(L.c, BG, 0.1) : L.c, Math.min(1, L.a * breathe * (light ? 2.2 : 1.6)));
+    bctx.lineWidth = L.w;
+    bctx.beginPath(); bctx.moveTo(pts[0], pts[1]);
+    for (let i = 1; i <= steps; i++) bctx.lineTo(pts[i * 2], pts[i * 2 + 1]);
+    bctx.stroke();
+  }
+  bctx.restore();
+}
+
+// ---- backdrop: bokeh dust -------------------------------------------------------------
+const sprite = document.createElement("canvas"); sprite.width = sprite.height = 128;
+{
+  const s = sprite.getContext("2d"), g = s.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.45, "rgba(255,255,255,0.55)");
+  g.addColorStop(0.8, "rgba(255,255,255,0.12)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  s.fillStyle = g; s.fillRect(0, 0, 128, 128);
+}
+const tints = [ACCENT, vg.mix(ACCENT, "#FFFFFF", 0.4), GLOW, vg.mix(GLOW, "#FFFFFF", 0.5)].map((c) => {
+  const t = document.createElement("canvas"); t.width = t.height = 128;
+  const g = t.getContext("2d"); g.drawImage(sprite, 0, 0);
+  g.globalCompositeOperation = "source-in"; g.fillStyle = light ? vg.mix(c, "#000000", 0.1) : c; g.fillRect(0, 0, 128, 128);
+  return t;
+});
+const motes = Array.from({ length: Math.round(140 * (0.3 + P.density)) }, () => {
+  const z = Math.pow(R(), 1.6);              // most motes far and small, a few near and large
+  return { x: R(), y: R(), z, ax: 0.02 + R() * 0.06, ay: 0.03 + R() * 0.08, n1: 1 + Math.floor(R() * 2),
+           n2: 1, p1: R() * TAU, p2: R() * TAU, tint: tints[Math.floor(R() * tints.length)], tw: R() * TAU };
+}).sort((a, b) => a.z - b.z);
+function dust(theta) {
+  bctx.save();
+  bctx.globalCompositeOperation = light ? "multiply" : "lighter";
+  const m = 0.4 + 0.8 * P.motion;
+  for (const d of motes) {
+    const x = (d.x + d.ax * m * Math.sin(theta * d.n1 + d.p1)) * W;
+    const y = (d.y + d.ay * m * Math.sin(theta * d.n2 + d.p2) - 0.04 * m * Math.sin(theta)) * H;
+    const size = unit * (0.008 + d.z * 0.09);
+    bctx.globalAlpha = (0.1 + 0.4 * (1 - d.z) + 0.12 * d.z) * (0.75 + 0.25 * Math.sin(theta * 3 + d.tw)) * (light ? 0.7 : 1);
+    bctx.drawImage(d.tint, x - size / 2, y - size / 2, size, size);
+  }
+  bctx.restore();
+}
+
+// ---- scrim: a soft pool of ground colour behind the copy ------------------------------
+const textCx = W / 2, textCy = top + blockH / 2;
+function scrim() {
+  if (P.scrim <= 0) return;
+  bctx.save();
+  bctx.translate(textCx, textCy);
+  bctx.scale(Math.max(Q.width, A ? A.width : 0, box.w * 0.7) * 0.85, blockH * 0.95 + Q.size);
+  const g = bctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+  g.addColorStop(0, vg.rgba(BG, 0.82 * P.scrim)); g.addColorStop(0.55, vg.rgba(BG, 0.62 * P.scrim));
+  g.addColorStop(1, vg.rgba(BG, 0));
+  bctx.fillStyle = g; bctx.fillRect(-1.2, -1.2, 2.4, 2.4);
+  bctx.restore();
+}
+
+// ---- copy -----------------------------------------------------------------------------------
+function exit(t) {           // 1 while visible, eases to 0 over the outro
+  return P.loop ? 1 - vg.tween(t, textOut, OUTRO * 0.85, vg.ease.inOutSine) : 1;
+}
+function mark(t, out) {
+  const p = vg.tween(t, 0.3, 0.8, vg.ease.outCubic);
+  if (p <= 0) return;
+  ctx.save();
+  vg.font(ctx, markSize, 400, SERIF);
+  ctx.fillStyle = ACCENT;
+  ctx.globalAlpha = p * out * 0.95;
+  ctx.textBaseline = "alphabetic";
+  const mw = ctx.measureText("“").width;
+  const x = centered ? W / 2 - mw / 2 : left - mw * 0.08;
+  // The glyph's measured bottom sits just above the first line.
+  const baseline = qTop - Q.size * 0.05 - markBox.actualBoundingBoxDescent;
+  ctx.fillText("“", x, baseline - (1 - p) * Q.size * 0.25);
+  ctx.restore();
+}
+function quoteWords(t, out) {
+  vg.font(ctx, Q.size, Q.weight, Q.family);
+  ctx.textBaseline = "alphabetic";
+  const lift = (1 - out) * Q.size * 0.35;
+  for (let i = 0; i < words.length; i++) {
+    const p = vg.tween(t, wordStart[i], 0.95, vg.ease.outCubic);
+    if (p <= 0) continue;
+    const w = words[i];
+    ctx.globalAlpha = p * out;
+    ctx.fillStyle = p < 1 ? vg.mix(ACCENT, INK, vg.ease.inOutSine(vg.clamp(p * 1.15))) : INK;
+    if (p < 1 || out < 1) {            // soft focus while arriving or leaving
+      ctx.shadowColor = vg.rgba(p < 1 ? ACCENT : INK, 0.55 * (1 - p * out));
+      ctx.shadowBlur = Q.size * 0.32 * (1 - p * out);
+    }
+    ctx.fillText(w.word, w.x, w.y + (1 - p) * Q.size * 0.2 - lift);
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+  }
+  ctx.globalAlpha = 1;
+}
+function credit(t, out) {
+  if (!A) return;
+  let y = qTop + Q.height + gapA;
+  const pr = vg.tween(t, ATTR, 0.7, vg.ease.outExpo), pa = vg.tween(t, ATTR + 0.2, 0.8, vg.ease.outCubic);
+  const ruleW = unit * 0.05, gap = A.size * 0.8, lift = (1 - out) * Q.size * 0.35;
+  ctx.letterSpacing = A.spacing;
+  vg.font(ctx, A.size, 600, SANS);
+  const widths = A.lines.map((l) => ctx.measureText(l).width);
+  const total = ruleW + gap + Math.max(...widths);
+  const x0 = centered ? W / 2 - total / 2 : left;
+  ctx.fillStyle = ACCENT; ctx.globalAlpha = out;
+  ctx.fillRect(x0, y + A.size * 0.42 - lift, ruleW * pr, Math.max(2, A.size * 0.09));
+  ctx.fillStyle = INK; ctx.globalAlpha = pa * out * 0.92;
+  ctx.textBaseline = "alphabetic";
+  A.lines.forEach((l, i) => ctx.fillText(l, x0 + ruleW + gap + (1 - pa) * A.size * 0.6,
+                                         y + A.size * 0.78 + i * A.size * A.leading - lift));
+  ctx.letterSpacing = "0px";
+  if (S) {
+    y += A.height + gapS;
+    const ps = vg.tween(t, ATTR + 0.55, 0.8, vg.ease.outCubic);
+    vg.font(ctx, S.size, "italic 400", SERIF);
+    const sw = ctx.measureText(S.lines[0]).width;
+    ctx.fillStyle = MUTED; ctx.globalAlpha = ps * out;
+    ctx.fillText(S.lines[0], centered ? W / 2 - sw / 2 : x0 + ruleW + gap, y + S.size * 0.8 - lift);
+  }
+  ctx.globalAlpha = 1;
+}
+
+vg.loop((t) => {
+  const theta = TAU * t / D;          // every backdrop motion is periodic in D
+  bctx.setTransform(BS, 0, 0, BS, 0, 0);
+  ground(theta);
+  if (P.backdrop === "silk") silk(theta);
+  else if (P.backdrop === "dust") dust(theta);
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  vg.vignette(bctx, light ? 0.12 : 0.38);
+  bctx.setTransform(BS, 0, 0, BS, 0, 0);
+  scrim();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  vg.grain(bctx, t, P.grain * 1.4);   // half-resolution grain reads as fine film grain once scaled
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "low";
+  ctx.drawImage(back, 0, 0, W, H);
+  const out = exit(t);
+  mark(t, out);
+  quoteWords(t, out);
+  credit(t, out);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "cinematic-product-reveal",
+  "title": "Cinematic product reveal",
+  "summary": "A premium hybrid commercial: generated or filmed product footage, detail shots and a branded end card.",
+  "family": "product",
+  "formats": [
+    "16:9"
+  ],
+  "duration_seconds": [
+    12,
+    25
+  ],
+  "recipes": [],
+  "templates": [
+    "commercial.cinematic-product-reveal"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "Pre-produced product footage and images"
+  ],
+  "techniques": [
+    "footage assembly",
+    "end card"
+  ],
+  "limits": [
+    "Blueprint only: renders when you supply the footage"
+  ]
+}

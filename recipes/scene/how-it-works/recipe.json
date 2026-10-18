@@ -1,0 +1,224 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.how-it-works",
+  "version": "0.1.0",
+  "title": "How it works: system diagram explainer (Canvas)",
+  "description": "A concept/flow diagram explainer: a kicker and title rise in and glide up into a header; 2-6 labelled node cards with code-drawn line icons spring in one per beat, each at the tip of an arrow that draws itself from the previous node; packets stream along every finished arrow; the current node is lit (glow, ring, filled icon disc) while a caption band explains it and the camera leans towards it. The last beat lights the whole system in a wave, speeds up the flow, and lands a takeaway line. Lays out as a row, column, snake grid or loop depending on node count and aspect ratio.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 48,
+        "default": "How a payment goes through",
+        "description": "What the diagram explains; becomes the header after the intro"
+      },
+      "kicker": {
+        "type": "string",
+        "maxLength": 28,
+        "default": "How it works",
+        "description": "Small tracked label above the title (empty for none)"
+      },
+      "nodes": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "default": [
+          "You tap Pay",
+          "Checkout",
+          "Card network",
+          "Your bank"
+        ],
+        "description": "Node labels in flow order: the parts or stages of the system, 1-3 words each"
+      },
+      "captions": {
+        "type": "array",
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "maxLength": 72
+        },
+        "default": [
+          "Your phone sends an encrypted token, never the card number",
+          "The shop's checkout asks its processor to charge the token",
+          "The network routes the request to the bank that issued the card",
+          "The bank checks the balance and approves in under a second"
+        ],
+        "description": "One caption line per node, shown while that node is lit (same order; empty string for none)"
+      },
+      "icons": {
+        "type": "array",
+        "maxItems": 6,
+        "items": {
+          "enum": [
+            "auto",
+            "user",
+            "phone",
+            "cloud",
+            "database",
+            "server",
+            "gear",
+            "lock",
+            "doc",
+            "chart",
+            "globe",
+            "bolt",
+            "mail",
+            "search",
+            "clock",
+            "spark",
+            "leaf",
+            "cart",
+            "signal",
+            "check",
+            "box",
+            "code"
+          ]
+        },
+        "default": [
+          "phone",
+          "cart",
+          "globe",
+          "database"
+        ],
+        "description": "Line icon drawn in each node's disc (same order); auto draws the node's number"
+      },
+      "takeaway": {
+        "type": "string",
+        "maxLength": 64,
+        "default": "Four hops, about one second, and no card number shared",
+        "description": "Closing line shown while the whole system is lit (empty for none)"
+      },
+      "layout": {
+        "enum": [
+          "auto",
+          "row",
+          "column",
+          "snake",
+          "loop"
+        ],
+        "default": "auto",
+        "description": "auto picks a row (landscape) or column (portrait) for up to 4 nodes and a snake grid for 5-6; loop places nodes on an ellipse and draws a closing arrow for cyclic processes"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 5,
+        "maxItems": 5,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#0F1218",
+          "#ECEFF4",
+          "#FFC857",
+          "#5BC0EB",
+          "#7D8597"
+        ],
+        "description": "Ground, ink, accent (lit nodes, arrows), flow (packets) and muted (idle arrows, borders)"
+      },
+      "grid": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5,
+        "description": "Opacity of the drifting graph-paper grid"
+      },
+      "packets": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2,
+        "default": 1,
+        "description": "Density of flow packets on the arrows (0 for none)"
+      },
+      "camera": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1.5,
+        "default": 1,
+        "description": "How far the camera leans and pushes towards the current node"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.12,
+        "default": 0.03,
+        "description": "Film grain amount"
+      }
+    }
+  },
+  "presets": {
+    "chalkboard": {},
+    "blueprint": {
+      "palette": [
+        "#0B2545",
+        "#F1F6FB",
+        "#7FDBFF",
+        "#FFD166",
+        "#5D7A99"
+      ],
+      "grid": 0.8
+    },
+    "paper": {
+      "palette": [
+        "#F6F3EC",
+        "#17191E",
+        "#D9480F",
+        "#1C7ED6",
+        "#9A9488"
+      ],
+      "grid": 0.6,
+      "grain": 0.025
+    },
+    "terminal": {
+      "palette": [
+        "#070A08",
+        "#E6F2E8",
+        "#3DDC84",
+        "#B8F2C8",
+        "#4F6355"
+      ],
+      "grid": 0.35,
+      "packets": 1.4
+    }
+  },
+  "tags": [
+    "scene",
+    "explainer",
+    "diagram",
+    "system",
+    "flow",
+    "how-it-works",
+    "canvas"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+    "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial.",
+    "Beats: intro = clamp(0.13 D, 1.6, 2.6); outro = clamp(0.2 D, 2.2, 3.6); node k pops at intro + k (D - intro - outro) / N + 0.35; the system lights at D - outro and the takeaway lands 0.35 s later.",
+    "Render cost measured side by side with scene.steps under identical load: within 5% of it at 1080x1920; vg.grain is about 12% of the total."
+  ],
+  "cost": {
+    "seconds_per_output_second": 2.0
+  }
+}

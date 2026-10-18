@@ -1,0 +1,21 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "chart-story",
+  "title": "Animated chart with one takeaway",
+  "summary": "A single chart that makes one point: bars or columns grow from zero with values counting at their tips (or a line draws itself), every other mark recedes while the key mark keeps the accent, and a takeaway rises in over the source line.",
+  "family": "data",
+  "formats": ["16:9", "9:16", "1:1"],
+  "duration_seconds": [8, 16],
+  "recipes": ["scene.chart-story"],
+  "templates": ["educational.chart-story"],
+  "prompt": "prompt.md",
+  "needs": ["Three to six labelled values in one unit, and who published them (a source), stated in the brief"],
+  "techniques": ["Canvas 2D", "staggered bar growth from a zero baseline", "self-drawing line with area wash", "emphasis by recession", "direct value labels", "measured text fitting"],
+  "gallery_share": "Animated bar and line charts are among the most requested explainer and social data videos.",
+  "limits": [
+    "One series, zero or positive values only: no negative values, stacked, grouped or dual-axis charts, and no bar-chart race.",
+    "The template takes three to six values; the recipe takes two to eight, and portrait frames with eight values need short copy.",
+    "Line charts label only the first, last and key points; the scale starts at zero unless the recipe's y_from_zero is turned off, which adds labelled gridlines.",
+    "Verbatim checks prove a value appears in the brief, not that it is paired with the right label; the data_accuracy gate is a person's job."
+  ]
+}

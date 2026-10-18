@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "VideoGenome blueprint v0.1 / v0.2 / v0.3 / v0.4",
+  "title": "VideoGenome blueprint v0.1 / v0.2 / v0.3 / v0.4 / v0.5",
   "description": "Portable, renderer-independent, human-reviewable video production recipe.",
   "type": "object",
   "additionalProperties": false,
@@ -25,7 +25,8 @@
         "0.1.0",
         "0.2.0",
         "0.3.0",
-        "0.4.0"
+        "0.4.0",
+        "0.5.0"
       ]
     },
     "id": {
@@ -63,6 +64,35 @@
       },
       "additionalProperties": {
         "$ref": "#/$defs/input"
+      }
+    },
+    "copy_examples": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "Schema 0.5.0: worked examples by the template author, a brief and the ideal values for the text slots. `videogenome fill` shows them to the writer to teach tone, length and specificity; they must pass the same checks as a writer's reply.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "brief",
+          "inputs"
+        ],
+        "properties": {
+          "brief": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 2000
+          },
+          "inputs": {
+            "type": "object",
+            "minProperties": 1
+          },
+          "note": {
+            "type": "string",
+            "description": "Why these choices work (shown to the writer)"
+          }
+        }
       }
     },
     "style": {
@@ -178,6 +208,23 @@
             "boolean"
           ],
           "description": "Value used when an optional input is omitted (schema 0.4.0)"
+        },
+        "fill": {
+          "enum": [
+            "write",
+            "verbatim",
+            "never"
+          ],
+          "description": "Schema 0.5.0: what `videogenome fill` may do with this text input. write (default): compose from the brief; verbatim: copy exact words that appear in the brief (quotes, testimonials, names), else report it missing; never: only a person supplies it (default for url)."
+        },
+        "grounded_with": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Schema 0.5.0: another verbatim input this one must appear next to in the brief (a value with its label, a year with its event), so a writer cannot pair a real number with the wrong label."
+        },
+        "whole_quote": {
+          "type": "boolean",
+          "description": "Schema 0.5.0, verbatim string inputs only: the value must be an entire quotation from the brief (text between quotation marks, or the whole brief sentence), never a fragment of one."
         }
       }
     },

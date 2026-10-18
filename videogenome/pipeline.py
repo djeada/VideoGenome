@@ -23,7 +23,10 @@ BASE_CAVEATS = [
 
 
 def run_render(plan: dict, job_directory: Path, output: Path, profile: Profile, *,
-               write_deliverables: bool = True) -> dict:
+               write_deliverables: bool = True, context: dict | None = None) -> dict:
+    """Render, measure, gate and export; ``context`` (e.g. a fill record) joins the receipt."""
+    if plan.get("pending_inputs"):
+        raise ProductionError("Plan still has inputs to produce: " + ", ".join(plan["pending_inputs"]))
     root = job_directory.resolve()
     output = output.resolve()
     protected = {confined_file(root, asset["path"]) for asset in plan["assets"].values()}
@@ -51,10 +54,10 @@ def run_render(plan: dict, job_directory: Path, output: Path, profile: Profile, 
     gates = evaluate_gates(plan["quality_gates"], measurements)
 
     sidecars = {}
-    if write_deliverables:
-        for exporter in profile.exporters():
-            for kind, path in exporter.export(plan, output, protected).items():
-                sidecars[kind] = {"path": str(path), "sha256": sha256_file(path)}
+    exporters = profile.exporters() if write_deliverables else []
+    for exporter in exporters:
+        for kind, path in exporter.export(plan, output, protected).items():
+            sidecars[kind] = {"path": str(path), "sha256": sha256_file(path)}
 
     placeholders = sorted(asset_id for asset_id, asset in plan["assets"].items()
                           if (asset.get("generation") or {}).get("placeholder"))
@@ -63,7 +66,7 @@ def run_render(plan: dict, job_directory: Path, output: Path, profile: Profile, 
         caveats.insert(0, f"Contains placeholder media ({', '.join(placeholders)}): animatic only, "
                           "not for publication.")
     executed = any(g["status"] in ("passed", "failed") for g in gates)
-    return {
+    receipt = {
         "job_id": plan["job_id"], "template_id": plan["template_id"],
         "template_version": plan["template_version"],
         "template_sha256": plan["template_sha256"], "job_sha256": plan["job_sha256"],
@@ -83,4 +86,9 @@ def run_render(plan: dict, job_directory: Path, output: Path, profile: Profile, 
         "quality_gates": gates,
         "deliverables": sidecars,
         "caveats": caveats,
+        **(context or {}),
     }
+    for exporter in exporters:  # Second pass: sidecars that summarise the finished receipt.
+        for kind, path in exporter.finalize(receipt, output, protected).items():
+            sidecars[kind] = {"path": str(path), "sha256": sha256_file(path)}
+    return receipt

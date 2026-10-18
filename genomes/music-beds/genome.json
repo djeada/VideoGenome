@@ -1,0 +1,31 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "music-beds",
+  "title": "Procedural music and sound",
+  "summary": "Music beds and transition sounds synthesised in code: ambient pads, lo-fi beats, a four-on-the-floor pulse, whooshes, risers, impacts and clicks, mastered to bed loudness.",
+  "family": "music",
+  "formats": [
+    "any"
+  ],
+  "duration_seconds": [
+    2,
+    120
+  ],
+  "recipes": [
+    "audio.ambient-pad",
+    "audio.lofi-beat",
+    "audio.pulse",
+    "audio.transition"
+  ],
+  "templates": [],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "additive and FM synthesis",
+    "convolution reverb",
+    "BS.1770 mastering"
+  ],
+  "limits": [
+    "Synthesised, not sampled instruments"
+  ]
+}

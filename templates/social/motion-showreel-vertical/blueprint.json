@@ -1,0 +1,343 @@
+{
+  "schema_version": "0.5.0",
+  "id": "social.motion-showreel-vertical",
+  "version": "0.1.0",
+  "title": "Motion design showreel (9:16)",
+  "category": "social",
+  "description": "A 15-second abstract motion-design reel in a brand palette: a dot grid ripples and springs into a disc, the disc morphs through shapes on springs and irises open, three words land in turn (masked letter rises, circular kinetic type round a rotating ring, a two-tone mask sweep) with stripe, iris and shutter transitions, and the studio name closes with an impact ring and sprung shapes. A pulse bed with clicks, whooshes, a riser and an impact cued to every beat. Code-rendered (scene.motion-showreel).",
+  "tags": [
+    "social",
+    "showreel",
+    "motion_design",
+    "brand",
+    "kinetic",
+    "abstract",
+    "code_animation",
+    "renderable",
+    "vertical"
+  ],
+  "inputs": {
+    "word_1": {
+      "type": "string",
+      "required": true,
+      "description": "First word or two-word phrase, under 16 characters (a quality of the work)"
+    },
+    "word_2": {
+      "type": "string",
+      "required": true,
+      "description": "Second word or two-word phrase, under 16 characters"
+    },
+    "word_3": {
+      "type": "string",
+      "required": true,
+      "description": "Third word or two-word phrase, under 16 characters"
+    },
+    "name": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The studio, brand or designer name exactly as written in the brief, under 24 characters"
+    },
+    "kicker": {
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Small line under the name naming the discipline (e.g. 'Motion design'), under 28 characters; no years, clients or awards the brief does not state"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "studio",
+        "noir",
+        "acid",
+        "paper"
+      ],
+      "default": "studio",
+      "description": "Palette: studio (black, vermilion, blue, yellow), noir (black, white, one red), acid (black, lime, violet, pink), paper (cream, orange, navy, gold)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "upbeat",
+        "product",
+        "keynote",
+        "night"
+      ],
+      "default": "upbeat",
+      "description": "Music energy for the procedural pulse bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The showreel animation; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.motion-showreel",
+          "preset": "{{look}}",
+          "params": {
+            "name": "{{name}}",
+            "words": [
+              "{{word_1}}",
+              "{{word_2}}",
+              "{{word_3}}"
+            ],
+            "kicker": "{{kicker}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "{{energy}}"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Click on each shape morph",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh on the iris, stripe and ring transitions",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "riser": {
+      "type": "audio",
+      "required": false,
+      "description": "Riser into the name",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "riser"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Impact as the name lands",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Reel for Fold & Form, a paper-craft animation studio. Their work is tactile, playful and precise. Paper look.",
+      "inputs": {
+        "name": "Fold & Form",
+        "word_1": "Tactile",
+        "word_2": "Playful",
+        "word_3": "Precise",
+        "kicker": "Paper-craft animation",
+        "look": "paper",
+        "energy": "upbeat"
+      },
+      "note": "The name is copied exactly; the three words are the qualities the brief names, one per beat; the kicker names the discipline without adding claims."
+    }
+  ],
+  "style": {
+    "mood": "bold, playful, crafted",
+    "palette": [
+      "#0E0E10",
+      "#F5F3EE",
+      "#FF4D2E",
+      "#2D5BFF",
+      "#FFD23F"
+    ],
+    "typography": "Inter Black words and name, tracked caps kicker",
+    "pacing": "dynamic"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 420,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "reel",
+      "role": "brand",
+      "duration_frames": 450,
+      "shots": [
+        {
+          "id": "showreel",
+          "kind": "animation",
+          "duration_frames": 450,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Dots to disc, shape morphs, iris; word 1; stripe wipe; ring type word 2; iris; two-tone mask word 3; shutters; name lockup"
+          },
+          "input_refs": [
+            "scene",
+            "name",
+            "word_1",
+            "word_2",
+            "word_3",
+            "kicker"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 15,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 450,
+        "gain_db": -3,
+        "fade_in_frames": 6,
+        "fade_out_frames": 30
+      },
+      {
+        "id": "morph_1",
+        "input_ref": "click",
+        "start_frame": 72,
+        "duration_frames": 12,
+        "gain_db": -6
+      },
+      {
+        "id": "morph_2",
+        "input_ref": "click",
+        "start_frame": 90,
+        "duration_frames": 12,
+        "gain_db": -6
+      },
+      {
+        "id": "morph_3",
+        "input_ref": "click",
+        "start_frame": 108,
+        "duration_frames": 12,
+        "gain_db": -6
+      },
+      {
+        "id": "iris",
+        "input_ref": "whoosh",
+        "start_frame": 121,
+        "duration_frames": 24,
+        "gain_db": -8
+      },
+      {
+        "id": "stripes",
+        "input_ref": "whoosh",
+        "start_frame": 195,
+        "duration_frames": 24,
+        "gain_db": -8
+      },
+      {
+        "id": "ring_iris",
+        "input_ref": "whoosh",
+        "start_frame": 268,
+        "duration_frames": 24,
+        "gain_db": -8
+      },
+      {
+        "id": "into_name",
+        "input_ref": "riser",
+        "start_frame": 330,
+        "duration_frames": 36,
+        "gain_db": -6,
+        "fade_in_frames": 6
+      },
+      {
+        "id": "name_hit",
+        "input_ref": "impact",
+        "start_frame": 366,
+        "duration_frames": 60,
+        "gain_db": -4
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/motion-showreel); the content model supplies the name (verbatim), three words, an optional kicker and two choices.",
+      "Words are fitted with measured glyphs (16 characters, two lines at most), the name 24 and the kicker 28; the render fails rather than overflowing. Each word holds 1.6-2 s.",
+      "Sound is cued to the recipe's beats at 15 s: clicks on the morphs (frames 72, 90, 108), whooshes on the iris (123), stripe wipe (195) and ring iris (270), a riser through the shutters into the name and an impact as it lands (frame 366)."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "brand_review",
+      "mode": "human",
+      "description": "The studio or brand owner confirms the name, spelling, words and palette are approved, and that the reel does not imply it shows their actual client work."
+    }
+  ]
+}

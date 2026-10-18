@@ -1,0 +1,18 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.product-hero-3d",
+  "template": "commercial.product-hero-3d",
+  "template_version": "0.1.0",
+  "inputs": {
+    "name": "Halden Cold Brew",
+    "tagline": "Slow-steeped coffee, ready to pour",
+    "cta": "Shop now",
+    "form": "can",
+    "look": "citrus",
+    "colorway": "preset",
+    "mood": "warm"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

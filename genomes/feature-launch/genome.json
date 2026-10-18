@@ -1,0 +1,21 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "feature-launch",
+  "title": "SaaS / app feature launch with stylised UI",
+  "summary": "A polished app window built in code tilts into 3D; a perspective camera glides between its chart, toggles and notifications while numbered feature callouts appear beside them and a cursor hovers and clicks with ripples, ending on the product name and a clicked call-to-action button. The interface is an abstract mock, never the real product.",
+  "family": "product",
+  "formats": ["16:9", "9:16", "1:1"],
+  "duration_seconds": [14, 24],
+  "recipes": ["scene.feature-launch"],
+  "templates": ["commercial.feature-launch"],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": ["Canvas 2D UI drawn from skeleton bars", "CSS 3D perspective camera on a canvas layer", "projected screen-space callouts and curved leaders", "cursor keyframes with click ripples", "measured text fitting"],
+  "gallery_share": "Launch videos with a floating, tilted product UI, feature callouts and a clicking cursor are among the most common model-made product videos.",
+  "limits": [
+    "The UI is a generic dashboard mock (skeleton bars, a chart, toggles, a toast); it cannot show a real product's screens, and features pair loosely with those three elements.",
+    "One to three features; each needs at least 1.8 s, and about 4.7 s to read a full headline and line.",
+    "Render cost is higher than flat scenes (a large UI plane re-rasterised every frame and composited in 3D).",
+    "One typeface (Inter or the system sans); Latin scripts set best."
+  ]
+}

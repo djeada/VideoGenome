@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.5.0",
   "id": "commercial.cinematic-product-reveal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Cinematic product reveal",
   "category": "commercial",
   "description": "Premium hybrid commercial mixing generated footage, product detail shots and a branded motion-graphics end card.",
@@ -15,7 +15,8 @@
     "product_name": {
       "type": "string",
       "description": "Product name used in title card",
-      "required": true
+      "required": true,
+      "fill": "verbatim"
     },
     "product_images": {
       "type": "image_array",
@@ -24,7 +25,7 @@
     },
     "selling_point": {
       "type": "string",
-      "description": "Main product benefit",
+      "description": "Main product benefit, one short line stated in the brief (no invented claims)",
       "required": true
     },
     "logo": {
@@ -33,6 +34,16 @@
       "required": true
     }
   },
+  "copy_examples": [
+    {
+      "brief": "Launch film for the Aurora One headphones. The benefit to lead with: forty hours of battery on a single charge.",
+      "inputs": {
+        "product_name": "Aurora One",
+        "selling_point": "Forty hours on a single charge"
+      },
+      "note": "The product name is copied exactly; the selling point restates the one benefit the brief gives, with its number."
+    }
+  ],
   "style": {
     "mood": "premium, tactile and dramatic",
     "palette": [

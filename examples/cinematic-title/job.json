@@ -1,0 +1,15 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.cinematic-title",
+  "template": "social.cinematic-title",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "The Long Light",
+    "subtitle": "A journey through the northern valleys",
+    "look": "golden-hour",
+    "mood": "reflective"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

@@ -1,0 +1,314 @@
+{
+  "schema_version": "0.5.0",
+  "id": "social.event-teaser",
+  "version": "0.1.0",
+  "title": "Event teaser with 3-2-1 countdown (9:16)",
+  "category": "social",
+  "description": "A 12-second vertical hype teaser for an event: a kicker and the event name slam in over an energetic motif, a diagonal wipe cuts to a countdown (3-2-1 digits that slam in with ring bursts and confetti while the ground swaps colour), and a second wipe reveals the poster lockup with the date in an accent block, the place with a pin and a call-to-action pill. Code-rendered (scene.event-countdown) with a procedural pulse bed, whooshes on the wipes and hits on every countdown beat.",
+  "tags": [
+    "social",
+    "event",
+    "teaser",
+    "countdown",
+    "hype",
+    "vertical",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "kicker": {
+      "type": "string",
+      "required": true,
+      "description": "Short hype line above the name, 2-4 words, at most 24 characters (e.g. 'Save the date'); different from the call to action; no claims the brief does not make"
+    },
+    "event": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Event name exactly as written in the brief, at most 32 characters"
+    },
+    "date": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Date, including the time when the brief gives one, exactly as written in the brief, at most 30 characters"
+    },
+    "place": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Venue and/or city (or 'Online') exactly as written in the brief, at most 40 characters"
+    },
+    "cta": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Call to action exactly as written in the brief (the approved wording), at most 24 characters"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "voltage",
+        "sunset",
+        "pool",
+        "poster"
+      ],
+      "default": "voltage",
+      "description": "Look: voltage (black, acid lime, hot pink, stripes), sunset (dark, orange, yellow, blocks), pool (deep teal, aqua, coral, rings), poster (paper, red, blue, blocks)"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The teaser animation; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.event-countdown",
+          "preset": "{{look}}",
+          "params": {
+            "event": "{{event}}",
+            "date": "{{date}}",
+            "place": "{{place}}",
+            "kicker": "{{kicker}}",
+            "cta": "{{cta}}",
+            "count": "3-2-1"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "upbeat"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh under each diagonal wipe",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Hit on each countdown beat and on the reveal",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Click as the call-to-action pill pops",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Hype reel for Bassline Block Party, an outdoor dance night on Sat 9 August, 8pm at Pier 4, Rotterdam. Call to action: Tickets on sale now",
+      "inputs": {
+        "kicker": "Turn it up",
+        "event": "Bassline Block Party",
+        "date": "Sat 9 August, 8pm",
+        "place": "Pier 4, Rotterdam",
+        "cta": "Tickets on sale now",
+        "look": "sunset"
+      },
+      "note": "Event, date with its time, place and the call to action are copied exactly from the brief; the kicker is a short hype line with no claims the brief does not make."
+    }
+  ],
+  "style": {
+    "mood": "energetic, loud, celebratory",
+    "palette": [
+      "#0A0A0B",
+      "#F5F5F0",
+      "#C8FF2E",
+      "#FF3D7F"
+    ],
+    "typography": "Inter Display Black for the name, date and digits; Inter for kicker, place and button",
+    "pacing": "fast"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 300,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "teaser",
+      "role": "promotion",
+      "duration_frames": 360,
+      "shots": [
+        {
+          "id": "teaser_scene",
+          "kind": "animation",
+          "duration_frames": 360,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Name slam, wipe, three countdown hits, wipe, poster lockup with date, place and call to action held to the end"
+          },
+          "input_refs": [
+            "scene",
+            "event",
+            "date",
+            "place",
+            "cta"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 12,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 360,
+        "gain_db": -3,
+        "fade_in_frames": 4,
+        "fade_out_frames": 30
+      },
+      {
+        "id": "wipe_1",
+        "input_ref": "whoosh",
+        "start_frame": 92,
+        "duration_frames": 20,
+        "gain_db": -7
+      },
+      {
+        "id": "wipe_2",
+        "input_ref": "whoosh",
+        "start_frame": 187,
+        "duration_frames": 20,
+        "gain_db": -7
+      },
+      {
+        "id": "hit_1",
+        "input_ref": "impact",
+        "start_frame": 106,
+        "duration_frames": 30,
+        "gain_db": -8
+      },
+      {
+        "id": "hit_2",
+        "input_ref": "impact",
+        "start_frame": 137,
+        "duration_frames": 30,
+        "gain_db": -8
+      },
+      {
+        "id": "hit_3",
+        "input_ref": "impact",
+        "start_frame": 167,
+        "duration_frames": 30,
+        "gain_db": -7
+      },
+      {
+        "id": "reveal_hit",
+        "input_ref": "impact",
+        "start_frame": 196,
+        "duration_frames": 60,
+        "gain_db": -6
+      },
+      {
+        "id": "cta_pop",
+        "input_ref": "click",
+        "start_frame": 223,
+        "duration_frames": 12,
+        "gain_db": -2
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/event-countdown) rendered frame-exactly on a virtual clock.",
+      "Event name, date, place and the call to action are VERBATIM: copied from the brief, never invented, computed or reformatted. If the brief lacks one, the job is incomplete.",
+      "Copy is fitted with measured glyphs and kept inside the 9:16 safe band (below the top 12%, above the bottom 22%); the motif is clipped to a region outside the copy so it never crosses text.",
+      "Sound cues at 30 fps: whooshes on the wipes (centred on frames 101 and 196), hits on the countdown beats (frames 106, 137, 167) and on the reveal (196), a click as the call-to-action pill pops (223)."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "facts_review",
+      "mode": "human",
+      "description": "The organiser confirms the event name, date, time, place and call to action are correct and approved."
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms the kicker makes no claim the organiser has not approved (line-ups, sell-outs, prices)."
+    }
+  ]
+}

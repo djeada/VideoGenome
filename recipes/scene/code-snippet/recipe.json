@@ -1,0 +1,228 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.code-snippet",
+  "version": "0.1.0",
+  "title": "Code snippet reveal (Canvas)",
+  "description": "A self-contained code reveal: an editor window (title bar, file tab, line numbers) scales in under the title, the code types itself with a human rhythm (auto-indent, fast runs inside words, pauses after punctuation and at line ends, a blinking cursor when idle) and is syntax-highlighted by a built-in tokenizer for Python, JavaScript, Rust or Bash. The key lines then light up while the rest dims, an optional terminal panel slides up and shows supplied output, and the title gives way to the takeaway. The code is drawn as text and never executed. Portrait stacks title, editor and terminal; landscape sets the title beside the editor.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 44,
+        "default": "Count words in one line",
+        "description": "What the snippet shows, set large above (portrait) or beside (landscape) the editor"
+      },
+      "filename": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 28,
+        "pattern": "^[^\\s/\\\\]+$",
+        "default": "count.py",
+        "description": "File name on the editor tab (no spaces or slashes); also used in the default run command"
+      },
+      "language": {
+        "enum": [
+          "python",
+          "javascript",
+          "rust",
+          "bash"
+        ],
+        "default": "python",
+        "description": "Language for syntax highlighting and the default run command"
+      },
+      "code": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^\\u0000-\\u0008\\u000B-\\u001F\\u007F]{1,900}$",
+        "default": "from collections import Counter\n\ntext = \"the cat and the hat\"\ncounts = Counter(text.split())\n\nfor word, n in counts.most_common(2):\n    print(f\"{word}: {n}\")",
+        "description": "The code as one multi-line string (lines separated by line breaks, indentation as leading spaces; tabs become 4 spaces): at most 16 lines of at most 56 characters, 900 characters in all. Displayed only, never run. The font shrinks to fit the longest line, and the render fails if it would drop below a legible size or a line is too long"
+      },
+      "highlight": {
+        "type": "array",
+        "maxItems": 6,
+        "items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "default": [
+          4
+        ],
+        "description": "1-based numbers of the key lines to light up after typing"
+      },
+      "highlight_text": {
+        "type": "array",
+        "maxItems": 3,
+        "items": {
+          "type": "string",
+          "maxLength": 56
+        },
+        "default": [],
+        "description": "Also light up every line that contains one of these snippets (matched ignoring all whitespace, so a snippet may span lines); the page fails if a snippet is not in the code"
+      },
+      "output": {
+        "type": "string",
+        "pattern": "^[^\\u0000-\\u0008\\u000B-\\u001F\\u007F]{0,300}$",
+        "default": "the: 2\ncat: 1",
+        "description": "Text shown in the terminal panel as the program's output, lines separated by line breaks: at most 5 lines of at most 48 characters (empty: no terminal). Supplied text, not computed"
+      },
+      "command": {
+        "type": "string",
+        "maxLength": 40,
+        "default": "",
+        "description": "Command typed in the terminal; empty uses python/node/bash FILE or cargo run -q"
+      },
+      "takeaway": {
+        "type": "string",
+        "maxLength": 64,
+        "default": "Counter tallies anything iterable for you",
+        "description": "Closing line that replaces the title in the last beat (empty: the title stays)"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 5,
+        "maxItems": 5,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#0D1017",
+          "#161B24",
+          "#E6EAF2",
+          "#7AA2FF",
+          "#6B7385"
+        ],
+        "description": "Ground, editor window, ink (title and plain code), accent (cursor, highlights, rule) and muted (line numbers, tab) colours"
+      },
+      "syntax": {
+        "type": "array",
+        "minItems": 7,
+        "maxItems": 7,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#C792EA",
+          "#C3E88D",
+          "#F78C6C",
+          "#5C6773",
+          "#82AAFF",
+          "#FFCB6B",
+          "#89DDFF"
+        ],
+        "description": "Token colours: keyword, string, number, comment, function, type/builtin/variable, operator"
+      },
+      "pace": {
+        "type": "number",
+        "minimum": 0.5,
+        "maximum": 1,
+        "default": 0.9,
+        "description": "Share of the typing beat the typing uses (lower types faster and leaves a pause before the highlight)"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.12,
+        "default": 0.03,
+        "description": "Film grain amount"
+      }
+    }
+  },
+  "presets": {
+    "midnight": {},
+    "paper": {
+      "palette": [
+        "#F3F0E8",
+        "#FFFFFF",
+        "#1F2328",
+        "#D9480F",
+        "#8C959F"
+      ],
+      "syntax": [
+        "#A626A4",
+        "#50A14F",
+        "#986801",
+        "#9A9FA6",
+        "#4078F2",
+        "#C18401",
+        "#0184BC"
+      ],
+      "grain": 0.02
+    },
+    "terminal": {
+      "palette": [
+        "#050807",
+        "#0B1210",
+        "#D7F5E3",
+        "#39FF88",
+        "#5E7A6C"
+      ],
+      "syntax": [
+        "#39FF88",
+        "#E5D97A",
+        "#FFB86B",
+        "#4F6B5E",
+        "#7FE7FF",
+        "#B7F4C9",
+        "#9FD8B5"
+      ],
+      "grain": 0.05
+    },
+    "ember": {
+      "palette": [
+        "#16110F",
+        "#211A17",
+        "#F4ECE6",
+        "#FF7A45",
+        "#8A7A70"
+      ],
+      "syntax": [
+        "#FF7A45",
+        "#B8D98C",
+        "#F2C46D",
+        "#6E625B",
+        "#7CC4E8",
+        "#E7A7D3",
+        "#F3B49B"
+      ]
+    }
+  },
+  "tags": [
+    "scene",
+    "code",
+    "programming",
+    "editor",
+    "typing",
+    "syntax-highlighting",
+    "canvas"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Beats: intro 0-1.0 s (title, window); typing from 1.0 s to typeEnd = D - tail, tail = 1.8 (highlight, 0.6 without one) + 2.2 (terminal, if output) + 2.6 (takeaway, 0.8 without one); highlight at typeEnd + 0.25; terminal at typeEnd + 1.85 with the command typed over 0.5 s and output lines 0.14 s apart; takeaway at D - 2.6. If D is too short for typing to keep 40% of it, the tail shrinks in proportion.",
+    "The tokenizer is line-based and covers common syntax (keywords, builtins, strings, numbers, comments, calls, types, Rust macros, Bash variables and flags); it is not a full parser, so unusual syntax may be coloured as plain text.",
+    "Code and output are supplied text. The page never runs them, so a reviewer must confirm the output matches what the code would print.",
+    "code and output are multi-line strings bounded by a pattern (900 and 300 characters) instead of maxLength, and the page checks line count and length itself. Reason: videogenome fill treats a recipe string param with maxLength as one-line on-screen copy and refuses line breaks, and blueprints cannot pass string_array slots into a request.",
+    "Monospace face: JetBrains Mono when installed, else DejaVu Sans Mono or Noto Sans Mono. Needs `pip install playwright` and `playwright install chromium-headless-shell`."
+  ],
+  "cost": {
+    "seconds_per_output_second": 2.0
+  }
+}

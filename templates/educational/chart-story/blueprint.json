@@ -1,0 +1,433 @@
+{
+  "schema_version": "0.5.0",
+  "id": "educational.chart-story",
+  "version": "0.1.0",
+  "title": "Animated chart with one takeaway (16:9)",
+  "category": "educational",
+  "description": "A 12-second 16:9 data story: the title and what is measured rise in, three to six labelled values grow from zero as columns (bars when labels are long) or draw as a line, the key value keeps the accent while the rest recede, and a takeaway rises in over the source line. Code-rendered (scene.chart-story) with a lo-fi bed, a riser under the growth, a click on the focus and a swell under the takeaway.",
+  "tags": [
+    "educational",
+    "explainer",
+    "data",
+    "chart",
+    "bar_chart",
+    "line_chart",
+    "infographic",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "label_1": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Name of the first value in the brief's list, copied exactly (in 'Bus 34%, Car 28%' the first label is 'Bus'); a category or a period such as 2024"
+    },
+    "value_1": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The first value in the brief's list as a plain number (in 'Bus 34%, Car 28%' the first value is 34; 4,200 is 4200)",
+      "grounded_with": "label_1"
+    },
+    "label_2": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Name of the second value in the brief's list, copied exactly (in 'Bus 34%, Car 28%' the first label is 'Bus'); a category or a period such as 2024"
+    },
+    "value_2": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The second value in the brief's list as a plain number (in 'Bus 34%, Car 28%' the first value is 34; 4,200 is 4200)",
+      "grounded_with": "label_2"
+    },
+    "label_3": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Name of the third value in the brief's list, copied exactly (in 'Bus 34%, Car 28%' the first label is 'Bus'); a category or a period such as 2024"
+    },
+    "value_3": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The third value in the brief's list as a plain number (in 'Bus 34%, Car 28%' the first value is 34; 4,200 is 4200)",
+      "grounded_with": "label_3"
+    },
+    "label_4": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Name of the fourth value in the brief's list, copied exactly (in 'Bus 34%, Car 28%' the first label is 'Bus'); a category or a period such as 2024; leave out when the brief lists fewer values"
+    },
+    "value_4": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "description": "The fourth value in the brief's list as a plain number (in 'Bus 34%, Car 28%' the first value is 34; 4,200 is 4200); leave out with its label when the brief lists fewer values",
+      "grounded_with": "label_4"
+    },
+    "label_5": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Name of the fifth value in the brief's list, copied exactly (in 'Bus 34%, Car 28%' the first label is 'Bus'); a category or a period such as 2024; leave out when the brief lists fewer values"
+    },
+    "value_5": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "description": "The fifth value in the brief's list as a plain number (in 'Bus 34%, Car 28%' the first value is 34; 4,200 is 4200); leave out with its label when the brief lists fewer values",
+      "grounded_with": "label_5"
+    },
+    "label_6": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Name of the sixth value in the brief's list, copied exactly (in 'Bus 34%, Car 28%' the first label is 'Bus'); a category or a period such as 2024; leave out when the brief lists fewer values"
+    },
+    "value_6": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "description": "The sixth value in the brief's list as a plain number (in 'Bus 34%, Car 28%' the first value is 34; 4,200 is 4200); leave out with its label when the brief lists fewer values",
+      "grounded_with": "label_6"
+    },
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "Headline that states the chart's one point in plain words; no number the brief does not give"
+    },
+    "measure": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "What is measured, copied from the brief (e.g. 'share of commuters in 2025'); shown under the title"
+    },
+    "unit": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Unit written after the values in the brief: %, GW, M (million), bn, km; empty for none"
+    },
+    "prefix": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Currency sign written before the values in the brief ($, £, €); empty for none"
+    },
+    "highlight": {
+      "type": "number",
+      "required": false,
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "default": 0,
+      "description": "Which value the takeaway is about: its position (1-6) in the order given, or 0 for the largest"
+    },
+    "takeaway": {
+      "type": "string",
+      "required": true,
+      "description": "The one sentence the viewer should remember, drawn only from the brief's values; no new numbers"
+    },
+    "source": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Who published the data, copied from the brief (e.g. 'Energy Institute, 2025'); shown as 'Source: ...'"
+    },
+    "chart": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "auto",
+        "line"
+      ],
+      "default": "auto",
+      "description": "auto: columns (or bars when labels are long) for categories; line for one measure over time (years, months)"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "night",
+        "paper",
+        "ocean",
+        "signal",
+        "citrus"
+      ],
+      "default": "night",
+      "description": "Visual look: night (near-black, mint), paper (cream, vermilion), ocean (deep blue, cyan), signal (black, acid lime), citrus (warm white, amber)"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The chart animation; rendered from the data unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.chart-story",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "subtitle": "{{measure}}",
+            "labels": [
+              "{{label_1}}",
+              "{{label_2}}",
+              "{{label_3}}",
+              "{{label_4}}",
+              "{{label_5}}",
+              "{{label_6}}"
+            ],
+            "values": [
+              "{{value_1}}",
+              "{{value_2}}",
+              "{{value_3}}",
+              "{{value_4}}",
+              "{{value_5}}",
+              "{{value_6}}"
+            ],
+            "prefix": "{{prefix}}",
+            "suffix": "{{unit}}",
+            "highlight": "{{highlight}}",
+            "takeaway": "{{takeaway}}",
+            "source": "Source: {{source}}",
+            "form": "{{chart}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.lofi-beat",
+          "preset": "focus"
+        }
+      }
+    },
+    "riser": {
+      "type": "audio",
+      "required": false,
+      "description": "Riser under the growth, peaking as the last mark lands",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "riser"
+        }
+      }
+    },
+    "focus_hit": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click as the other marks recede and the key mark lights",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    },
+    "swell": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell under the takeaway",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Explainer chart for a cycling charity: bike trips per day across the city's new bridges in 2025, from the council's traffic counters. Harbour Bridge 4,200, Mill Bridge 2,750, Station Bridge 1,900, Park Bridge 860. Point: the Harbour Bridge carries the most bikes. Source: City Council traffic counters, 2025.",
+      "inputs": {
+        "title": "Harbour Bridge carries the most bikes",
+        "measure": "bike trips per day",
+        "label_1": "Harbour Bridge",
+        "value_1": 4200,
+        "label_2": "Mill Bridge",
+        "value_2": 2750,
+        "label_3": "Station Bridge",
+        "value_3": 1900,
+        "label_4": "Park Bridge",
+        "value_4": 860,
+        "highlight": 1,
+        "takeaway": "Harbour Bridge carries more bikes than any other crossing",
+        "source": "City Council traffic counters, 2025",
+        "chart": "auto",
+        "look": "ocean"
+      },
+      "note": "Labels and values are copied in the brief's order and the unused slots are left out. The title states the point, the takeaway repeats it in a full sentence without adding a number, and the source is copied."
+    }
+  ],
+  "style": {
+    "mood": "clear, factual, calm",
+    "palette": [
+      "#0B0F14",
+      "#F3F5F7",
+      "#3DDC97"
+    ],
+    "typography": "Inter ExtraBold title, SemiBold labels, direct value labels",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 330,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "chart",
+      "role": "explanation",
+      "duration_frames": 360,
+      "shots": [
+        {
+          "id": "chart_story",
+          "kind": "animation",
+          "duration_frames": 360,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Title, the marks grow from zero, the key mark is singled out, then the takeaway"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "label_1",
+            "value_1",
+            "label_2",
+            "value_2",
+            "label_3",
+            "value_3",
+            "takeaway",
+            "source"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_in_frames": 6,
+    "fade_out_frames": 15,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 360,
+        "gain_db": 0,
+        "fade_in_frames": 12,
+        "fade_out_frames": 36
+      },
+      {
+        "id": "growth",
+        "input_ref": "riser",
+        "start_frame": 30,
+        "duration_frames": 86,
+        "gain_db": -9,
+        "fade_in_frames": 15
+      },
+      {
+        "id": "focus",
+        "input_ref": "focus_hit",
+        "start_frame": 162,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "takeaway",
+        "input_ref": "swell",
+        "start_frame": 183,
+        "duration_frames": 75,
+        "gain_db": -8,
+        "fade_out_frames": 25
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/chart-story) rendered frame-exactly on a virtual clock; the content model writes the title and takeaway and copies labels, values, unit, measure and source from the brief.",
+      "Labels, values, unit, prefix, measure and source are VERBATIM. Values 4-6 are optional: an unused slot keeps its defaults (empty label, value -1) and is dropped; a label without a value, or a value without a label, fails the render instead of drawing a made-up bar.",
+      "Bars and columns always start at zero, every mark is labelled directly with its value, and negative values are refused.",
+      "Beats at 12 s (independent of the number of values): growth 1.00-3.88 s under the riser, focus click at 5.40 s, takeaway swell at 6.10 s."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -16 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17,
+        "max": -15
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "data_accuracy",
+      "mode": "human",
+      "description": "A reviewer checks every label and value against the cited source, and that the highlighted value is the one the takeaway describes."
+    },
+    {
+      "id": "accuracy_review",
+      "mode": "human",
+      "description": "A subject-matter reviewer confirms the title and takeaway follow from the data and do not overstate it."
+    }
+  ]
+}

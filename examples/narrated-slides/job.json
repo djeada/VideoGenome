@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.narrated-slides",
   "template": "educational.narrated-slides",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "How a video gets made",
     "slide_1_script": "Every video starts as an idea: who it is for and what it should change.",

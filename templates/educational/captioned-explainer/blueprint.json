@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.2.0",
+  "schema_version": "0.5.0",
   "id": "educational.captioned-explainer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Captioned explainer with a layered soundtrack",
   "category": "educational",
   "description": "An eight-second still-and-title recipe with locked caption cues, a music bed and a separate narration track. Supply approved image and audio assets.",
@@ -48,6 +48,18 @@
       "description": "Closing caption"
     }
   },
+  "copy_examples": [
+    {
+      "brief": "Short explainer for a city library's new evening hours: Riverside Library now stays open until 9 pm on weekdays, so people can study after work.",
+      "inputs": {
+        "title": "Riverside Library",
+        "caption_intro": "Now open until 9 pm on weekdays.",
+        "caption_detail": "Study after work, in quiet.",
+        "caption_close": "See you this evening."
+      },
+      "note": "Captions are short enough to read at a glance and each carries one idea; the closing title is the name the viewer should remember."
+    }
+  ],
   "style": {
     "mood": "clear and calm",
     "palette": [

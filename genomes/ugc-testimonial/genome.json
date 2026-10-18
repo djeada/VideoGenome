@@ -1,0 +1,30 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "ugc-testimonial",
+  "title": "UGC testimonial short",
+  "summary": "A real participant's talking-head clip, b-roll and captions taken word for word from their transcript, ending on an approved call to action.",
+  "family": "social",
+  "formats": [
+    "9:16"
+  ],
+  "duration_seconds": [
+    15,
+    30
+  ],
+  "recipes": [],
+  "templates": [
+    "social.ugc-testimonial"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "Consent-cleared footage of a real person and a transcript"
+  ],
+  "techniques": [
+    "footage assembly",
+    "verbatim captions"
+  ],
+  "limits": [
+    "Blueprint only: renders when you supply the footage",
+    "Testimony is never written by a model"
+  ]
+}

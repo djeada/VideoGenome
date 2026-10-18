@@ -1,0 +1,314 @@
+{
+  "schema_version": "0.5.0",
+  "id": "educational.code-snippet-vertical",
+  "version": "0.1.0",
+  "title": "Code snippet reveal (9:16)",
+  "category": "educational",
+  "description": "A 15-second code reveal rendered in the browser with no external tools: an editor window types the snippet with a human rhythm and syntax highlighting (Python, JavaScript, Rust or Bash), the key line lights up while the rest dims, a terminal panel shows what the program prints, and the title gives way to a takeaway. The code is displayed, never executed. Code-rendered (scene.code-snippet).",
+  "tags": [
+    "educational",
+    "code",
+    "programming",
+    "tutorial",
+    "typing",
+    "motion_graphics",
+    "code_animation",
+    "renderable",
+    "vertical",
+    "social"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "What the snippet shows, under 40 characters (e.g. 'Count words in one line')"
+    },
+    "filename": {
+      "type": "string",
+      "required": true,
+      "description": "A plausible file name with the language's extension and no spaces (e.g. main.py, app.js, main.rs, backup.sh)"
+    },
+    "language": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "python",
+        "javascript",
+        "rust",
+        "bash"
+      ],
+      "description": "Language of the code"
+    },
+    "code": {
+      "type": "string",
+      "required": true,
+      "description": "The code as one string with a line break between lines and indentation as leading spaces: 3 to 12 lines of at most 40 characters each. It must be correct, idiomatic and do exactly what the brief describes; no placeholder lines"
+    },
+    "key_line": {
+      "type": "string",
+      "required": true,
+      "description": "The single most important line of the code, copied character for character from it: one line only, no line breaks (it is highlighted)"
+    },
+    "output": {
+      "type": "string",
+      "required": true,
+      "description": "What running the code prints, exactly as this code would print it (no added quotes): 1 to 4 lines of at most 40 characters, separated by line breaks"
+    },
+    "takeaway": {
+      "type": "string",
+      "required": true,
+      "description": "Closing line a viewer should remember, under 56 characters; no claims the brief does not make"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "midnight",
+        "paper",
+        "terminal",
+        "ember"
+      ],
+      "default": "midnight",
+      "description": "Editor look: midnight (navy, blue accent), paper (light editor, dark terminal), terminal (black, green phosphor), ember (warm dark, orange)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "focus",
+        "study",
+        "late-night"
+      ],
+      "default": "focus",
+      "description": "Mood of the procedural lo-fi bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The code animation; rendered from the slots unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.code-snippet",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "filename": "{{filename}}",
+            "language": "{{language}}",
+            "code": "{{code}}",
+            "highlight": [],
+            "highlight_text": [
+              "{{key_line}}"
+            ],
+            "output": "{{output}}",
+            "takeaway": "{{takeaway}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.lofi-beat",
+          "preset": "{{energy}}"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click as the key line lights up",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh as the terminal slides up",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "tail": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell under the takeaway",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Short for JavaScript beginners: remove duplicates from an array by spreading a Set. Show that [3, 1, 3, 2, 1] becomes [3, 1, 2]. Takeaway: a Set keeps only the first copy of each value.",
+      "inputs": {
+        "title": "Remove duplicates with a Set",
+        "filename": "unique.js",
+        "language": "javascript",
+        "code": "const nums = [3, 1, 3, 2, 1];\n\nconst unique = [...new Set(nums)];\n\nconsole.log(unique);",
+        "key_line": "const unique = [...new Set(nums)];",
+        "output": "[ 3, 1, 2 ]",
+        "takeaway": "A Set keeps only the first copy of each value",
+        "look": "midnight",
+        "energy": "focus"
+      },
+      "note": "The code does exactly what the brief asks and nothing more; the key line is copied from the code; the output is what Node prints for that array; the takeaway restates the brief's point."
+    }
+  ],
+  "style": {
+    "mood": "focused, crafted, developer-friendly",
+    "palette": [
+      "#0D1017",
+      "#161B24",
+      "#E6EAF2",
+      "#7AA2FF"
+    ],
+    "typography": "Inter ExtraBold title; JetBrains Mono or DejaVu Sans Mono code",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 300,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "snippet",
+      "role": "explain",
+      "duration_frames": 450,
+      "shots": [
+        {
+          "id": "code_reveal",
+          "kind": "animation",
+          "duration_frames": 450,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Window scales in, code types with a human rhythm, key line lights up, terminal runs, takeaway replaces the title"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "code",
+            "key_line",
+            "output",
+            "takeaway"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 12,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 450,
+        "gain_db": -1,
+        "fade_in_frames": 12,
+        "fade_out_frames": 36
+      },
+      {
+        "id": "highlight_click",
+        "input_ref": "click",
+        "start_frame": 259,
+        "duration_frames": 12,
+        "gain_db": -5
+      },
+      {
+        "id": "terminal_whoosh",
+        "input_ref": "whoosh",
+        "start_frame": 305,
+        "duration_frames": 20,
+        "gain_db": -11
+      },
+      {
+        "id": "takeaway_swell",
+        "input_ref": "tail",
+        "start_frame": 370,
+        "duration_frames": 80,
+        "gain_db": -10,
+        "fade_out_frames": 20
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/code-snippet); the content model supplies the title, file name, language, code lines, key line, output lines and takeaway. Code and output are displayed as text and never executed.",
+      "The code font shrinks to fit the longest line but never below about 2.6% of the short side; longer lines fail the render. Keep lines under 40 characters and 12 lines. The key line must appear in the code or the render fails.",
+      "Beats at 15 s with output and a takeaway: typing 1.0-8.4 s, key line at 8.65 s (frame 259), terminal at 10.25 s (frame 307), takeaway at 12.4 s (frame 372). Sound is cued to those frames: a soft click on the highlight, a quiet whoosh as the terminal rises and a swell under the takeaway."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "accuracy_review",
+      "mode": "human",
+      "description": "A developer confirms the code is correct for the stated language, does what the title says, and that the terminal output is exactly what it prints."
+    }
+  ]
+}
