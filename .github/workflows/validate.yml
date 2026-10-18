@@ -92,8 +92,13 @@ jobs:
           done
           mkdir -p /tmp/vg-recipes
           for recipe in $(videogenome recipes --json | python -c "import json,sys; print(' '.join(r['id'] for r in json.load(sys.stdin)))"); do
-            case "$recipe" in audio.*) ext=wav ;; *) ext=mp4 ;; esac
-            videogenome recipe "$recipe" --duration 4 --size 640x360 -o "/tmp/vg-recipes/$recipe.$ext"
+            # Complete scenes need time for their intro, beats and closing hold.
+            case "$recipe" in
+              audio.*) ext=wav; duration=4 ;;
+              scene.*) ext=mp4; duration=12 ;;
+              *) ext=mp4; duration=4 ;;
+            esac
+            videogenome recipe "$recipe" --duration "$duration" --size 640x360 -o "/tmp/vg-recipes/$recipe.$ext"
           done
       - name: Library, validation of pending jobs and the MCP handshake
         run: |
@@ -173,6 +178,7 @@ jobs:
             echo "::endgroup::"
           done
       - name: Upload scene renders for visual review
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: videogenome-scenes

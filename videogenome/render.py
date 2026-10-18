@@ -554,16 +554,29 @@ def _master_loudness(plan: dict, mixed: Path, destination: Path) -> dict:
     if measured is None or measured <= qa.SILENT_PROGRAMME_LUFS:
         _run([*copy, *encode, str(destination)])
         return {"target": spec, "status": "skipped", "reason": "programme audio is silent"}
-    loudnorm = (f"loudnorm={target}:measured_I={first['input_i']}:measured_TP={first['input_tp']}:"
-                f"measured_LRA={first['input_lra']}:measured_thresh={first['input_thresh']}:"
-                f"offset={first['target_offset']}:linear=true:print_format=json,aresample=48000")
     correction, attempts = 0.0, []
     for _ in range(4):
-        chain = loudnorm + (f",volume={correction:.2f}dB" if correction else "")
+        # Reserve headroom inside the normalizer, so its limiter can catch
+        # transients while preserving programme loudness. Turning down the
+        # entire normalized mix can meet the peak ceiling but miss the LUFS gate.
+        ceiling = max(-9.0, spec["max_true_peak_dbtp"] + correction)
+        gain = min(0.0, spec["max_true_peak_dbtp"] + correction - ceiling)
+        target = f"I={spec['target_lufs']}:TP={ceiling:.2f}:LRA=11"
+        analysis = first if not attempts else _loudnorm_json(_run([
+            "ffmpeg", "-hide_banner", "-nostats", "-loglevel", "info", "-i", str(mixed),
+            "-map", "0:a:0", "-af", f"loudnorm={target}:print_format=json", "-f", "null", "-",
+        ]))
+        chain = (f"loudnorm={target}:measured_I={analysis['input_i']}:measured_TP={analysis['input_tp']}:"
+                 f"measured_LRA={analysis['input_lra']}:measured_thresh={analysis['input_thresh']}:"
+                 f"offset={analysis['target_offset']}:linear=true:print_format=json,aresample=48000")
+        if gain:
+            chain += f",volume={gain:.2f}dB"
         second = _loudnorm_json(_run([*copy, "-af", chain, *encode, str(destination)]))
         # Lossy encoding can push decoded peaks over the ceiling: measure the real file.
         peak = _decoded_true_peak(destination)
-        attempts.append({"correction_db": round(correction, 2), "true_peak_dbtp": peak})
+        attempts.append({"correction_db": round(correction, 2),
+                         "normalizer_true_peak_dbtp": round(ceiling, 2),
+                         "output_gain_db": round(gain, 2), "true_peak_dbtp": peak})
         if peak is None or peak <= spec["max_true_peak_dbtp"]:
             break
         correction -= peak - spec["max_true_peak_dbtp"] + 0.2
