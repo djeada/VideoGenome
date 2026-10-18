@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- MCP sessions survive malformed JSON-RPC requests and report protocol errors;
+  tool arguments now enforce the advertised schemas before dispatch.
+- Studio rejects malformed JSON, invalid body lengths, unsupported controls,
+  non-finite numbers and mistyped render settings before queuing work.
+- Video playback supports suffix and open-ended byte ranges, returns 416 for
+  unsatisfiable ranges, and streams files in bounded chunks. HEAD requests
+  return metadata without reading the video.
+- Workspace HTML, HTM and SVG responses disable scripts and forms; filenames
+  containing spaces, Unicode, `#` or `%` produce usable download URLs.
+- Installed wheels include sample jobs and brief suites, restoring Studio
+  sample copy and library previews. CI checks the installed package outside
+  the source checkout.
+- Input checks retain supplied null/empty values for type validation and
+  recognize required blueprint defaults. Numeric slots must be finite;
+  capture validates frame rate, duration, dimensions, seed and still time.
+- Run history counts readable summaries rather than incomplete run folders
+  and skips corrupt summaries and symlinks outside the workspace.
+
 ## 0.7.0 — a library of video classes, three cockpits, code that runs unmodified
 
 ### Added

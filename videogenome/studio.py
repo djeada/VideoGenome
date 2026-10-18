@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
+import re
 import secrets
 import threading
 import time
@@ -21,14 +23,30 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from videogenome import __version__
 from videogenome.compiler import ProductionError, read_json
 from videogenome.service import Service, contact_sheet
+from videogenome.requests import (
+    BRIEF, CAPTURE_PROPERTIES, COPY_PROPERTIES, IDENTIFIER, NAME, PREVIEW_PROPERTIES,
+    object_schema, parse_request, validate_request,
+)
 
 STATIC = Path(__file__).resolve().parent / "studio_static"
 MAX_BODY = 4 * 1024 * 1024
+POST_SCHEMAS = {
+    "check": object_schema({**COPY_PROPERTIES, "brief": {**BRIEF, "type": ["string", "null"]}},
+                           ("template", "inputs")),
+    "render": object_schema({**COPY_PROPERTIES, "brief": {**BRIEF, "type": ["string", "null"]},
+                             "author": NAME, "name": NAME}, ("template",)),
+    "fill": object_schema({"template": IDENTIFIER, "brief": {**BRIEF, "minLength": 1}}, ("template", "brief")),
+    "create": object_schema({"template": IDENTIFIER, "brief": {**BRIEF, "minLength": 1}, "name": NAME},
+                            ("template", "brief")),
+    "preview-recipe": object_schema(PREVIEW_PROPERTIES, ("recipe",)),
+    "capture": object_schema(CAPTURE_PROPERTIES, ("html",)),
+    "preview-template": object_schema({}),
+}
 
 
 class Jobs:
@@ -105,7 +123,7 @@ class Studio:
         path = Path(path).resolve()
         if not self.service.workspace.contains(path):
             return None
-        return "/files/" + path.relative_to(self.service.workspace.root).as_posix()
+        return "/files/" + quote(path.relative_to(self.service.workspace.root).as_posix(), safe="/")
 
     def with_urls(self, result: dict) -> dict:
         out = dict(result)
@@ -151,6 +169,8 @@ class Studio:
                              and "output" in job["result"] else job["result"]}
             return 404, {"error": "not found"}
         if method == "POST":
+            if head in POST_SCHEMAS:
+                validate_request(body, POST_SCHEMAS[head])
             if head == "check":
                 return 200, s.check_inputs(body["template"], body.get("inputs", {}), body.get("brief") or None)
             if head == "fill":
@@ -170,13 +190,15 @@ class Studio:
                     f"preview {body['recipe']}",
                     lambda log: s.preview_recipe(body["recipe"], preset=body.get("preset") or None,
                                                  params=body.get("params") or {}, size=body.get("size", "1280x720"),
-                                                 duration=float(body.get("duration", 6)), fps=int(body.get("fps", 30))))}
+                                                 duration=body.get("duration", 6), fps=body.get("fps", 30),
+                                                 seed=body.get("seed", 1)))}
             if head == "capture":
                 return 202, {"job": self.jobs.submit(
                     "run your HTML",
                     lambda log: s.capture(html=body["html"], size=body.get("size", "1920x1080"),
-                                          fps=int(body.get("fps", 30)), duration=float(body.get("duration", 8)),
-                                          click=bool(body.get("click")), audio=bool(body.get("audio", True)),
+                                          fps=body.get("fps", 30), duration=body.get("duration", 8),
+                                          seed=body.get("seed", 1), params=body.get("params"),
+                                          click=body.get("click"), audio=body.get("audio", True),
                                           name=body.get("name", "my-html")))}
             if head == "preview-template" and len(parts) == 2:
                 return 202, {"job": self.jobs.submit(f"sample render of {parts[1]}",
@@ -198,26 +220,32 @@ class Studio:
                 host = (self.headers.get("Host") or "").lower()
                 return host in (f"127.0.0.1:{studio.port}", f"localhost:{studio.port}")
 
-            def _send(self, status: int, body: bytes, content_type: str, extra: dict | None = None) -> None:
+            def _headers(self, status: int, length: int, content_type: str, extra: dict | None = None) -> None:
                 self.send_response(status)
                 self.send_header("Content-Type", content_type)
-                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Content-Length", str(length))
                 self.send_header("X-Content-Type-Options", "nosniff")
                 self.send_header("Referrer-Policy", "no-referrer")
                 for key, value in (extra or {}).items():
                     self.send_header(key, value)
                 self.end_headers()
+
+            def _send(self, status: int, body: bytes, content_type: str, extra: dict | None = None) -> None:
+                self._headers(status, len(body), content_type, extra)
                 if self.command != "HEAD":
                     self.wfile.write(body)
 
             def _json(self, status: int, data: object) -> None:
-                self._send(status, json.dumps(data, ensure_ascii=False, default=str).encode(), "application/json")
+                self._send(status, json.dumps(data, ensure_ascii=True, default=str).encode(), "application/json")
 
             def _authorised(self) -> bool:
                 cookie = self.headers.get("Cookie") or ""
                 tokens = {part.strip().partition("=")[2] for part in cookie.split(";") if part.strip().startswith("vg_token=")}
-                return secrets.compare_digest(self.headers.get("X-VG-Token", ""), studio.token) or any(
-                    secrets.compare_digest(t, studio.token) for t in tokens)
+                return self._matches_token(self.headers.get("X-VG-Token", "")) or any(
+                    self._matches_token(t) for t in tokens)
+
+            def _matches_token(self, token: str) -> bool:
+                return secrets.compare_digest(token.encode("utf-8"), studio.token.encode("ascii"))
 
             def do_GET(self) -> None:  # noqa: N802
                 self.route("GET")
@@ -235,7 +263,7 @@ class Studio:
                 url = urlparse(self.path)
                 if url.path in ("/", "/index.html"):
                     token = parse_qs(url.query).get("token", [""])[0]
-                    if not secrets.compare_digest(token, studio.token) and not self._authorised():
+                    if not self._matches_token(token) and not self._authorised():
                         self._send(403, b"Open the Studio with the URL printed in the terminal (it carries a token).",
                                    "text/plain")
                         return
@@ -259,18 +287,27 @@ class Studio:
                     self._send(403, b"missing session token", "text/plain")
                     return
                 if url.path.startswith("/files/"):
+                    if method != "GET":
+                        self._json(405, {"error": "method not allowed"})
+                        return
                     self.serve_file(unquote(url.path.removeprefix("/files/")))
                     return
                 if url.path.startswith("/api/"):
                     body = {}
                     if method == "POST":
-                        length = int(self.headers.get("Content-Length") or 0)
+                        lengths = self.headers.get_all("Content-Length", [])
+                        raw = lengths[0] if len(lengths) == 1 else "0" if not lengths else ""
+                        if self.headers.get("Transfer-Encoding") or not re.fullmatch(r"[0-9]+", raw):
+                            self._json(400, {"error": "invalid Content-Length or unsupported Transfer-Encoding"})
+                            return
+                        # Avoid converting an arbitrarily long integer header.
+                        length = int(raw) if len(raw) <= 10 else MAX_BODY + 1
                         if length > MAX_BODY:
                             self._json(413, {"error": "request too large"})
                             return
                         try:
-                            body = json.loads(self.rfile.read(length) or b"{}")
-                        except json.JSONDecodeError:
+                            body = parse_request(self.rfile.read(length) or b"{}")
+                        except (ValueError, UnicodeDecodeError, RecursionError):
                             self._json(400, {"error": "invalid JSON"})
                             return
                     try:
@@ -288,21 +325,51 @@ class Studio:
                     self._send(404, b"not found", "text/plain")
                     return
                 kind = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-                size = path.stat().st_size
                 extra = {"Accept-Ranges": "bytes", "Cache-Control": "no-store"}
-                if path.suffix == ".html":  # Review pages: no script runs from workspace HTML.
-                    extra["Content-Security-Policy"] = "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'"
-                spec = self.headers.get("Range")
-                if spec and spec.startswith("bytes="):
-                    start_text, _, end_text = spec.removeprefix("bytes=").partition("-")
-                    start = int(start_text or 0)
-                    end = min(size - 1, int(end_text) if end_text else size - 1)
-                    with path.open("rb") as handle:
-                        handle.seek(start)
-                        chunk = handle.read(end - start + 1)
-                    self._send(206, chunk, kind, {**extra, "Content-Range": f"bytes {start}-{end}/{size}"})
-                    return
-                self._send(200, path.read_bytes(), kind, extra)
+                # Apply this to every workspace response, including SVG and .htm.
+                # Review pages retain local images, styles and video playback.
+                extra["Content-Security-Policy"] = (
+                    "sandbox allow-same-origin; default-src 'self'; script-src 'none'; "
+                    "style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'")
+                with path.open("rb") as handle:
+                    size = os.fstat(handle.fileno()).st_size
+                    start, length, status = 0, size, 200
+                    spec = self.headers.get("Range") if self.command == "GET" else None
+                    # Multi-range requests are deliberately served in full (RFC 9110).
+                    if spec and spec.startswith("bytes=") and "," not in spec:
+                        try:
+                            match = re.fullmatch(r"bytes=([0-9]*)-([0-9]*)", spec)
+                            if not match or not any(match.groups()) or size == 0:
+                                raise ValueError
+                            first, last = match.groups()
+                            if first:
+                                start = int(first)
+                                end = min(int(last), size - 1) if last else size - 1
+                            else:
+                                suffix = int(last)
+                                if suffix == 0:
+                                    raise ValueError
+                                start, end = max(0, size - suffix), size - 1
+                            if start >= size or end < start:
+                                raise ValueError
+                        except ValueError:
+                            self._send(416, b"", kind, {**extra, "Content-Range": f"bytes */{size}"})
+                            return
+                        length, status = end - start + 1, 206
+                        extra["Content-Range"] = f"bytes {start}-{end}/{size}"
+                    self._headers(status, length, kind, extra)
+                    if self.command == "HEAD":
+                        return
+                    handle.seek(start)
+                    try:
+                        while length:
+                            chunk = handle.read(min(length, 64 * 1024))
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                            length -= len(chunk)
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass  # Browsers cancel an in-flight request when seeking.
 
         return Handler
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import textwrap
 import unicodedata
@@ -33,7 +34,7 @@ class ProductionError(ValueError):
 def read_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ProductionError(f"Cannot read {path}: {exc}") from exc
     if not isinstance(value, dict):
         raise ProductionError(f"Expected JSON object: {path}")
@@ -80,8 +81,9 @@ def _check_input(name: str, spec: dict, value: Any, assets: dict) -> None:
         raise ProductionError(f"Input {name!r} must be a string")
     if kind == "string_array" and not (isinstance(value, list) and all(isinstance(x, str) for x in value)):
         raise ProductionError(f"Input {name!r} must be a list of strings")
-    if kind == "number" and not (isinstance(value, (int, float)) and not isinstance(value, bool)):
-        raise ProductionError(f"Input {name!r} must be numeric")
+    if kind == "number" and not (isinstance(value, (int, float)) and not isinstance(value, bool)
+                                 and (not isinstance(value, float) or math.isfinite(value))):
+        raise ProductionError(f"Input {name!r} must be a finite number")
     if kind == "boolean" and not isinstance(value, bool):
         raise ProductionError(f"Input {name!r} must be boolean")
     expected = {"image": "image", "video": "video", "audio": "audio", "model_3d": "model_3d"}

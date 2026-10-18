@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import sys
 import traceback
 from pathlib import Path
@@ -24,6 +25,10 @@ from typing import Any, Callable, TextIO
 from videogenome import __version__
 from videogenome.compiler import ProductionError
 from videogenome.service import Service
+from videogenome.requests import (
+    BRIEF, CAPTURE_PROPERTIES, COPY_PROPERTIES, IDENTIFIER, NAME, PREVIEW_PROPERTIES,
+    object_schema, parse_request, validate_request,
+)
 
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 
@@ -40,8 +45,7 @@ Prompt-level classes come with authoring prompts (MCP prompts named author-<geno
 
 def _tool(name: str, description: str, properties: dict, required: list[str] | None = None) -> dict:
     return {"name": name, "description": description,
-            "inputSchema": {"type": "object", "properties": properties, "required": required or [],
-                            "additionalProperties": False}}
+            "inputSchema": object_schema(properties, tuple(required or []))}
 
 
 TOOLS = [
@@ -49,41 +53,33 @@ TOOLS = [
           "code (recipes with params) or prompt (authoring prompt only).",
           {"level": {"enum": ["template", "code", "prompt"]}, "family": {"type": "string"}}),
     _tool("genome", "Describe one class of video, including its authoring prompt.",
-          {"id": {"type": "string"}}, ["id"]),
+          {"id": IDENTIFIER}, ["id"]),
     _tool("templates", "List ready-to-fill templates with format, duration and whether text alone renders them.", {}),
     _tool("template", "Slot contracts for one template: every text slot, its limits (characters, spoken words, "
           "enum choices), whether it is VERBATIM, worked copy examples, media inputs and quality gates.",
-          {"id": {"type": "string"}}, ["id"]),
+          {"id": IDENTIFIER}, ["id"]),
     _tool("check_inputs", "Check proposed slot values exactly as the renderer will (copy fitting with the real "
           "font, caption limits, narration length, enums, verbatim grounding against the brief).",
-          {"template": {"type": "string"}, "inputs": {"type": "object"},
-           "brief": {"type": "string", "description": "The brief the copy answers; required to verify VERBATIM slots"}},
+          COPY_PROPERTIES,
           ["template", "inputs"]),
     _tool("render", "Render a template from slot values you wrote: produces media with the operator's pipeline, "
           "renders, runs the gates and returns the video, review page, gate results and a contact sheet image.",
-          {"template": {"type": "string"}, "inputs": {"type": "object"}, "brief": {"type": "string"},
-           "name": {"type": "string", "description": "Short label for the run directory"}},
+          {**COPY_PROPERTIES, "name": NAME},
           ["template", "inputs"]),
     _tool("fill_from_brief", "Let the operator's configured writer model fill a template from a brief "
           "(only when the server's pipeline has a writer; otherwise write the copy yourself).",
-          {"template": {"type": "string"}, "brief": {"type": "string"}}, ["template", "brief"]),
+          {"template": IDENTIFIER, "brief": {**BRIEF, "minLength": 1}}, ["template", "brief"]),
     _tool("recipes", "List code recipes (scenes, backgrounds, music, sound) with their parameter schemas and presets.",
           {"media": {"enum": ["video", "image", "audio"]}}),
     _tool("preview_recipe", "Render one recipe with a preset and parameter overrides; returns the file and a "
           "contact sheet image.",
-          {"recipe": {"type": "string"}, "preset": {"type": "string"}, "params": {"type": "object"},
-           "size": {"type": "string", "description": "WIDTHxHEIGHT, e.g. 1080x1920"},
-           "duration": {"type": "number"}, "fps": {"type": "integer"}}, ["recipe"]),
+          PREVIEW_PROPERTIES, ["recipe"]),
     _tool("capture_html", "Render a self-contained HTML animation you wrote, unmodified, frame-exactly (virtual "
           "clock for rAF/performance.now/Date/timers/CSS/WAAPI; Web Audio is recorded in sync). Network is "
           "blocked; import shared libraries from /_lib/. Returns the video and a contact sheet image.",
-          {"html": {"type": "string", "description": "Complete page source"},
-           "size": {"type": "string"}, "fps": {"type": "integer"}, "duration": {"type": "number"},
-           "click": {"type": "boolean", "description": "Click the centre once after load (click-to-play pages)"},
-           "audio": {"type": "boolean"}, "params": {"type": "object", "description": "Exposed as window.vgSpec.params"},
-           "name": {"type": "string"}}, ["html"]),
+          CAPTURE_PROPERTIES, ["html"]),
     _tool("runs", "List recent runs in the workspace with their outputs and gate results.",
-          {"limit": {"type": "integer"}}),
+          {"limit": {"type": "integer", "minimum": 1, "maximum": 1000}}),
 ]
 
 
@@ -91,6 +87,7 @@ class Server:
     def __init__(self, service: Service, out: TextIO = sys.stdout) -> None:
         self.service = service
         self.out = out
+        self.schemas = {tool["name"]: tool["inputSchema"] for tool in TOOLS}
         self.handlers: dict[str, Callable[[dict], Any]] = {
             "library": lambda a: self.service.library(a.get("level"), a.get("family")),
             "genome": lambda a: self.service.genome(a["id"]),
@@ -103,17 +100,17 @@ class Server:
             "recipes": lambda a: self.service.recipes(a.get("media")),
             "preview_recipe": lambda a: self.service.preview_recipe(
                 a["recipe"], preset=a.get("preset"), params=a.get("params"), size=a.get("size", "1280x720"),
-                fps=int(a.get("fps", 30)), duration=float(a.get("duration", 6.0))),
+                fps=a.get("fps", 30), duration=a.get("duration", 6.0), seed=a.get("seed", 1)),
             "capture_html": lambda a: self.service.capture(
-                html=a["html"], size=a.get("size", "1920x1080"), fps=int(a.get("fps", 30)),
-                duration=float(a.get("duration", 10.0)), click=bool(a.get("click")), audio=a.get("audio", True),
+                html=a["html"], size=a.get("size", "1920x1080"), fps=a.get("fps", 30),
+                duration=a.get("duration", 10.0), seed=a.get("seed", 1), click=a.get("click"), audio=a.get("audio", True),
                 params=a.get("params"), name=a.get("name", "agent-capture")),
-            "runs": lambda a: self.service.workspace.runs(int(a.get("limit", 20))),
+            "runs": lambda a: self.service.workspace.runs(a.get("limit", 20)),
         }
 
     # ---- transport ----------------------------------------------------------------
     def send(self, message: dict) -> None:
-        self.out.write(json.dumps(message, ensure_ascii=False) + "\n")
+        self.out.write(json.dumps(message, ensure_ascii=True) + "\n")
         self.out.flush()
 
     def serve(self, stream: TextIO = sys.stdin) -> None:
@@ -122,24 +119,40 @@ class Server:
             if not line:
                 continue
             try:
-                message = json.loads(line)
-            except json.JSONDecodeError:
+                message = parse_request(line)
+            except (ValueError, RecursionError):
                 self.send({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}})
                 continue
             reply = self.handle(message)
             if reply is not None:
                 self.send(reply)
 
-    def handle(self, message: dict) -> dict | None:
-        method, ident = message.get("method"), message.get("id")
-        if ident is None:  # Notifications need no answer.
+    def handle(self, message: object) -> dict | None:
+        ident = message.get("id") if isinstance(message, dict) else None
+
+        def error(code: int, detail: str) -> dict:
+            return {"jsonrpc": "2.0", "id": ident, "error": {"code": code, "message": detail}}
+
+        if (not isinstance(message, dict) or message.get("jsonrpc") != "2.0"
+                or not isinstance(message.get("method"), str)
+                or isinstance(ident, bool) or not isinstance(ident, (str, int, float, type(None)))
+                or isinstance(ident, float) and not math.isfinite(ident)):
+            ident = None
+            return error(-32600, "Invalid Request")
+        notification = "id" not in message
+        if not isinstance(message.get("params", {}), dict):
+            return None if notification else error(-32602, "params must be an object")
+        if notification:  # Tool calls require a request id; notifications never start a render.
             return None
         try:
-            result = self.dispatch(method, message.get("params") or {})
-        except KeyError as exc:
-            return {"jsonrpc": "2.0", "id": ident, "error": {"code": -32602, "message": f"Missing {exc}"}}
+            result = self.dispatch(message["method"], message.get("params", {}))
+        except (KeyError, ProductionError, TypeError, ValueError) as exc:
+            return error(-32602, str(exc))
         except LookupError as exc:
-            return {"jsonrpc": "2.0", "id": ident, "error": {"code": -32601, "message": str(exc)}}
+            return error(-32601, str(exc))
+        except Exception:  # Keep the stdio session usable after an unexpected failure.
+            traceback.print_exc(file=sys.stderr)
+            return error(-32603, "Internal error")
         return {"jsonrpc": "2.0", "id": ident, "result": result}
 
     def dispatch(self, method: str, params: dict) -> dict:
@@ -154,12 +167,16 @@ class Server:
         if method == "tools/list":
             return {"tools": TOOLS}
         if method == "tools/call":
-            return self.call(params["name"], params.get("arguments") or {})
+            validate_request(params, object_schema({"name": IDENTIFIER, "arguments": {"type": "object"},
+                                                     "_meta": {"type": "object"}}, ("name",)))
+            return self.call(params["name"], params.get("arguments", {}))
         if method == "prompts/list":
             return {"prompts": [{"name": f"author-{row['id']}", "title": f"Author: {row['title']}",
                                  "description": f"[{row['level']}] {row['summary']}"}
                                 for row in self.service.library()]}
         if method == "prompts/get":
+            validate_request(params, object_schema({"name": IDENTIFIER, "arguments": {"type": "object"},
+                                                     "_meta": {"type": "object"}}, ("name",)))
             name = params["name"]
             if not name.startswith("author-"):
                 raise LookupError(f"Unknown prompt {name!r}")
@@ -175,6 +192,7 @@ class Server:
         if handler is None:
             return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool {name!r}"}]}
         try:
+            validate_request(arguments, self.schemas[name])
             result = handler(arguments)
         except (ProductionError, KeyError, ValueError, TypeError) as exc:
             return {"isError": True, "content": [{"type": "text", "text": f"{type(exc).__name__}: {exc}"}]}

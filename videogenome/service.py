@@ -18,9 +18,10 @@ import threading
 from pathlib import Path
 from typing import Callable, Iterable
 
-from videogenome.compiler import ProductionError, compile_job, find_template, read_json
+from videogenome.compiler import ProductionError, compile_job, find_template, read_json, with_defaults
 from videogenome.fill import TEXT_TYPES, check_values, describe_slots, slot_contracts
 from videogenome.profile import Profile
+from videogenome.requests import COPY_PROPERTIES, PREVIEW_PROPERTIES, RENDER_PROPERTIES, object_schema, validate_request
 
 SLUG = re.compile(r"[^a-z0-9]+")
 
@@ -49,14 +50,20 @@ class Workspace:
         raise ProductionError("Cannot allocate a run directory")
 
     def runs(self, limit: int = 50) -> list[dict]:
+        validate_request({"limit": limit}, object_schema({"limit": {"type": "integer", "minimum": 1,
+                                                                   "maximum": 1000}}))
         rows = []
-        for path in sorted((self.root / "runs").iterdir(), reverse=True)[:limit]:
+        for path in sorted((self.root / "runs").iterdir(), reverse=True):
+            if not path.is_dir() or not self.contains(path):
+                continue
             summary = path / "summary.json"
-            if summary.is_file():
+            if summary.is_file() and self.contains(summary):
                 try:
-                    rows.append(json.loads(summary.read_text(encoding="utf-8")))
-                except (OSError, json.JSONDecodeError):
+                    rows.append(read_json(summary))
+                except ProductionError:
                     continue
+                if len(rows) == limit:
+                    break
         return rows
 
     def contains(self, path: Path) -> bool:
@@ -112,6 +119,8 @@ class Service:
     # ---- writing and checking copy ----------------------------------------------
     def check_inputs(self, template_id: str, inputs: dict, brief: str | None = None) -> dict:
         """The checks a writer's reply must pass, for copy written by anyone (agent, person, UI)."""
+        validate_request({"template": template_id, "inputs": inputs, **({"brief": brief} if brief is not None else {})},
+                         object_schema(COPY_PROPERTIES, ("template", "inputs")))
         blueprint = read_json(find_template(template_id, self.template_dirs))
         contracts = slot_contracts(blueprint)
         issues: list[dict] = []
@@ -121,10 +130,12 @@ class Service:
                            + (" (media is produced by the pipeline or supplied as an asset)"
                               if name in blueprint["inputs"] else "")})
         values = {k: v for k, v in inputs.items() if k in contracts}
+        effective = with_defaults(blueprint, values)
         for name, contract in contracts.items():
-            if contract["required"] and values.get(name) in (None, "", []):
+            if contract["required"] and effective.get(name) in (None, "", []):
                 issues.append({"slots": [name], "problem": f"{name} is required: {contract['description']}"})
-        values = {k: v for k, v in values.items() if v not in (None, "", [])}
+        # Keep supplied empty and null values: dropping them could make Check pass
+        # a value that the compiler later rejects (e.g. an optional numeric slot).
         found = check_values(blueprint, contracts, values, brief or "", renderer=self.profile.renderer())
         unverified = []
         if brief is None:  # Without the brief, verbatim grounding cannot be checked.
@@ -251,6 +262,10 @@ class Service:
                        size: str = "1280x720", fps: int = 30, duration: float = 6.0, seed: int = 1,
                        still: bool = False) -> dict:
         from videogenome.providers.procedural import ProceduralProvider
+        validate_request({"recipe": recipe_id, "size": size, "fps": fps, "duration": duration, "seed": seed,
+                          "params": params if params is not None else {},
+                          **({"preset": preset} if preset is not None else {})},
+                         object_schema(PREVIEW_PROPERTIES, ("recipe",)))
         width, height = _size(size)
         run = self.workspace.new_run(recipe_id)
         media = "image" if still else ("audio" if recipe_id.startswith("audio.") else "video")
@@ -274,19 +289,23 @@ class Service:
                 fps: int = 30, duration: float = 10.0, seed: int = 1, click: bool | list | None = None,
                 audio: bool = True, params: dict | None = None, name: str = "capture") -> dict:
         """Render HTML code exactly as written (an agent's or a person's), frame-exact on the virtual clock."""
+        _capture_settings(size, fps, duration, seed, params)
+        if html is not None and (not isinstance(html, str) or not html.strip()):
+            raise ProductionError("html must be a nonempty string")
+        if html is None and page is None:
+            raise ProductionError("Give html (the page source) or a page path")
         run = self.workspace.new_run(name)
         if html is not None:
             page = run / "index.html"
             page.write_text(html, encoding="utf-8")
-        if page is None:
-            raise ProductionError("Give html (the page source) or a page path")
+        assert page is not None
         output = run / "capture.mp4"
         info = capture_page(page, output, size=size, fps=fps, duration=duration, seed=seed, click=click,
                             audio=audio, params=params)
         sheet = contact_sheet(output, run / "contact.jpg")
         summary = {"run": run.name, "directory": str(run), "kind": "capture", "page": str(page),
                    "created": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
-                   "output": str(output), "contact_sheet": str(sheet), **info}
+                   "output": str(output), "contact_sheet": str(sheet) if sheet else None, **info}
         (run / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
         return summary
 
@@ -301,21 +320,28 @@ def _size(size: str) -> tuple[int, int]:
     return width_px, height_px
 
 
+def _capture_settings(size: str, fps: int, duration: float, seed: int, params: dict | None) -> tuple[int, int]:
+    validate_request({"size": size, "fps": fps, "duration": duration, "seed": seed,
+                      "params": params if params is not None else {}}, object_schema(RENDER_PROPERTIES))
+    return _size(size)
+
+
 def capture_page(page: Path, output: Path, *, size: str = "1920x1080", fps: int = 30, duration: float = 10.0,
                  seed: int = 1, click: bool | list | None = None, audio: bool = True, params: dict | None = None,
                  at: float | None = None, timing: str = "clock") -> dict:
     """Run a self-contained page on the virtual clock and encode it (the engine behind `capture`)."""
     from videogenome.procedural.catalog import bundled_libraries
     from videogenome.render import probe
+    width, height = _capture_settings(size, fps, duration, seed, params)
+    validate_request({"timing": timing, **({"at": at} if at is not None else {})},
+                     object_schema({"timing": {"enum": ["clock", "frame"]},
+                                    "at": {"type": "number", "minimum": 0, "maximum": 600}}))
     page = page.resolve()
     if not page.is_file() or page.suffix.lower() not in (".html", ".htm"):
         raise ProductionError(f"Not an HTML file: {page}")
-    if not (1 <= fps <= 120) or not (0.05 <= duration <= 600):
-        raise ProductionError("fps must be 1-120 and duration 0.05-600 seconds")
     media = {".mp4": "video", ".png": "image", ".jpg": "image"}.get(output.suffix.lower())
     if media is None:
         raise ProductionError("Output must end in .mp4, .png or .jpg")
-    width, height = _size(size)
     spec = {"media": media, "width": width, "height": height, "fps": fps, "duration_seconds": duration,
             "seed": seed, "params": params or {}, **({"mode": "clock"} if timing == "clock" else {}),
             **({"still_seconds": at} if at is not None else {}),

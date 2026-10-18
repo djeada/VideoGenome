@@ -30,6 +30,8 @@ jobs:
           python -m pip install /tmp/dist/*.whl
       - name: Diagnose toolchain and fonts
         run: cd /tmp && videogenome doctor
+      - name: Verify installed Studio assets and sample jobs
+        run: cd /tmp && python "$GITHUB_WORKSPACE/tools/check_install.py"
       - name: Validate all blueprints
         run: python -m tools.validate
       - name: Run unit and media integration tests
