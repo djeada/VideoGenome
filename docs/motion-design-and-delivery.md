@@ -87,6 +87,13 @@ whether FFmpeg could stay linear (`normalization_type`). A silent programme
 for social platforms, -16 for podcasts and web, -23 (EBU R128) or -24 (ATSC
 A/85) for broadcast.
 
+The adapter measures decoded AAC peaks and retries with more headroom inside
+the normalizer when encoding overshoots the ceiling, preserving the loudness
+target instead of lowering the entire mix. The receipt's `ceiling_passes` records
+each normalizer ceiling, output gain and decoded peak. At FFmpeg's -9 dBTP
+normalizer limit, any further correction uses output attenuation; the finished
+file still has to pass the template's independent loudness and peak gates.
+
 ## Executed measurements and machine-checked gates
 
 Every render measures the finished file with fixed, documented detectors:

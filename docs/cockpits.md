@@ -28,6 +28,8 @@ Genomes live in `genomes/<id>/genome.json` with `prompt.md`; see
 
 ## Studio
 
+[See the desktop and mobile interface previews](studio/README.md).
+
 ~~~bash
 videogenome studio --pipeline procedural-writer --workspace ~/vg-runs --open
 videogenome previews --pipeline procedural --workspace ~/vg-runs   # optional: library previews
@@ -44,11 +46,33 @@ videogenome previews --pipeline procedural --workspace ~/vg-runs   # optional: l
 * **Runs**: everything rendered in the workspace.
 * **Connect**: copy-paste commands for agents and the CLI.
 
+The library supports text search, category and format filters, readiness tabs,
+sorting, and saved styles. Card illustrations are labeled as illustrations;
+rendered preview posters are labeled separately. Open **View details** to see
+requirements and limits before choosing a template.
+
+The editor starts with manual copy, works without a writing model, and offers
+sample copy for a quick first render. **Start from a brief** uses the workspace's
+configured writer when one is connected. Drafts are saved in this browser,
+scoped to the workspace and template version; **Start fresh** clears the draft.
+Copy checks mark the fields to revise, and failed requests keep the copy intact.
+Render progress shows stages and elapsed time rather than invented percentages.
+
+**My renders** can search, download, review, and reopen the original template
+copy using **Edit copy**. Editing and rendering again leaves the original video
+in its existing run. In **Motion lab**, selecting a look updates the visible
+controls to that preset's values before rendering.
+
 Security: the Studio binds to 127.0.0.1, prints a URL with a per-session token
 (stored in an HttpOnly, SameSite=Strict cookie), refuses requests whose Host
 header is not localhost (DNS rebinding), serves files from the workspace only,
 and serves review pages with scripts disabled. The pipeline is fixed when
 you start it; the UI cannot change providers, commands or endpoints.
+
+Sample copy and preview jobs ship in installed wheels as well as source
+checkouts. Video downloads stream from disk and support seeking with byte
+ranges. Workspace HTML, HTM and SVG documents cannot run scripts or submit
+forms when opened through the Studio.
 
 ## MCP server for agents
 
@@ -79,6 +103,15 @@ The intended loop has the agent acting as the writer:
 
 No tool accepts a pipeline, provider, command, endpoint or a path outside the
 workspace. The receipt and review page record that the copy came from an agent.
+
+The server validates tool arguments against the schemas returned by
+`tools/list`, including unknown keys and value types. Invalid requests return
+JSON-RPC errors or tool errors while the session remains usable. Notifications
+do not start renders. Recipe previews and HTML captures accept a `seed`;
+frame rates must be integers from 1 to 120, durations from 0.05 to 600 seconds,
+and output dimensions even numbers from 16 to 4096 pixels per side. Non-finite
+numbers are rejected, including inside recipe parameters. `runs` accepts a
+limit from 1 to 1000 and counts completed, readable run summaries.
 
 ## Run your own code directly
 

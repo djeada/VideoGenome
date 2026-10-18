@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Studio experience
+- Rebuilt the Studio around a visual template library, a guided editor, a motion
+  lab and a searchable render history, with a responsive navigation drawer.
+- Search styles, filter by category/format/readiness, sort, and bookmark favorites.
+  Original style illustrations distinguish concepts from actual rendered samples.
+- Restore copy drafts by workspace and template, see live copy checks, keep edits
+  after errors, follow render stages, retry failed work, and reopen a render's
+  original copy without replacing its video.
+- Show actual recipe preset values in the controls, with keyboard focus states,
+  field labels, live status announcements and reduced-motion support.
+- Bundle Inter locally under the SIL Open Font License. Add browser user-journey
+  coverage and a separate CI job publishing desktop/mobile screenshots.
+
+### Fixed
+- MCP sessions survive malformed JSON-RPC requests and report protocol errors;
+  tool arguments now enforce the advertised schemas before dispatch.
+- Studio rejects malformed JSON, invalid body lengths, unsupported controls,
+  non-finite numbers and mistyped render settings before queuing work.
+- Video playback supports suffix and open-ended byte ranges, returns 416 for
+  unsatisfiable ranges, and streams files in bounded chunks. HEAD requests
+  return metadata without reading the video.
+- Workspace HTML, HTM and SVG responses disable scripts and forms; filenames
+  containing spaces, Unicode, `#` or `%` produce usable download URLs.
+- Installed wheels include sample jobs and brief suites, restoring Studio
+  sample copy and library previews. CI checks the installed package outside
+  the source checkout.
+- Input checks retain supplied null/empty values for type validation and
+  recognize required blueprint defaults. Numeric slots must be finite;
+  capture validates frame rate, duration, dimensions, seed and still time.
+- Run history counts readable summaries rather than incomplete run folders
+  and skips corrupt summaries and symlinks outside the workspace.
+
 ## 0.7.0 — a library of video classes, three cockpits, code that runs unmodified
 
 ### Added

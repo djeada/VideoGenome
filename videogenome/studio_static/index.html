@@ -1,153 +1,595 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VideoGenome Studio</title>
-<link rel="stylesheet" href="/static/app.css">
-</head>
-<body>
-<header class="top">
-  <div class="brand"><span class="mark" aria-hidden="true"></span>VideoGenome <span class="muted">Studio</span></div>
-  <nav class="tabs" role="tablist">
-    <button data-view="library" class="tab active">Library</button>
-    <button data-view="make" class="tab">Make a video</button>
-    <button data-view="code" class="tab">Code</button>
-    <button data-view="runs" class="tab">Runs</button>
-    <button data-view="connect" class="tab">Connect</button>
-  </nav>
-  <div class="chips" id="state"></div>
-</header>
-
-<main>
-  <!-- Library -->
-  <section id="view-library" class="view active">
-    <div class="intro">
-      <h1>What you can make</h1>
-      <p>Every class of video, by how ready it is. <b>Template</b>: give a brief, get a finished video.
-        <b>Code</b>: a ready animation you tune with parameters. <b>Prompt</b>: an authoring brief to hand
-        to your agent, which writes the code.</p>
-    </div>
-    <div class="filters" id="level-filters">
-      <button class="chip-btn active" data-level="">All</button>
-      <button class="chip-btn" data-level="template">Templates</button>
-      <button class="chip-btn" data-level="code">Code</button>
-      <button class="chip-btn" data-level="prompt">Prompts</button>
-    </div>
-    <div class="grid" id="library"></div>
-  </section>
-
-  <!-- Make -->
-  <section id="view-make" class="view">
-    <div class="split">
-      <div class="col">
-        <label class="field">
-          <span>Template</span>
-          <select id="template-select"></select>
-        </label>
-        <div id="template-info" class="card subtle"></div>
-        <div class="card">
-          <h2>Start from a brief</h2>
-          <p class="muted small">Who it is for, what to say, and the facts to use. Names, quotes and numbers are
-            copied from here exactly; nothing is invented.</p>
-          <textarea id="brief" rows="5" placeholder="Promo for Harbourline, a ferry app: buy tickets in ten seconds, see live departures, board by scanning your phone."></textarea>
-          <div class="row">
-            <button id="btn-write" class="btn">Write the copy</button>
-            <button id="btn-create" class="btn primary">Brief to video</button>
-            <span id="writer-note" class="muted small"></span>
-          </div>
-        </div>
-        <div class="card">
-          <div class="row spread"><h2>Copy</h2><button id="btn-sample" class="btn ghost small">Use the sample</button></div>
-          <form id="slots" autocomplete="off"></form>
-          <div id="check-summary" class="notice hidden"></div>
-          <div class="row">
-            <button id="btn-check" class="btn">Check</button>
-            <button id="btn-render" class="btn primary">Render</button>
-          </div>
-        </div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#14171e" />
+    <title>VideoGenome Studio</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/static/fonts/inter-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <svg
+      class="icon-defs"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <symbol id="i-grid" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14" />
+        </symbol>
+        <symbol id="i-play" viewBox="0 0 24 24">
+          <path d="m9 5 11 7-11 7Z" />
+        </symbol>
+        <symbol id="i-code" viewBox="0 0 24 24">
+          <path d="m8 5-6 7 6 7m8-14 6 7-6 7m-3-16-2 18" />
+        </symbol>
+        <symbol id="i-film" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <path d="M7 3v18M17 3v18M3 8h4m10 0h4M3 16h4m10 0h4" />
+        </symbol>
+        <symbol id="i-link" viewBox="0 0 24 24">
+          <path
+            d="m9 15 6-6m-8 8-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m4 8a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-1 1"
+            transform="translate(2 0) scale(.85)"
+          />
+        </symbol>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 5 5" />
+        </symbol>
+        <symbol id="i-bookmark" viewBox="0 0 24 24">
+          <path d="M6 4h12v17l-6-4-6 4Z" />
+        </symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M4 12h15m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24">
+          <path d="m5 12 4 4L19 6" />
+        </symbol>
+        <symbol id="i-close" viewBox="0 0 24 24">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </symbol>
+        <symbol id="i-download" viewBox="0 0 24 24">
+          <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+        </symbol>
+      </defs>
+    </svg>
+    <button
+      id="nav-backdrop"
+      class="nav-backdrop hidden"
+      aria-label="Close navigation"
+    ></button>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#library" aria-label="VideoGenome Studio home"
+        ><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span
+        ><span>VideoGenome<small>STUDIO</small></span></a
+      >
+      <button class="btn primary new-video" data-view="make">
+        <svg class="icon"><use href="#i-plus" /></svg>Create a video
+      </button>
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="tabs" aria-label="Main navigation">
+        <button data-view="library" class="tab active" aria-current="page">
+          <svg class="icon"><use href="#i-grid" /></svg>Template library<span
+            id="nav-library-count"
+            class="nav-count"
+          ></span>
+        </button>
+        <button data-view="make" class="tab">
+          <svg class="icon"><use href="#i-film" /></svg>Video editor
+        </button>
+        <button data-view="code" class="tab">
+          <svg class="icon"><use href="#i-code" /></svg>Motion lab
+        </button>
+        <button data-view="runs" class="tab">
+          <svg class="icon"><use href="#i-play" /></svg>My renders
+        </button>
+        <button data-view="connect" class="tab">
+          <svg class="icon"><use href="#i-link" /></svg>Connections
+        </button>
+      </nav>
+      <div class="sidebar-tip">
+        <span class="tiny-label">A LITTLE DIRECTION</span>
+        <p>Start with a style.<br />Make the story yours.</p>
+        <button class="text-button" id="sidebar-explore">
+          Explore templates <span aria-hidden="true">↗</span>
+        </button>
       </div>
-      <div class="col sticky">
-        <div class="card" id="make-output">
-          <h2>Result</h2>
-          <div id="make-preview" class="player empty">Your video appears here.</div>
-          <div id="make-job" class="job hidden"></div>
+      <div class="workspace-status">
+        <span class="status-dot"></span>
+        <div>
+          <b>Local workspace</b><small id="workspace-status">Connecting…</small>
         </div>
+        <span id="studio-version"></span>
       </div>
-    </div>
-  </section>
-
-  <!-- Code -->
-  <section id="view-code" class="view">
-    <div class="split">
-      <div class="col">
-        <div class="card">
-          <h2>Recipes</h2>
-          <p class="muted small">Ready code: scenes, backgrounds, music and sound. Pick one, choose a preset, tune
-            any parameter within its bounds, preview.</p>
-          <select id="recipe-select"></select>
-          <div id="recipe-info" class="small muted"></div>
-          <div class="row">
-            <label class="field inline"><span>Preset</span><select id="recipe-preset"></select></label>
-            <label class="field inline"><span>Format</span>
-              <select id="recipe-size">
-                <option value="1280x720">16:9 small</option><option value="1920x1080">16:9 1080p</option>
-                <option value="720x1280">9:16 small</option><option value="1080x1920">9:16 1080p</option>
-                <option value="1080x1080">1:1</option>
-              </select></label>
-            <label class="field inline"><span>Seconds</span><input id="recipe-duration" type="number" min="1" max="60" step="0.5" value="8"></label>
+    </aside>
+    <div class="app-shell">
+      <header class="topbar">
+        <button
+          class="icon-button mobile-menu"
+          id="nav-toggle"
+          aria-label="Open navigation"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          <svg class="icon"><use href="#i-menu" /></svg>
+        </button>
+        <div class="breadcrumb">
+          Studio <span aria-hidden="true">/</span>
+          <b id="page-title">Template library</b>
+        </div>
+        <div class="topbar-right">
+          <span class="local-badge"
+            ><span class="status-dot"></span>Made locally. Yours to keep.</span
+          ><button
+            class="avatar"
+            data-view="connect"
+            aria-label="Workspace connections"
+          >
+            VG
+          </button>
+        </div>
+      </header>
+      <main id="main" tabindex="-1">
+        <div id="app-error" class="notice bad hidden" role="alert"></div>
+        <section
+          id="view-library"
+          class="view active"
+          aria-labelledby="library-heading"
+        >
+          <div class="library-hero">
+            <div class="hero-copy">
+              <div class="eyebrow">
+                <span class="little-line"></span>BIG IDEAS. A HEAD START.
+              </div>
+              <h1 id="library-heading">
+                Your next great video&#32;<br />starts here<span class="accent"
+                  >.</span
+                >
+              </h1>
+              <p>
+                Expert-designed stories, motion, and sound.&#32;<br />Choose a
+                style. Add your words. Make it yours.
+              </p>
+              <div class="hero-actions">
+                <button class="btn dark" id="hero-start">
+                  Make your first video
+                  <svg class="icon"><use href="#i-arrow" /></svg></button
+                ><span id="library-stats" class="small muted"
+                  >Loading the library…</span
+                >
+              </div>
+            </div>
+            <button
+              class="featured-art"
+              id="hero-featured"
+              aria-label="Explore kinetic typography"
+            >
+              <span class="art-grid"></span
+              ><span class="featured-kicker">WORDS IN MOTION / 001</span
+              ><span class="featured-title"
+                >Make<br />some&#32;<br /><em>motion.</em></span
+              ><span class="art-orbit"></span
+              ><span class="featured-footer"
+                ><span><span class="play-disc">▶</span> Kinetic typography</span
+                ><span class="featured-arrow">↗</span></span
+              >
+            </button>
           </div>
-          <form id="recipe-params"></form>
-          <div class="row"><button id="btn-preview" class="btn primary">Preview</button></div>
-        </div>
-        <div class="card">
-          <h2>Run your own code</h2>
-          <p class="muted small">Paste or open a self-contained HTML animation (requestAnimationFrame, CSS,
-            timers, GSAP-style code, Three.js from <code>/_lib/three/</code>). It runs unmodified on a virtual
-            clock, so every frame is exact, and its Web Audio is recorded in sync. Network is blocked.</p>
-          <textarea id="html" rows="10" spellcheck="false" placeholder="&lt;!doctype html&gt; ..."></textarea>
-          <div class="row">
-            <input id="html-file" type="file" accept=".html,.htm">
-            <label class="field inline"><span>Format</span>
-              <select id="html-size">
-                <option value="1920x1080">16:9</option><option value="1080x1920">9:16</option>
-                <option value="1080x1080">1:1</option><option value="1280x720">16:9 small</option>
-              </select></label>
-            <label class="field inline"><span>Seconds</span><input id="html-duration" type="number" min="1" max="120" step="0.5" value="8"></label>
-            <label class="check"><input id="html-click" type="checkbox"> Click to start</label>
-            <label class="check"><input id="html-audio" type="checkbox" checked> Record audio</label>
+          <div class="section-heading">
+            <div>
+              <h2>Find your starting point</h2>
+              <p class="muted small">
+                A creative toolkit, ready for your story.
+              </p>
+            </div>
+            <div class="select-compact">
+              <label for="library-sort" class="sr-only">Sort styles</label
+              ><select id="library-sort">
+                <option value="recommended">Recommended</option>
+                <option value="name">Name: A–Z</option>
+              </select>
+            </div>
           </div>
-          <div class="row"><button id="btn-capture" class="btn primary">Render my code</button></div>
-        </div>
-      </div>
-      <div class="col sticky">
-        <div class="card">
-          <h2>Preview</h2>
-          <div id="code-preview" class="player empty">Previews appear here.</div>
-          <div id="code-job" class="job hidden"></div>
-        </div>
-      </div>
+          <div class="library-toolbar">
+            <label class="search-field"
+              ><svg class="icon"><use href="#i-search" /></svg
+              ><input
+                id="library-search"
+                type="search"
+                autocomplete="off"
+                placeholder="Search styles, subjects, or techniques…"
+                aria-label="Search the library"
+              /><kbd>/</kbd></label
+            ><label class="format-select"
+              ><span class="sr-only">Filter by format</span
+              ><select id="library-format">
+                <option value="">All formats</option>
+                <option value="16:9">Landscape · 16:9</option>
+                <option value="9:16">Portrait · 9:16</option>
+                <option value="1:1">Square · 1:1</option>
+              </select></label
+            >
+          </div>
+          <div class="library-controls">
+            <div
+              class="filters"
+              id="level-filters"
+              aria-label="Style readiness"
+            >
+              <button class="chip-btn active" data-level="" aria-pressed="true">
+                All styles <span data-count="all"></span></button
+              ><button
+                class="chip-btn"
+                data-level="template"
+                aria-pressed="false"
+              >
+                Templates <span data-count="template"></span></button
+              ><button class="chip-btn" data-level="code" aria-pressed="false">
+                Recipes <span data-count="code"></span></button
+              ><button
+                class="chip-btn"
+                data-level="prompt"
+                aria-pressed="false"
+              >
+                Concepts <span data-count="prompt"></span></button
+              ><button
+                class="chip-btn saved-filter"
+                data-level="saved"
+                aria-pressed="false"
+              >
+                <svg class="icon"><use href="#i-bookmark" /></svg>Saved
+                <span data-count="saved"></span>
+              </button>
+            </div>
+            <span id="results-count" class="small muted" role="status"></span>
+          </div>
+          <div
+            id="family-filters"
+            class="family-filters"
+            aria-label="Style categories"
+          ></div>
+          <div
+            class="grid library-grid"
+            id="library"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div class="loading-card">Loading your creative toolkit…</div>
+          </div>
+          <div class="library-footer">
+            <span
+              ><b>Templates</b> are ready to customize. <b>Recipes</b> have
+              adjustable code. <b>Concepts</b> help you build a new style.</span
+            ><span
+              >Built for ideas worth sharing <span class="accent">↗</span></span
+            >
+          </div>
+        </section>
+        <section id="view-make" class="view" aria-labelledby="make-heading">
+          <div class="editor-heading">
+            <div>
+              <button class="back-link" id="editor-back">
+                ← Back to library
+              </button>
+              <h1 id="make-heading">
+                Make it yours<span class="accent">.</span>
+              </h1>
+              <p class="muted">A little direction. Your own story.</p>
+            </div>
+            <span class="draft-status" id="draft-status" role="status"></span>
+          </div>
+          <ol class="workflow" aria-label="Creation steps">
+            <li class="done"><span>01</span>Choose a style</li>
+            <li class="active" id="step-customize">
+              <span>02</span>Make it yours
+            </li>
+            <li id="step-render"><span>03</span>Render & review</li>
+          </ol>
+          <div class="split editor-split">
+            <div class="col">
+              <label class="field template-picker"
+                ><span>Your template</span
+                ><select id="template-select"></select
+              ></label>
+              <div id="template-info" class="card template-summary"></div>
+              <div class="mode-tabs" aria-label="Writing mode">
+                <button id="mode-manual" class="active" aria-pressed="true">
+                  Write the copy</button
+                ><button id="mode-brief" aria-pressed="false">
+                  Start from a brief <span>AI</span>
+                </button>
+              </div>
+              <div id="brief-panel" class="card hidden">
+                <div class="card-heading">
+                  <span class="step-number">01</span>
+                  <div>
+                    <h2>Tell your story</h2>
+                    <p class="muted small">
+                      Include your audience, key points, and the facts to use.
+                    </p>
+                  </div>
+                </div>
+                <label for="brief" class="sr-only">Your video brief</label
+                ><textarea
+                  id="brief"
+                  rows="6"
+                  placeholder="A short promo for a ferry app. Buy tickets in ten seconds, see live departures, and board by scanning your phone."
+                ></textarea>
+                <div class="row">
+                  <button id="btn-write" class="btn dark">Draft my copy</button
+                  ><button id="btn-create" class="btn primary">
+                    Create from brief
+                    <svg class="icon"><use href="#i-arrow" /></svg>
+                  </button>
+                </div>
+                <p id="writer-note" class="hint writer-note"></p>
+              </div>
+              <div class="card copy-card">
+                <div class="card-heading spread">
+                  <div>
+                    <h2>Your words, with direction</h2>
+                    <p class="small muted">
+                      The style and timing are set. You bring the story.
+                    </p>
+                  </div>
+                  <button id="btn-sample" class="btn ghost small">
+                    Try sample copy
+                  </button>
+                </div>
+                <div id="draft-restored" class="notice hidden">
+                  <span>Your saved draft is restored.</span
+                  ><button class="text-button" id="clear-draft">
+                    Start fresh
+                  </button>
+                </div>
+                <form id="slots" autocomplete="off"></form>
+                <div
+                  id="check-summary"
+                  class="notice hidden"
+                  role="status"
+                  aria-live="polite"
+                ></div>
+                <div class="editor-actions">
+                  <button id="btn-check" class="btn">Check my copy</button
+                  ><button id="btn-render" class="btn primary">
+                    Render video <svg class="icon"><use href="#i-arrow" /></svg>
+                  </button>
+                </div>
+                <p id="render-note" class="hint">
+                  Your original copy stays editable after rendering.
+                </p>
+              </div>
+            </div>
+            <div class="col sticky">
+              <div class="card output-card mobile-collapsed" id="make-output">
+                <div class="card-heading spread">
+                  <div>
+                    <span class="eyebrow">THE BIG PICTURE</span>
+                    <h2 id="preview-title">Your video</h2>
+                  </div>
+                  <span class="preview-format" id="preview-format"></span>
+                  <button
+                    class="text-button mobile-preview-toggle"
+                    id="preview-toggle"
+                    aria-controls="make-preview"
+                    aria-expanded="false"
+                  >
+                    Show preview
+                  </button>
+                </div>
+                <div id="make-preview" class="player empty"></div>
+                <div id="make-job" class="job hidden" aria-live="polite"></div>
+                <div id="make-deliverables" class="deliverables"></div>
+                <div class="preview-tip" id="preview-tip">
+                  <span class="tip-icon">✦</span>
+                  <p>
+                    Good videos start with a clear idea.<br /><b
+                      >Keep each line focused on one thing.</b
+                    >
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="view-code" class="view" aria-labelledby="code-heading">
+          <div class="page-heading">
+            <div class="eyebrow">A LITTLE MORE HANDS-ON</div>
+            <h1 id="code-heading">Motion lab<span class="accent">.</span></h1>
+            <p class="muted">
+              Dial in a look, build a scene, or bring your own animation.
+            </p>
+          </div>
+          <div class="split">
+            <div class="col">
+              <div class="card">
+                <div class="card-heading">
+                  <span class="step-number">↗</span>
+                  <div>
+                    <h2>Play with a recipe</h2>
+                    <p class="muted small">
+                      Adjust the parameters. Keep the creative head start.
+                    </p>
+                  </div>
+                </div>
+                <label class="field"
+                  ><span>Recipe</span
+                  ><select id="recipe-select"></select
+                ></label>
+                <div id="recipe-info" class="small muted"></div>
+                <div class="settings-row">
+                  <label class="field"
+                    ><span>Look</span
+                    ><select id="recipe-preset"></select></label
+                  ><label class="field"
+                    ><span>Format</span
+                    ><select id="recipe-size">
+                      <option value="1280x720">Landscape · 720p</option>
+                      <option value="1920x1080">Landscape · 1080p</option>
+                      <option value="720x1280">Portrait · 720p</option>
+                      <option value="1080x1920">Portrait · 1080p</option>
+                      <option value="1080x1080">Square</option>
+                    </select></label
+                  ><label class="field"
+                    ><span>Seconds</span
+                    ><input
+                      id="recipe-duration"
+                      type="number"
+                      min="0.05"
+                      max="600"
+                      step="0.5"
+                      value="8"
+                  /></label>
+                </div>
+                <form id="recipe-params"></form>
+                <button id="btn-preview" class="btn primary">
+                  Render preview <svg class="icon"><use href="#i-play" /></svg>
+                </button>
+              </div>
+              <details class="card own-code">
+                <summary>Bring your own HTML animation <span>↗</span></summary>
+                <p class="muted small">
+                  A self-contained page runs frame by frame, with its Web Audio
+                  recorded. Shared three.js and scene libraries are available at
+                  <code>/_lib/</code>. External network requests are blocked.
+                </p>
+                <label for="html" class="sr-only">HTML animation source</label
+                ><textarea
+                  id="html"
+                  rows="10"
+                  spellcheck="false"
+                  placeholder="&lt;!doctype html&gt; …"
+                ></textarea
+                ><label class="field"
+                  ><span>Or choose an HTML file</span
+                  ><input id="html-file" type="file" accept=".html,.htm"
+                /></label>
+                <div class="settings-row">
+                  <label class="field"
+                    ><span>Format</span
+                    ><select id="html-size">
+                      <option value="1920x1080">Landscape</option>
+                      <option value="1080x1920">Portrait</option>
+                      <option value="1080x1080">Square</option>
+                      <option value="1280x720">Landscape · 720p</option>
+                    </select></label
+                  ><label class="field"
+                    ><span>Seconds</span
+                    ><input
+                      id="html-duration"
+                      type="number"
+                      min="0.05"
+                      max="600"
+                      step="0.5"
+                      value="8"
+                  /></label>
+                </div>
+                <div class="row">
+                  <label class="check"
+                    ><input id="html-click" type="checkbox" />Click to
+                    start</label
+                  ><label class="check"
+                    ><input id="html-audio" type="checkbox" checked />Record
+                    audio</label
+                  >
+                </div>
+                <button id="btn-capture" class="btn dark">
+                  Render my animation
+                  <svg class="icon"><use href="#i-arrow" /></svg>
+                </button>
+              </details>
+            </div>
+            <div class="col sticky">
+              <div class="card output-card">
+                <div class="card-heading"><h2>Your preview</h2></div>
+                <div id="code-preview" class="player empty"></div>
+                <div id="code-job" class="job hidden" aria-live="polite"></div>
+                <div id="code-deliverables" class="deliverables"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="view-runs" class="view" aria-labelledby="runs-heading">
+          <div class="section-heading page-heading">
+            <div>
+              <div class="eyebrow">THE THINGS YOU’VE MADE</div>
+              <h1 id="runs-heading">My renders<span class="accent">.</span></h1>
+              <p class="muted">
+                Your work, ready to revisit, review, and share.
+              </p>
+            </div>
+            <button id="refresh-runs" class="btn">Refresh</button>
+          </div>
+          <div class="library-toolbar">
+            <label class="search-field"
+              ><svg class="icon"><use href="#i-search" /></svg
+              ><input
+                id="runs-search"
+                type="search"
+                placeholder="Find a render…"
+                aria-label="Search renders"
+            /></label>
+          </div>
+          <div class="grid" id="runs" aria-live="polite"></div>
+        </section>
+        <section
+          id="view-connect"
+          class="view"
+          aria-labelledby="connect-heading"
+        >
+          <div class="page-heading">
+            <div class="eyebrow">YOUR WORKFLOW, CONNECTED</div>
+            <h1 id="connect-heading">
+              Make it part of your toolkit<span class="accent">.</span>
+            </h1>
+            <p class="muted">
+              Connect an agent, work from the command line, or render your own
+              code.
+            </p>
+          </div>
+          <div class="connection-state" id="state"></div>
+          <div class="grid three" id="connect"></div>
+        </section>
+      </main>
+      <footer class="app-footer">
+        <span>VideoGenome Studio</span
+        ><span>Creative direction, built in.</span>
+      </footer>
     </div>
-  </section>
-
-  <!-- Runs -->
-  <section id="view-runs" class="view">
-    <div class="intro"><h1>Runs</h1><p>Everything rendered in this workspace, newest first.</p></div>
-    <div class="grid" id="runs"></div>
-  </section>
-
-  <!-- Connect -->
-  <section id="view-connect" class="view">
-    <div class="intro"><h1>Connect</h1><p>Three ways in, one engine underneath.</p></div>
-    <div class="grid three" id="connect"></div>
-  </section>
-</main>
-
-<dialog id="genome-dialog">
-  <div class="dialog-head"><h2 id="genome-title"></h2><button class="btn ghost small" id="genome-close">Close</button></div>
-  <div id="genome-body"></div>
-</dialog>
-
-<script src="/static/app.js"></script>
-</body>
+    <dialog id="genome-dialog" aria-labelledby="genome-title">
+      <div class="dialog-head">
+        <span class="eyebrow" id="genome-level"></span
+        ><button
+          class="icon-button"
+          id="genome-close"
+          aria-label="Close style details"
+        >
+          <svg class="icon"><use href="#i-close" /></svg>
+        </button>
+      </div>
+      <div id="genome-body"></div>
+      <h2 id="genome-title" class="sr-only">Style details</h2>
+    </dialog>
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+    <script src="/static/app.js"></script>
+  </body>
 </html>

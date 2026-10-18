@@ -47,6 +47,7 @@ packages = ["videogenome"]
 "pipelines" = "videogenome/_data/pipelines"
 "recipes" = "videogenome/_data/recipes"
 "genomes" = "videogenome/_data/genomes"
+"examples" = "videogenome/_data/examples"
 
 [tool.hatch.build.targets.sdist]
 include = ["videogenome", "schemas", "templates", "pipelines", "recipes", "genomes", "examples", "tools", "tests", "docs",
