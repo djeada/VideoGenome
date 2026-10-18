@@ -28,6 +28,8 @@ Genomes live in `genomes/<id>/genome.json` with `prompt.md`; see
 
 ## Studio
 
+[See the desktop and mobile interface previews](studio/README.md).
+
 ~~~bash
 videogenome studio --pipeline procedural-writer --workspace ~/vg-runs --open
 videogenome previews --pipeline procedural --workspace ~/vg-runs   # optional: library previews
