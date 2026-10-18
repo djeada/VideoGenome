@@ -531,8 +531,8 @@ async function openGenome(id) {
       h(
         "div",
         { class: "template-facts" },
-        g.formats.join(" / "),
-        g.duration_seconds ? `${g.duration_seconds.join("–")} seconds` : "",
+        h("span", {}, g.formats.join(" / ")),
+        g.duration_seconds ? h("span", {}, `${g.duration_seconds.join("–")} seconds`) : null,
       ),
     );
     const actions = h("div", { class: "dialog-actions" });
@@ -638,6 +638,7 @@ function saveDraft() {
     : "Draft could not be saved";
 }
 function changed() {
+  state.checkSeq++;
   $("#draft-status").textContent = "Saving draft…";
   clearTimeout(draftTimer);
   draftTimer = setTimeout(saveDraft, 350);
@@ -737,9 +738,9 @@ async function loadTemplate(id) {
       h(
         "div",
         { class: "template-facts" },
-        `${d.output.aspect_ratio} format`,
-        `${d.duration_seconds}s runtime`,
-        `${d.output.width} × ${d.output.height}`,
+        h("span", {}, `${d.output.aspect_ratio} format`),
+        h("span", {}, `${d.duration_seconds}s runtime`),
+        h("span", {}, `${d.output.width} × ${d.output.height}`),
       ),
     );
     if (!t.renders_from_text_alone)

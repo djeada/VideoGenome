@@ -119,11 +119,12 @@ class StudioBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.locator("#library .tile").count(), total)
 
     def test_sample_draft_reload_and_error_recovery(self) -> None:
+        from playwright.sync_api import expect
         self.page.get_by_role("button", name="Make your first video", exact=True).click()
         self.page.get_by_role("button", name="Try sample copy", exact=True).click()
         field = self.page.locator("#slot-headline")
         field.fill("A story worth telling")
-        self.page.wait_for_function("document.querySelector('#draft-status').textContent.includes('saved')")
+        expect(self.page.locator("#draft-status")).to_contain_text("saved")
         self.page.reload()
         self.page.locator("#slot-headline").wait_for()
         self.assertEqual(self.page.locator("#slot-headline").input_value(), "A story worth telling")
@@ -134,6 +135,7 @@ class StudioBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.locator("#slot-headline").input_value(), "A story worth telling")
 
     def test_real_render_download_and_reopen_copy(self) -> None:
+        from playwright.sync_api import expect
         self.page.get_by_role("button", name="Make your first video", exact=True).click()
         self.page.get_by_role("button", name="Try sample copy", exact=True).click()
         original = self.page.locator("#slot-headline").input_value()
@@ -143,7 +145,7 @@ class StudioBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.locator("#btn-render").is_disabled())
         self.page.locator('.tab[data-view="runs"]').click()
         self.page.get_by_role("button", name="Edit copy", exact=True).first.click()
-        self.page.wait_for_function("document.querySelector('#view-make').classList.contains('active')")
+        expect(self.page.locator("#view-make")).to_be_visible()
         self.assertEqual(self.page.locator("#slot-headline").input_value(), original)
 
     def test_preset_picker_updates_visible_controls(self) -> None:
@@ -160,6 +162,7 @@ class StudioBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.evaluate("document.documentElement.scrollWidth > innerWidth"))
         self.page.get_by_role("button", name="Make your first video", exact=True).click()
         self.page.get_by_role("button", name="Try sample copy", exact=True).click()
+        self.page.get_by_text("Sample copy added. Make it your own.", exact=True).wait_for(state="detached")
         self.page.screenshot(path=str(destination / "studio-editor-desktop.png"))
         self.page.locator('.tab[data-view="library"]').click()
         self.page.set_viewport_size({"width": 390, "height": 844})

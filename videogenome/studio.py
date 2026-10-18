@@ -235,7 +235,10 @@ class Studio:
             def _send(self, status: int, body: bytes, content_type: str, extra: dict | None = None) -> None:
                 self._headers(status, len(body), content_type, extra)
                 if self.command != "HEAD":
-                    self.wfile.write(body)
+                    try:
+                        self.wfile.write(body)
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass  # A navigation can cancel an in-flight API response.
 
             def _json(self, status: int, data: object) -> None:
                 self._send(status, json.dumps(data, ensure_ascii=True, default=str).encode(), "application/json")
