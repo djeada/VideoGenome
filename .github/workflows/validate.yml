@@ -152,6 +152,13 @@ jobs:
   scenes:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    env:
+      SCENE_SHARD: ${{ matrix.shard }}
+      SCENE_SHARDS: ${{ strategy.job-total }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -166,10 +173,14 @@ jobs:
           python -m pip install .
       - name: Render every code-animated sample job
         run: |
+          index=0
           for job in examples/*/job.json; do
             template=$(python -c "import json,sys; print(json.load(open(sys.argv[1]))['template'])" "$job")
             recipe=$(python -c "import json,sys; from videogenome.compiler import find_template, read_json; b=read_json(find_template(sys.argv[1])); print(next((s['produce']['request'].get('recipe','') for s in b['inputs'].values() if s.get('produce',{}).get('request',{}).get('recipe','').startswith('scene.')), ''))" "$template")
             [ -n "$recipe" ] || continue
+            shard=$((index % SCENE_SHARDS))
+            index=$((index + 1))
+            [ "$shard" -eq "$SCENE_SHARD" ] || continue
             name=$(basename "$(dirname "$job")")
             mkdir -p "/tmp/vg-scene-$name" && cp "$job" "/tmp/vg-scene-$name/"
             echo "::group::$name ($recipe)"
@@ -181,7 +192,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: videogenome-scenes
+          name: videogenome-scenes-${{ matrix.shard }}
           path: |
             /tmp/vg-scene-*/scene.*
             /tmp/vg-scene-*/receipt.json

@@ -148,7 +148,10 @@ const labelSize = Math.round(unit * 0.03);
 const counterW = portrait ? (W - 2 * m) / Math.max(1, counters.length) : (panelW - 1.6 * m) / Math.max(1, counters.length);
 counters.forEach((c) => {
   vg.font(ctx, valueSize, 800);
-  const widest = ctx.measureText(vg.formatNumber(c.total, c.dec) + " " + c.unit).width;
+  const numberWidth = ctx.measureText(vg.formatNumber(c.total, c.dec)).width;
+  // Match drawCounters: units use half-size type and a fixed gap, not the number's font.
+  vg.font(ctx, valueSize * 0.5, 700);
+  const widest = numberWidth + valueSize * 0.18 + ctx.measureText(c.unit).width;
   if (widest > counterW * 0.95) throw new Error(`route-map: counter "${c.total} ${c.unit}" does not fit`);
   vg.font(ctx, labelSize, 700);
   if (ctx.measureText(c.label.toUpperCase()).width * 1.1 > counterW * 0.95) throw new Error(`route-map: label "${c.label}" does not fit`);

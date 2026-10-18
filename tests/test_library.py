@@ -88,6 +88,19 @@ class LibraryTests(unittest.TestCase):
 
 @unittest.skipUnless(HAS_FFMPEG and HAS_BROWSER, "FFmpeg and playwright required")
 class SceneSmokeTests(unittest.TestCase):
+    def test_route_map_counter_fits_small_previews_and_still_rejects_overflow(self) -> None:
+        from videogenome.plugins import PluginError
+        from videogenome.providers.procedural import ProceduralProvider
+        provider = ProceduralProvider("procedural", {})
+        request = {"recipe": "scene.route-map", "media": "image", "width": 640, "height": 360,
+                   "fps": 24, "duration_seconds": 12.0, "seed": 2}
+        with tempfile.TemporaryDirectory() as directory:
+            result = provider.generate("procedural", request, Path(directory))
+            self.assertGreater(result.path.stat().st_size, 2000)
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(PluginError, r'counter "100000 km" does not fit'):
+                provider.generate("procedural", {**request, "params": {"distance": 100000}}, Path(directory))
+
     def test_every_scene_recipe_renders_a_still_in_two_formats(self) -> None:
         from videogenome.providers.procedural import ProceduralProvider
         provider = ProceduralProvider("procedural", {})
