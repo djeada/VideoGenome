@@ -95,7 +95,8 @@ class ProceduralProvider(Provider):
         spec = {"recipe": recipe_id, "params": resolved, "media": media,
                 "width": request.get("width", 1280), "height": request.get("height", 720),
                 "fps": request.get("fps", 24), "duration_seconds": request.get("duration_seconds", 4.0),
-                "seed": request.get("seed", 0), "sample_rate": 48000}
+                "seed": request.get("seed", 0), "sample_rate": 48000,
+                **({"mode": "clock"} if recipe.data.get("timing") == "clock" else {})}
         spec_path = workdir / "spec.json"
         spec_path.write_text(json.dumps(spec, indent=2), encoding="utf-8")
         output = workdir / f"procedural{EXTENSIONS[media]}"
@@ -104,7 +105,10 @@ class ProceduralProvider(Provider):
             argv = [self._interpreter("python"), str(recipe.entry), "--spec", str(spec_path), "--out", str(output)]
         else:
             argv = [self._interpreter("browser"), "-m", "videogenome.procedural.browser",
-                    "--entry", str(recipe.entry), "--spec", str(spec_path), "--out", str(output)]
+                    "--entry", str(recipe.entry), "--spec", str(spec_path), "--out", str(output),
+                    "--root", str(recipe.root), "--allow", str(recipe.directory)]
+            for name, library in zip(recipe.data.get("libraries", []), recipe.libraries()):
+                argv += ["--lib", f"{name}={library}"]
         run_process(argv, stdin=None, cwd=workdir, env=self._env(),
                     timeout=self.config.get("timeout_seconds", 3600), label=f"recipe {recipe_id}")
         if not output.is_file() or output.stat().st_size == 0:

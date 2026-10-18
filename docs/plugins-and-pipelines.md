@@ -135,7 +135,7 @@ search directories with `--pipelines DIR` / `VIDEOGENOME_PIPELINE_PATH`.
 | `comfyui` | Any exported ComfyUI **API** workflow: FLUX, SDXL, Wan, LTX-Video, Stable Audio… | `workflows.<capability>.file`, `bindings` (`node`, `input`, optional frame transform), `output_node` |
 | `mcp` | Tools of any stdio MCP server, e.g. a Blender or ParaView MCP server | `server.argv`, `steps[].tool`, `steps[].arguments` |
 | `placeholder` | Labelled slates and silence of the right length (timing previews only) | none |
-| `procedural` | Recipes from the catalog (Python/numpy, WebGL/Canvas); also serves `music`/`video`/`image` via `defaults` | `runtimes`, `recipe_dirs`, `defaults.<capability>` |
+| `procedural` | Recipes from the catalog (Python/numpy, WebGL/Canvas, clock-timed scene animations); also serves `music`/`video`/`image` via `defaults` | `runtimes`, `recipe_dirs`, `defaults.<capability>` |
 | `openverse` | CC0 / public-domain images, sounds and music via Openverse | `licenses`, `candidates`, `exclude_terms`, `sources` |
 | `wikimedia-commons` | CC0 / public-domain footage, images and audio via Commons (web transcodes) | `allow_licenses`, `skip_restricted`, `max_bytes` |
 
@@ -184,7 +184,12 @@ The other extension points work the same way:
 | `videogenome.providers` | `Provider` | `generate(capability, request, workdir) -> Generated` |
 | `videogenome.renderers` | `Renderer` | `unsupported(plan) -> [features]` (refuse, never fake), `render(plan, job_dir, output) -> report` |
 | `videogenome.analyzers` | `Analyzer` | `measure(output, plan) -> {"metrics", "not_applicable", "details"}`; any metric can back a gate `check` |
-| `videogenome.exporters` | `Exporter` | `export(plan, output, protected) -> {kind: path}` |
+| `videogenome.exporters` | `Exporter` | `export(plan, output, protected) -> {kind: path}`; optional `finalize(receipt, output, protected)` once gates and measurements exist (the built-in `review` page uses it) |
+| `videogenome.writers` | `Writer` | `write(system, messages, schema) -> Written`: proposes slot copy for `fill`/`create`; never used at render time ([briefs and writers](briefs-and-writers.md)) |
+
+Renderers may also implement `check_copy(card, output, cards)` to report title
+copy they could not set; `fill` calls it so a writer learns about overflow
+before any media is made (the FFmpeg renderer measures glyphs with the pinned font).
 
 For tests, notebooks and embedding, `videogenome.plugins.register(kind, name, cls)` registers a type in-process.
 
@@ -207,11 +212,22 @@ For tests, notebooks and embedding, `videogenome.plugins.register(kind, name, cl
   and the operator's rights attestation. Placeholder media is flagged in the
   receipt and the CLI.
 
+## Writers
+
+A profile may add a `writer` (`openai-chat` or `command`, or an entry-point
+type) that `videogenome fill`, `create` and `bench` use to turn a brief into
+slot copy. It is resolved relative to the profile that declares it and is
+inherited through `extends`. `procedural-writer` adds a local Ollama model to
+the `procedural` profile; point `base_url`/`model_id` at any OpenAI-compatible
+server instead.
+
 ## Verified compositions
 
 | Composition | Profile | Evidence |
 |---|---|---|
 | Placeholders for every capability | `animatic` | CI renders the narrated, typing and turntable examples |
+| Procedural scenes, music and SFX | `procedural` | CI renders the kinetic-promo, steps-explainer and title-sting examples |
+| Local writer + procedural media | `procedural-writer` | Manual 2026-10-18: Qwen2.5-3B on Ollama 0.30.8; `bench examples/briefs/smoke.json` met 12/12 expectations twice; `create` rendered vertical-tips and kinetic-promo from briefs with all automated gates passing |
 | Piper narration + placeholder pictures | `open-source-local` | Manual run 2026-10-11: 3 lines, 4.0–4.25 s each, conformed to 5.5 s slots, −16 LUFS master |
 | Type-Simulator typing reel | `open-source-local` | Manual run 2026-10-11: 9-line Python snippet, highlighted, `--no-run` |
 | Blender turntable from a `.glb` | `open-source-local` | Manual run 2026-10-11: Blender 5.1.1 EEVEE, 120 frames at 1080² |

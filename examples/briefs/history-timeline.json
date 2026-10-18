@@ -1,0 +1,15 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Briefs for educational.history-timeline: five dated events each, plus one with a date missing.",
+  "briefs": [
+    {"id": "flight", "template": "educational.history-timeline",
+     "brief": "History of powered flight for a vertical short: in 1903 the Wright brothers flew 12 seconds at Kitty Hawk; in 1927 Charles Lindbergh flew solo across the Atlantic; in 1947 Chuck Yeager broke the sound barrier; in 1969 Concorde made its first flight; in 1970 the Boeing 747 entered service and made flying affordable. Summary: in under seventy years, from 12 seconds to jumbo jets."},
+    {"id": "vaccines", "template": "educational.history-timeline",
+     "brief": "A short history of vaccines: 1796, Edward Jenner tests the first smallpox vaccine; 1885, Louis Pasteur's rabies vaccine saves a boy; 1955, Jonas Salk's polio vaccine is declared safe; 1980, the WHO declares smallpox eradicated; 2020, the first mRNA vaccines are authorised. Museum look."},
+    {"id": "printing", "template": "educational.history-timeline",
+     "brief": "Timeline of printing: around 1040 Bi Sheng invents movable type in China; in 1440 Johannes Gutenberg builds his printing press; in 1814 The Times prints on a steam-powered press; in 1984 the Apple Macintosh starts desktop publishing; in 2007 the Kindle puts books on screens. Archive look."},
+    {"id": "missing-date", "template": "educational.history-timeline", "expect": "incomplete",
+     "brief": "History of our city's tram network: the first horse-drawn trams ran in 1871; electric trams replaced them in 1901; the network was closed during the war; buses replaced most lines in 1962; the new light-rail line opened in 2019.",
+     "note": "The closure 'during the war' has no date; year_3 is a verbatim number, so it must be reported missing rather than invented (for example as 1940)."}
+  ]
+}

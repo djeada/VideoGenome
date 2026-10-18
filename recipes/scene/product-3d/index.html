@@ -1,0 +1,598 @@
+<!doctype html>
+<!--
+  Product hero 3D: a stylised, code-built stand-in for a product (bottle, can,
+  jar, box or phone-like slab) in a studio. It is NOT a model of any real
+  product: shapes are generic lathe/extrude primitives and the only branding is
+  the name param printed on the label.
+
+  Beats (D = spec.duration_seconds):
+    0          rim lights only: the product reads as a silhouette on the ground
+    0.06D-0.32D  the key light sweeps on from behind-left (a glint travels across)
+    0-0.55D    the camera move (orbit, push-in, or macro-to-wide reveal), then a slow drift
+    0.42D      the name rises word by word through a line mask  (cue: impact/hit)
+    0.50D      the tagline rises
+    0.62D      the call-to-action pill pops in                    (cue: soft click)
+    0.5D+0.2s  the footnote ("Illustrative 3D render") fades in with the tagline
+  Everything holds until the end so each line is on screen for >= 1.5 s at D >= 6.
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Copy is drawn with fillText on a 2D overlay and fitted with vg.fit (throws
+  when it cannot fit). Randomness: none beyond the seeded grain tile.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<script type="importmap">
+{"imports": {"three": "../../_lib/three/three.module.min.js", "three/addons/": "../../_lib/three/addons/"}}
+</script>
+<style>
+  html, body { margin: 0; overflow: hidden; background: #000; }
+  canvas { position: absolute; left: 0; top: 0; display: block; }
+</style>
+</head>
+<body>
+<canvas id="backdrop"></canvas>
+<canvas id="overlay"></canvas>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { spec, P, W, H, D, unit } = vg.setup({
+  form: "bottle", name: "Aurelia", tagline: "Cold-pressed citrus, bottled at dawn", cta: "Shop now",
+  footnote: "Illustrative 3D render", palette: ["#14110F", "#F6EFE6", "#E8A13A"], body_color: "#C9762B",
+  colorway: "preset", finish: "glass", label: true, move: "orbit", lighting: "studio", spin: 0.12,
+  reflection: 0.22, glow: 0, grain: 0.035, msaa: true,
+});
+const [BG, INK_IN, ACCENT] = P.palette;
+const COLORWAYS = { amber: "#C9762B", forest: "#2F5D46", coral: "#E8664F", cobalt: "#2F55C8", ink: "#1C1F26",
+                    pearl: "#ECE7DF", sand: "#D8C2A0", crimson: "#A3242F", sage: "#9DB59A", graphite: "#4A4E57" };
+const BODY = P.colorway !== "preset" && COLORWAYS[P.colorway] ? COLORWAYS[P.colorway] : P.body_color;
+const darkGround = vg.luminance(BG) < 0.2;
+const INK = vg.readable(BG, [INK_IN, darkGround ? "#FFFFFF" : "#111111", darkGround ? "#F2F2F2" : "#000000"]);
+const ON_ACCENT = vg.readable(ACCENT, ["#FFFFFF", "#111111", INK, BG]);
+const muted = vg.mix(INK, BG, 0.28);
+const SOFT_INK = vg.contrast(muted, BG) >= 4.5 ? muted : INK;
+
+// ---- layout: where the product sits and where copy goes (fractions of W, H) ----
+const aspect = W / H, land = aspect > 1.2, square = !land && aspect >= 0.8;
+const region = land ? { cx: 0.68, cy: 0.5, fw: 0.42, fh: 0.76 }
+  : square ? { cx: 0.5, cy: 0.33, fw: 0.56, fh: 0.5 } : { cx: 0.5, cy: 0.36, fw: 0.76, fh: 0.42 };
+
+// ---- 2D copy overlay -------------------------------------------------------------
+const ctx = vg.canvas2d("overlay");
+const name = String(P.name).trim(), tagline = String(P.tagline || "").trim(), cta = String(P.cta || "").trim();
+const footnote = String(P.footnote || "").trim();
+if (!name) throw new Error("product-3d: name is empty");
+const col = land ? { x: W * 0.075, w: W * 0.38, top: H * 0.2, bottom: H * 0.8, align: "left" }
+  : square ? { x: W * 0.08, w: W * 0.84, top: H * 0.56, bottom: H * 0.95, align: "center" }
+  : { x: W * 0.08, w: W * 0.84, top: H * 0.5, bottom: H * 0.78, align: "center" };
+const avail = col.bottom - col.top;
+let nameB, tagB, ctaSize, footSize, gaps, total;
+for (let scale = 1; ; scale -= 0.06) {
+  if (scale < 0.5) throw new Error("product-3d: copy does not fit the layout; shorten the name or tagline");
+  nameB = vg.fit(ctx, name, { maxSize: unit * (land ? 0.12 : square ? 0.11 : 0.13) * scale, minSize: unit * 0.045, weight: 800,
+                              maxWidth: col.w, maxLines: 2, leading: 1.02, label: "name" });
+  tagB = tagline ? vg.fit(ctx, tagline, { maxSize: unit * 0.042 * Math.max(scale, 0.8), minSize: unit * 0.03, weight: 500,
+                                          maxWidth: col.w * 0.94, maxLines: 2, leading: 1.25, label: "tagline" }) : null;
+  ctaSize = Math.max(unit * 0.03, unit * 0.034 * Math.max(scale, 0.85));
+  footSize = unit * 0.03;
+  gaps = { tag: nameB.size * 0.32, cta: unit * (land ? 0.045 : 0.036), foot: unit * (land ? 0.03 : 0.022) };
+  total = nameB.height + (tagB ? gaps.tag + tagB.height : 0) + (cta ? gaps.cta + ctaSize * 2.3 : 0)
+        + (footnote ? gaps.foot + footSize * 1.2 : 0);
+  if (total <= avail) break;
+}
+vg.font(ctx, ctaSize, 700);
+const ctaTextW = cta ? ctx.measureText(cta).width : 0;
+const pill = { w: ctaTextW + ctaSize * 3.4, h: ctaSize * 2.3 };
+if (cta && pill.w > col.w) throw new Error(`cta "${cta}" does not fit the layout; shorten it`);
+vg.font(ctx, footSize, 500);
+if (footnote && ctx.measureText(footnote).width > col.w) throw new Error("footnote does not fit; shorten it");
+// 16:9: centred in the left column. 9:16 and 1:1: the block ends at the safe line (or starts at its preferred top
+// when short), and the product gets the space above it.
+const top0 = land ? col.top + (avail - total) / 2 : Math.min(H * (square ? 0.635 : 0.6), col.bottom - total);
+if (!land) {
+  const top = H * (square ? 0.05 : 0.13), bottom = top0 - H * 0.025;
+  region.cy = (top + bottom) / 2 / H; region.fh = (bottom - top) / H * 0.9;
+}
+const nameY = top0, tagY = nameY + nameB.height + gaps.tag;
+const ctaY = (tagB ? tagY + tagB.height : nameY + nameB.height) + gaps.cta;
+const footY = ctaY + (cta ? pill.h : 0) + gaps.foot;
+const anchorX = col.align === "left" ? col.x : col.x + col.w / 2;
+
+
+// ---- renderer --------------------------------------------------------------------
+// The WebGL canvas is transparent: the studio backdrop is painted once on a 2D canvas behind it,
+// so only the product's own pixels are shaded (and multisampled) each frame.
+const renderer = new THREE.WebGLRenderer({ antialias: P.msaa && P.glow <= 0, alpha: true, premultipliedAlpha: true,
+                                           preserveDrawingBuffer: true, powerPreference: "high-performance" });
+renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.insertBefore(renderer.domElement, document.getElementById("overlay"));
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+// Studio environment: a dark room with tall strip softboxes and an overhead box, which gives
+// glossy cylinders the crisp vertical highlights of product photography. "soft" uses the room.
+function stripStudio() {
+  const s = new THREE.Scene();
+  s.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16),
+                       new THREE.MeshBasicMaterial({ color: darkGround ? 0x050506 : 0x2a2a2c, side: THREE.BackSide })));
+  const box = (w, h, x, y, z, v) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(v, v, v) }));
+    m.position.set(x, y, z); m.lookAt(0, 1, 0); s.add(m);
+  };
+  box(1.4, 10, -7, 1.5, 4.5, 7);    // tall strip, front-left
+  box(1.0, 10, 7.5, 1.5, 1.5, 5);   // tall strip, right
+  box(2.2, 10, 3, 1.5, -8, 3.2);    // back-right kicker
+  box(9, 4, 0, 10, 1, 2.6);         // overhead box
+  box(6, 1.2, 0, -0.5, 9, 0.8);     // low front bounce
+  return s;
+}
+scene.environment = pmrem.fromScene(P.lighting === "soft" ? new RoomEnvironment() : stripStudio(), 0.03).texture;
+pmrem.dispose();
+const LIGHT = {
+  studio:   { env: 1.0, key: 1.6, rim: 2.4, exposure: 1.0, pool: 0.16 },
+  soft:     { env: 1.2, key: 1.3, rim: 1.2, exposure: 1.05, pool: 0.1 },
+  dramatic: { env: 0.7, key: 2.2, rim: 3.6, exposure: 0.95, pool: 0.24 },
+}[P.lighting];
+renderer.toneMappingExposure = LIGHT.exposure;
+
+function canvasTexture(w, h, draw, srgb = true) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  draw(c.getContext("2d"), w, h);
+  const tex = new THREE.CanvasTexture(c);
+  if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Backdrop (painted once): a seamless cyclorama in the ground colour, a soft pool of light behind
+// the product, a pool on the floor beneath it, edge falloff, and static grain against banding.
+const lifted = darkGround ? vg.mix(vg.mix(BG, ACCENT, P.lighting === "dramatic" ? 0.22 : 0.06), "#FFFFFF", 0.12)
+                          : vg.mix(BG, "#FFFFFF", 0.55);
+const sunk = darkGround ? vg.mix(BG, "#000000", 0.4) : vg.mix(BG, "#000000", 0.1);
+{
+  const g = vg.canvas2d("backdrop"), cx = W * region.cx, cy = H * region.cy;
+  g.fillStyle = sunk; g.fillRect(0, 0, W, H);
+  const back = g.createRadialGradient(cx, cy - H * 0.06, 0, cx, cy, Math.max(W, H) * 0.75);
+  back.addColorStop(0, lifted); back.addColorStop(0.42, BG); back.addColorStop(1, sunk);
+  g.fillStyle = back; g.fillRect(0, 0, W, H);
+  const fy = cy + H * region.fh * 0.5, pr = Math.min(W, H) * (land ? 0.42 : 0.5);
+  g.save(); g.translate(cx, fy); g.scale(1, 0.22);
+  const pool = g.createRadialGradient(0, 0, 0, 0, 0, pr);
+  pool.addColorStop(0, vg.rgba(lifted, LIGHT.pool * 2.6)); pool.addColorStop(1, vg.rgba(lifted, 0));
+  g.fillStyle = pool; g.fillRect(-pr, -pr, pr * 2, pr * 2); g.restore();
+  if (P.grain > 0) {
+    const img = g.getImageData(0, 0, W, H), d = img.data, r = vg.rng(spec.seed * 7919 + 13), amp = P.grain * 255 * 1.6;
+    for (let i = 0; i < d.length; i += 4) { const n = (r() - 0.5) * amp; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+    g.putImageData(img, 0, 0);
+  }
+}
+
+// ---- materials ---------------------------------------------------------------------
+const FIN = {
+  matte: { roughness: 0.78, metalness: 0.0 }, satin: { roughness: 0.4, metalness: 0.05 },
+  gloss: { roughness: 0.12, metalness: 0.0 }, metal: { roughness: 0.26, metalness: 1.0 },
+  glass: { roughness: 0.06, metalness: 0.0 },
+}[P.finish];
+const isGlass = P.finish === "glass" && (P.form === "bottle" || P.form === "jar");
+const std = (o) => new THREE.MeshStandardMaterial(o);
+// Clear glass adds only what it reflects (additive), so it never greys the backdrop.
+const bodyMat = isGlass
+  ? std({ color: vg.mix(BODY, "#000000", 0.8), roughness: P.form === "jar" ? 0.22 : 0.03, metalness: 0,
+          transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, envMapIntensity: 2.2 })
+  : std({ color: BODY, ...(P.finish === "glass" ? FIN_GLOSS() : FIN) });
+function FIN_GLOSS() { return { roughness: 0.12, metalness: 0.0 }; }
+const accentMat = std({ color: ACCENT, roughness: 0.3, metalness: 0.65 });
+const darkMat = std({ color: "#0B0C0F", roughness: 0.18, metalness: 0.2 });
+const alu = std({ color: "#C8CCD2", roughness: 0.28, metalness: 1.0 });
+
+// Printed label: the product name, centred on the front of a cylinder (u = 0.5 faces +z).
+function labelTexture(w, h, ground, opts = {}) {
+  return canvasTexture(w, h, (g) => {
+    g.fillStyle = ground; g.fillRect(0, 0, w, h);
+    const ink = vg.readable(ground, [INK_IN, "#FFFFFF", "#111111"]);
+    const cx = w * (opts.cx ?? 0.5), span = w * (opts.span ?? 0.24);
+    g.fillStyle = ACCENT; g.fillRect(cx - span * 0.5, h * 0.2, span, Math.max(2, h * 0.02));
+    g.fillRect(cx - span * 0.5, h * 0.78, span, Math.max(2, h * 0.02));
+    g.fillStyle = ACCENT;
+    if (!P.label) return;
+    const name = String(P.name).toUpperCase();
+    let size = h * (opts.size ?? 0.26);
+    g.textBaseline = "middle"; g.textAlign = "center";
+    const setFont = () => { g.font = `800 ${Math.round(size)}px ${vg.FONT}`; g.letterSpacing = `${Math.round(size * 0.08)}px`; };
+    setFont();
+    while (g.measureText(name).width > span && size > h * 0.06) { size -= 2; setFont(); }
+    g.fillStyle = ink; g.fillText(name, cx, h * (opts.monogram === false ? 0.5 : 0.56));
+    if (opts.monogram !== false) {   // a small initial in a ring above the name: a mark, not a claim
+      const r = h * 0.075, my = h * 0.33;
+      g.strokeStyle = ACCENT; g.lineWidth = Math.max(2, h * 0.008);
+      g.beginPath(); g.arc(cx, my, r, 0, Math.PI * 2); g.stroke();
+      g.font = `700 ${Math.round(r * 1.05)}px ${vg.FONT}`; g.letterSpacing = "0px"; g.fillStyle = ACCENT;
+      g.fillText(name[0], cx, my + r * 0.05);
+    }
+  });
+}
+
+// Can wrap: a bold accent band, the name stacked large on the front, fine rules.
+function canTexture(w, h) {
+  return canvasTexture(w, h, (g) => {
+    g.fillStyle = BODY; g.fillRect(0, 0, w, h);
+    const ink = vg.readable(BODY, [INK_IN, "#FFFFFF", "#111111"]);
+    g.fillStyle = ACCENT; g.fillRect(0, h * 0.7, w, h * 0.12);
+    g.fillStyle = vg.rgba(ink, 0.85); g.fillRect(0, h * 0.84, w, Math.max(2, h * 0.008));
+    g.fillRect(0, h * 0.12, w, Math.max(2, h * 0.008));
+    if (!P.label) return;
+    const words = String(P.name).toUpperCase().split(/\s+/).slice(0, 3), span = w * 0.25;
+    let size = h * 0.2;
+    const setFont = () => { g.font = `900 ${Math.round(size)}px ${vg.FONT}`; };
+    setFont();
+    while ((Math.max(...words.map((x) => g.measureText(x).width)) > span || size * words.length * 0.95 > h * 0.5) && size > 8) { size -= 2; setFont(); }
+    g.textAlign = "center"; g.textBaseline = "alphabetic"; g.fillStyle = ink;
+    const y0 = h * 0.42 - (words.length - 1) * size * 0.47;
+    words.forEach((x, i) => g.fillText(x, w * 0.5, y0 + size * 0.36 + i * size * 0.94));
+  });
+}
+
+// ---- product builders (y = 0 is the floor) --------------------------------------
+function lathe(points, segments = 96) {
+  const curve = new THREE.SplineCurve(points.map(([x, y]) => new THREE.Vector2(x, y)));
+  return new THREE.LatheGeometry(curve.getPoints(points.length * 6), segments);
+}
+function band(r, y0, y1, tex, mat = {}) {
+  const geo = new THREE.CylinderGeometry(r, r, y1 - y0, 96, 1, true, Math.PI, Math.PI * 2);
+  const m = new THREE.Mesh(geo, std({ map: tex, roughness: 0.5, metalness: 0.0, ...mat }));
+  m.position.y = (y0 + y1) / 2;
+  return m;
+}
+function roundedRect(w, h, r) {
+  const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+function normaliseUV(geo) {
+  geo.computeBoundingBox();
+  const b = geo.boundingBox, uv = geo.attributes.uv, pos = geo.attributes.position;
+  for (let i = 0; i < uv.count; i++)
+    uv.setXY(i, (pos.getX(i) - b.min.x) / (b.max.x - b.min.x), (pos.getY(i) - b.min.y) / (b.max.y - b.min.y));
+  uv.needsUpdate = true;
+}
+
+const product = new THREE.Group();
+let dims, detail, floatY = 0;   // dims: w, h, d in scene units; detail: macro target
+const labelGround = isGlass ? "#F1EADF" : vg.mix(BODY, "#FFFFFF", 0.82);
+
+function buildBottle() {
+  const profile = [[0, 0], [0.34, 0], [0.41, 0.015], [0.43, 0.07], [0.43, 0.7], [0.43, 1.2], [0.415, 1.32],
+                   [0.34, 1.47], [0.22, 1.6], [0.155, 1.68], [0.15, 1.76]];
+  product.add(new THREE.Mesh(lathe(profile), bodyMat));
+  if (isGlass) {   // the liquid inside the glass
+    const liquid = profile.slice(0, 7).map(([x, y]) => [Math.max(0, x - 0.03), Math.min(y + 0.02, 1.3)]);
+    liquid.push([0, 1.3]);
+    product.add(new THREE.Mesh(lathe(liquid), std({ color: vg.mix(BODY, "#000000", 0.25), emissive: BODY,
+      emissiveIntensity: 0.14, roughness: 0.18, metalness: 0, envMapIntensity: 0.8 })));
+  }
+  const cap = lathe([[0, 1.73], [0.168, 1.73], [0.178, 1.75], [0.178, 2.02], [0.16, 2.06], [0, 2.065]], 64);
+  product.add(new THREE.Mesh(cap, accentMat));
+  const r = 0.437, tex = labelTexture(2048, Math.round(2048 * 0.72 / (2 * Math.PI * r)), labelGround);
+  product.add(band(r, 0.36, 1.08, tex, isGlass ? {} : { roughness: FIN.roughness * 0.8 + 0.1 }));
+  dims = { w: 0.88, h: 2.07, d: 0.88, round: true }; detail = new THREE.Vector3(0, 1.6, 0.25);
+}
+function buildCan() {
+  const profile = [[0, 0.035], [0.3, 0.0], [0.4, 0.012], [0.46, 0.06], [0.5, 0.15], [0.5, 0.9], [0.5, 1.46],
+                   [0.475, 1.55], [0.435, 1.62], [0.432, 1.665], [0.445, 1.685], [0.44, 1.7], [0.4, 1.695], [0.0, 1.66]];
+  product.add(new THREE.Mesh(lathe(profile, 96), alu));
+  const r = 0.503, tex = canTexture(2048, Math.round(2048 * 1.24 / (2 * Math.PI * r)));
+  const printed = P.finish === "matte" ? { roughness: 0.55, metalness: 0.1 } : { roughness: 0.16, metalness: 0.35 };
+  product.add(band(r, 0.18, 1.42, tex, printed));
+  const tab = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.016, 8, 24), alu);
+  tab.rotation.x = -Math.PI / 2; tab.scale.set(1, 1.6, 1); tab.position.set(0, 1.672, 0.12);
+  product.add(tab);
+  dims = { w: 1.0, h: 1.7, d: 1.0, round: true }; detail = new THREE.Vector3(0, 1.58, 0.3);
+}
+function buildJar() {
+  const profile = [[0, 0], [0.58, 0], [0.655, 0.03], [0.68, 0.12], [0.68, 0.8], [0.64, 0.88], [0.6, 0.9], [0.6, 0.94]];
+  product.add(new THREE.Mesh(lathe(profile), bodyMat));
+  if (isGlass) product.add(new THREE.Mesh(lathe([[0, 0.03], [0.6, 0.03], [0.64, 0.12], [0.64, 0.66], [0, 0.66]]),
+                                          std({ color: BODY, roughness: 0.55, metalness: 0 })));
+  const lid = lathe([[0, 0.9], [0.655, 0.9], [0.67, 0.92], [0.67, 1.13], [0.64, 1.175], [0.5, 1.19], [0, 1.19]], 96);
+  product.add(new THREE.Mesh(lid, P.finish === "metal" ? accentMat : std({ color: ACCENT, roughness: 0.35, metalness: 0.3 })));
+  // Printed straight onto the jar (the band matches the body), like screen-printed cosmetics.
+  const r = 0.686, tex = labelTexture(2048, Math.round(2048 * 0.46 / (2 * Math.PI * r)), isGlass ? labelGround : BODY, { size: 0.3, span: 0.2 });
+  product.add(band(r, 0.2, 0.66, tex, isGlass ? {} : { ...FIN }));
+  dims = { w: 1.36, h: 1.19, d: 1.36, round: true }; detail = new THREE.Vector3(0, 0.95, 0.55);
+}
+function buildBox() {
+  const w = 1.25, h = 1.75, d = 0.55;
+  const geo = new RoundedBoxGeometry(w, h, d, 3, 0.025);
+  const face = canvasTexture(1024, Math.round(1024 * h / w), (g, cw, ch) => {
+    g.fillStyle = BODY; g.fillRect(0, 0, cw, ch);
+    const ink = vg.readable(BODY, [INK_IN, "#FFFFFF", "#111111"]);
+    g.fillStyle = ACCENT; g.fillRect(0, ch * 0.62, cw, ch * 0.09);
+    g.fillStyle = vg.rgba(ink, 0.18); g.fillRect(cw * 0.08, ch * 0.08, cw * 0.84, Math.max(2, ch * 0.004));
+    if (P.label) {
+      const name = String(P.name).toUpperCase();
+      let size = cw * 0.16;
+      g.textAlign = "left"; g.textBaseline = "alphabetic";
+      const lines = name.split(/\s+/);
+      const setFont = () => { g.font = `900 ${Math.round(size)}px ${vg.FONT}`; };
+      setFont();
+      while (Math.max(...lines.map((l) => g.measureText(l).width)) > cw * 0.84 && size > cw * 0.04) { size -= 2; setFont(); }
+      g.fillStyle = ink;
+      lines.slice(0, 3).forEach((l, i) => g.fillText(l, cw * 0.08, ch * 0.2 + size * (0.85 + i * 0.98)));
+    }
+  });
+  const side = std({ color: BODY, ...FIN });
+  const front = std({ map: face, ...FIN });
+  const mesh = new THREE.Mesh(geo, [side, side, side, side, front, side]);
+  mesh.position.y = h / 2;
+  product.add(mesh);
+  dims = { w, h, d }; detail = new THREE.Vector3(-0.2, h * 0.68, d / 2);
+}
+function buildPhone() {
+  const w = 0.96, h = 1.98, depth = 0.07, r = 0.14;
+  const geo = new THREE.ExtrudeGeometry(roundedRect(w - 0.03, h - 0.03, r), {
+    depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.015, bevelSegments: 4, curveSegments: 18 });
+  geo.translate(0, 0, -depth / 2);
+  const frame = std({ color: BODY, roughness: P.finish === "matte" ? 0.6 : 0.22, metalness: P.finish === "matte" ? 0.2 : 0.9 });
+  const back = std({ color: BODY, ...(P.finish === "glass" ? FIN_GLOSS() : FIN), metalness: P.finish === "metal" ? 0.8 : 0.05 });
+  const phone = new THREE.Group();
+  phone.add(new THREE.Mesh(geo, [back, frame]));
+  const screenGeo = new THREE.ShapeGeometry(roundedRect(w - 0.06, h - 0.06, r - 0.025), 18);
+  normaliseUV(screenGeo);
+  const wall = canvasTexture(512, 1056, (g, cw, ch) => {
+    g.fillStyle = "#05060A"; g.fillRect(0, 0, cw, ch);
+    const a = g.createRadialGradient(cw * 0.25, ch * 0.3, 0, cw * 0.25, ch * 0.3, ch * 0.6);
+    a.addColorStop(0, vg.rgba(ACCENT, 0.95)); a.addColorStop(1, vg.rgba(ACCENT, 0));
+    g.fillStyle = a; g.fillRect(0, 0, cw, ch);
+    const b = g.createRadialGradient(cw * 0.85, ch * 0.78, 0, cw * 0.85, ch * 0.78, ch * 0.55);
+    b.addColorStop(0, vg.rgba(vg.mix(ACCENT, "#FFFFFF", 0.35), 0.55)); b.addColorStop(1, vg.rgba(ACCENT, 0));
+    g.fillStyle = b; g.fillRect(0, 0, cw, ch);
+    g.fillStyle = "#000"; vg.roundRect(g, cw * 0.38, ch * 0.018, cw * 0.24, ch * 0.03, ch * 0.015); g.fill();
+  });
+  // A lit display is self-illuminated: unlit, so studio lights never grey it out mid-spin.
+  const screen = new THREE.Mesh(screenGeo, new THREE.MeshBasicMaterial({ map: wall, color: "#E6E6E6" }));
+  screen.position.z = depth / 2 + 0.0135;
+  phone.add(screen);
+  const bumpGeo = new THREE.ExtrudeGeometry(roundedRect(0.4, 0.4, 0.1), { depth: 0.02, bevelEnabled: true,
+    bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2, curveSegments: 10 });
+  const bump = new THREE.Mesh(bumpGeo, back);
+  bump.position.set(-w / 2 + 0.29, h / 2 - 0.29, -depth / 2 - 0.03);
+  phone.add(bump);
+  const lensGeo = new THREE.CylinderGeometry(0.068, 0.068, 0.03, 32);
+  [[-0.09, 0.09], [0.09, 0.09], [-0.09, -0.09]].forEach(([x, y]) => {
+    const ring = new THREE.Mesh(lensGeo, alu);
+    ring.rotation.x = Math.PI / 2; ring.position.set(bump.position.x + x, bump.position.y + y, -depth / 2 - 0.045);
+    phone.add(ring);
+    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32), darkMat);
+    glass.rotation.y = Math.PI; glass.position.set(ring.position.x, ring.position.y, -depth / 2 - 0.0605);
+    phone.add(glass);
+  });
+  phone.rotation.set(-0.06, 0, 0.07);
+  floatY = 0.32;
+  phone.position.y = h / 2 + floatY;
+  product.add(phone);
+  dims = { w: 1.05, h: h + floatY, d: 0.3 }; detail = new THREE.Vector3(0.1, h * 0.75 + floatY, 0.05);
+}
+({ bottle: buildBottle, can: buildCan, jar: buildJar, box: buildBox, phone: buildPhone })[P.form]();
+scene.add(product);
+
+// Reflection: a mirrored instance drawn with a cheap faded shader (lit by the key direction,
+// fading with depth below the floor), so no floor plane or second render pass is needed.
+const mirrorVS = `varying vec3 vN; varying vec2 vUv; varying float vDepth;
+  void main() { vUv = uv; vN = normalize(mat3(modelMatrix) * normal);
+    vec4 wp = modelMatrix * vec4(position, 1.0); vDepth = -wp.y; gl_Position = projectionMatrix * viewMatrix * wp; }`;
+const mirrorFS = `uniform vec3 color; uniform sampler2D map; uniform float useMap; uniform float strength; uniform float fade;
+  uniform vec3 keyDir; varying vec3 vN; varying vec2 vUv; varying float vDepth;
+  void main() { vec3 c = color; if (useMap > 0.5) c *= texture2D(map, vUv).rgb;
+    float lit = 0.45 + 0.55 * max(dot(normalize(vN), keyDir), 0.0);
+    float a = strength * (1.0 - smoothstep(0.0, fade, vDepth));
+    gl_FragColor = vec4(c * lit, a);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }`;
+const keyDir = { value: new THREE.Vector3(-0.5, 0.6, 0.6).normalize() };
+let mirror = null;
+if (P.reflection > 0) {
+  mirror = product.clone();
+  mirror.scale.y = -1;
+  mirror.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const made = mats.map((m) => {
+      const additive = m.blending === THREE.AdditiveBlending || m.blending === THREE.CustomBlending;
+      const base = m.emissiveMap ? new THREE.Color("#888888") : m.color.clone();
+      return new THREE.ShaderMaterial({
+        uniforms: { color: { value: base }, map: { value: m.map || m.emissiveMap || null },
+                    useMap: { value: m.map || m.emissiveMap ? 1 : 0 }, strength: { value: P.reflection * (additive ? 0.25 : 1) },
+                    fade: { value: dims.h * 0.45 }, keyDir },
+        vertexShader: mirrorVS, fragmentShader: mirrorFS, transparent: true, depthWrite: !additive,
+      });
+    });
+    o.material = Array.isArray(o.material) ? made : made[0];
+    o.renderOrder = -1;
+  });
+  scene.add(mirror);
+}
+const reach = Math.max(dims.w, dims.d);
+// Contact shadow: soft ellipse under the footprint, softer and wider when the product floats.
+const shadowTex = canvasTexture(256, 256, (g, w, h) => {
+  const s = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  s.addColorStop(0, "rgba(0,0,0,0.85)"); s.addColorStop(0.35, "rgba(0,0,0,0.45)"); s.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = s; g.fillRect(0, 0, w, h);
+}, false);
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: darkGround ? 0.9 : 0.55 }));
+shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.003; shadow.renderOrder = 2;
+const spread = 1 + floatY * 2.2;
+shadow.scale.set(dims.w * 1.5 * spread, Math.max(dims.d, 0.3) * 1.5 * spread, 1);
+if (floatY > 0) shadow.material.opacity *= 0.55;
+scene.add(shadow);
+
+// ---- lights: key sweeps on, two rims shape the silhouette ------------------------
+const rig = new THREE.Group(); scene.add(rig);
+const key = new THREE.DirectionalLight("#FFF4E8", 0); rig.add(key);
+const rimL = new THREE.DirectionalLight("#FFFFFF", 0); rimL.position.set(-4, 2.6, -3.5); rig.add(rimL);
+const rimR = new THREE.DirectionalLight(vg.mix(ACCENT, "#FFFFFF", 0.35), 0); rimR.position.set(4.2, 1.8, -3.2); rig.add(rimR);
+const fill = new THREE.DirectionalLight("#DDE6FF", 0); fill.position.set(4, 1.2, 4); rig.add(fill);
+for (const l of [key, rimL, rimR, fill]) { l.target.position.set(0, dims.h * 0.45, 0); rig.add(l.target); }
+
+// ---- camera ------------------------------------------------------------------------
+const vfov = land ? 24 : square ? 28 : 34;
+const camera = new THREE.PerspectiveCamera(vfov, aspect, 0.05, 200);
+camera.setViewOffset(W, H, (0.5 - region.cx) * W, (0.5 - region.cy) * H, W, H);
+const tanH = Math.tan(THREE.MathUtils.degToRad(vfov / 2));
+const heroDist = Math.max(dims.h * 1.04 / (2 * tanH * region.fh),
+                          (dims.round ? Math.max(dims.w, dims.d) : Math.hypot(dims.w, dims.d)) * 1.02 / (2 * tanH * aspect * region.fw)) + reach / 2;
+const centre = new THREE.Vector3(0, dims.h * 0.5, 0);
+const MOVE = D * 0.55;
+const tmp = new THREE.Vector3(), look = new THREE.Vector3();
+function cameraAt(t) {
+  const m = vg.clamp(t / MOVE), e = vg.ease.inOutCubic(m), drift = Math.max(0, t - MOVE);
+  let az, el, dist, target = centre;
+  if (P.move === "push") {
+    az = vg.lerp(-0.32, 0.16, vg.ease.inOutSine(m)) + drift * 0.02;
+    el = vg.lerp(0.3, 0.13, e); dist = heroDist * (vg.lerp(1.75, 1.0, e) - drift * 0.006);
+  } else if (P.move === "reveal") {
+    az = vg.lerp(0.55, 0.12, e) + drift * 0.02;
+    el = vg.lerp(0.04, 0.14, e); dist = heroDist * vg.lerp(0.3, 1.0, vg.ease.inOutCubic(vg.clamp(m * 1.08)));
+    target = look.copy(detail).lerp(centre, vg.ease.inOutCubic(vg.clamp(m * 1.15)));
+  } else {  // orbit
+    az = vg.lerp(-0.95, 0.22, vg.ease.inOutSine(m)) + drift * 0.03;
+    el = vg.lerp(0.2, 0.12, e); dist = heroDist * 1.02;
+  }
+  tmp.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist).add(target);
+  camera.position.copy(tmp);
+  camera.lookAt(target);
+  return az;
+}
+
+
+// ---- optional bloom ----------------------------------------------------------------
+let composer = null;
+if (P.glow > 0) {
+  const rt = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, samples: P.msaa ? 4 : 0 });
+  // Bloom passes write opaque alpha, so the painted backdrop moves into the scene as its background.
+  const backdrop = document.getElementById("backdrop");
+  scene.background = new THREE.CanvasTexture(backdrop);
+  scene.background.colorSpace = THREE.SRGBColorSpace;
+  backdrop.style.display = "none";
+  composer = new EffectComposer(renderer, rt);
+  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.25 + 0.75 * P.glow, 0.45, 0.82));
+  composer.addPass(new OutputPass());
+}
+
+
+// Word positions for the masked rise.
+function wordsOf(block) {
+  vg.font(ctx, block.size, block.weight);
+  const space = ctx.measureText(" ").width;
+  return block.lines.map((line) => {
+    const lw = ctx.measureText(line).width;
+    let x = col.align === "left" ? anchorX : anchorX - lw / 2;
+    return line.split(" ").map((w) => { const item = { w, x }; x += ctx.measureText(w).width + space; return item; });
+  });
+}
+const nameWords = wordsOf(nameB);
+const T_NAME = D * 0.42, T_TAG = D * 0.5, T_CTA = D * 0.62, T_FOOT = T_TAG + 0.2;   // the disclosure is in by 0.5D + 0.8 s
+const COPY_SETTLED = Math.max(T_NAME + 0.09 * 8 + 0.75, T_TAG + 0.7, T_CTA + 1.5, T_FOOT + 0.6);
+
+function drawCopy(t) {
+  ctx.textBaseline = "alphabetic";
+  // Accent rule that leads the name in.
+  const rp = vg.tween(t, T_NAME - 0.25, 0.7, vg.ease.outExpo);
+  if (rp > 0) {
+    const rw = unit * 0.07 * rp, ry = nameY - unit * 0.035;
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(col.align === "left" ? anchorX : anchorX - rw / 2, ry, rw, Math.max(3, unit * 0.005));
+  }
+  // Name: each word rises through its line's mask, staggered.
+  vg.font(ctx, nameB.size, nameB.weight);
+  let k = 0;
+  nameWords.forEach((line, li) => {
+    const lineTop = nameY + li * nameB.size * nameB.leading;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, lineTop - nameB.size * 0.08, W, nameB.size * nameB.leading + nameB.size * 0.12); ctx.clip();
+    for (const item of line) {
+      const p = vg.tween(t, T_NAME + k * 0.09, 0.75, vg.ease.outExpo);
+      k++;
+      if (p <= 0) continue;
+      ctx.fillStyle = INK;
+      ctx.fillText(item.w, item.x, lineTop + nameB.size * 0.8 + (1 - p) * nameB.size * 1.1);
+    }
+    ctx.restore();
+  });
+  if (tagB) {
+    const p = vg.tween(t, T_TAG, 0.7);
+    if (p > 0) vg.drawLines(ctx, tagB, anchorX, tagY + (1 - p) * tagB.size * 0.6, { color: SOFT_INK, align: col.align, alpha: p });
+  }
+  if (cta) {
+    const p = vg.tween(t, T_CTA, 0.55, (x) => vg.ease.outBack(x, 2.2));
+    const a = vg.clamp((t - T_CTA) / 0.25);
+    if (a > 0) {
+      const px = col.align === "left" ? anchorX : anchorX - pill.w / 2;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(px + pill.w / 2, ctaY + pill.h / 2); ctx.scale(0.86 + 0.14 * p, 0.86 + 0.14 * p);
+      ctx.fillStyle = ACCENT; vg.roundRect(ctx, -pill.w / 2, -pill.h / 2, pill.w, pill.h, pill.h / 2); ctx.fill();
+      vg.font(ctx, ctaSize, 700); ctx.fillStyle = ON_ACCENT;
+      const tx = -pill.w / 2 + ctaSize * 1.15;
+      ctx.fillText(cta, tx, ctaSize * 0.36);
+      // Arrow that nudges forward once the pill has landed.
+      const nudge = Math.sin(vg.clamp((t - T_CTA - 0.6) / 0.9) * Math.PI * 2) * ctaSize * 0.14;
+      const ax = tx + ctaTextW + ctaSize * 0.75 + nudge, s = ctaSize * 0.34;
+      ctx.strokeStyle = ON_ACCENT; ctx.lineWidth = Math.max(2, ctaSize * 0.11); ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath(); ctx.moveTo(ax - s, 0); ctx.lineTo(ax + s, 0); ctx.moveTo(ax + s * 0.2, -s * 0.8);
+      ctx.lineTo(ax + s, 0); ctx.lineTo(ax + s * 0.2, s * 0.8); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  if (footnote) {
+    vg.font(ctx, footSize, 500);
+    ctx.globalAlpha = vg.clamp((t - T_FOOT) / 0.6);
+    ctx.fillStyle = SOFT_INK;
+    const fw = ctx.measureText(footnote).width;
+    ctx.fillText(footnote, col.align === "left" ? anchorX : anchorX - fw / 2, footY + footSize * 0.9);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ---- frame loop --------------------------------------------------------------------
+const baseYaw = P.form === "box" ? -0.35 : P.form === "phone" ? -0.3 : 0;
+const FINAL_AZ = cameraAt(D);
+vg.loop((t) => {
+  const az = cameraAt(t);
+  // Product turns so that its front faces the final camera azimuth at the end of the shot.
+  const yaw = baseYaw + FINAL_AZ * 0.9 + P.spin * Math.PI * 2 * (vg.ease.inOutSine(vg.clamp(t / D)) - 1);
+  product.rotation.y = yaw;
+  if (P.form === "phone") product.position.y = Math.sin(t * 1.3) * 0.02;
+  if (mirror) { mirror.rotation.y = yaw; mirror.position.y = -product.position.y; }
+  rig.rotation.y = az * 0.6;
+  const on = vg.lerp(darkGround ? 0.22 : 0.6, 1, vg.tween(t, D * 0.06, D * 0.26, vg.ease.inOutSine));
+  const sweep = vg.lerp(-2.3, -0.7, on);   // key light travels from behind-left to front-left
+  key.position.set(Math.sin(sweep) * 5, 4.2, Math.cos(sweep) * 5);
+  keyDir.value.copy(key.position).applyAxisAngle(THREE.Object3D.DEFAULT_UP, rig.rotation.y).normalize();
+  key.intensity = LIGHT.key * on;
+  fill.intensity = LIGHT.key * 0.22 * on;
+  rimL.intensity = LIGHT.rim * (0.55 + 0.45 * vg.tween(t, 0, D * 0.12));
+  rimR.intensity = LIGHT.rim * 0.8 * (0.4 + 0.6 * vg.tween(t, D * 0.03, D * 0.15));
+  scene.environmentIntensity = LIGHT.env * (0.3 + 0.7 * on);
+  if (composer) composer.render(); else renderer.render(scene, camera);
+  // The copy layer is redrawn only while something in it moves.
+  if (t >= T_NAME - 0.3 && t <= COPY_SETTLED + 1 / 15) { ctx.clearRect(0, 0, W, H); drawCopy(t); }
+});
+</script>
+</body>
+</html>

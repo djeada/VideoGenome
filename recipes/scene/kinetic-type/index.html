@@ -1,0 +1,232 @@
+<!doctype html>
+<!--
+  Kinetic type: a typographic reel in the style of studio motion-design
+  showreels. Each phrase rises word by word through line masks; a single
+  accent circle is the full stop after the last word, then swells to fill the
+  frame and becomes the next phrase's background (the through-line and the
+  cut). Behind it, a quiet dot grid drifts.
+
+  Timing: clock. The page animates with requestAnimationFrame and
+  performance.now(); VideoGenome's virtual clock makes every frame exact.
+  Parameters arrive in window.vgSpec.params. Copy is drawn with fillText, never
+  parsed as HTML, and is auto-fitted with measured glyph widths.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="vg"></canvas>
+<script>
+"use strict";
+const spec = window.vgSpec || { params: {}, width: 1080, height: 1920, duration_seconds: 8, seed: 1 };
+const P = Object.assign({
+  phrases: ["Motion that reads", "One idea per beat", "Made with VideoGenome"],
+  palette: ["#F4F1EA", "#121212", "#FF5A36"], align: "left", weight: 800, tempo: 1.0,
+  grid: 0.35, grain: 0.04, accent_last_word: true, ending: "dot",
+}, spec.params || {});
+const W = spec.width, H = spec.height, D = spec.duration_seconds;
+const canvas = document.getElementById("vg");
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext("2d");
+const unit = Math.min(W, H);
+const FONT = '"Inter", "Helvetica Neue", Arial, sans-serif';
+
+// ---- easing ---------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const outExpo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const inOutCubic = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const outBack = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// ---- copy layout: largest size whose greedy wrap fits the box ---------------
+function layout(text) {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const boxW = W * (W > H ? 0.74 : 0.8), boxH = H * (W > H ? 0.56 : 0.42);
+  for (let size = Math.round(unit * 0.16); size >= Math.round(unit * 0.045); size -= 2) {
+    ctx.font = `${P.weight} ${size}px ${FONT}`;
+    const space = ctx.measureText(" ").width;
+    const lines = [];
+    let line = [], width = 0, fits = true;
+    for (const word of words) {
+      const w = ctx.measureText(word).width;
+      if (w > boxW) { fits = false; break; }
+      const next = line.length ? width + space + w : w;
+      if (next > boxW && line.length) { lines.push({ words: line, width }); line = [word]; width = w; }
+      else { line.push(word); width = next; }
+    }
+    if (!fits) continue;
+    if (line.length) lines.push({ words: line, width });
+    const leading = size * 1.02;
+    if (lines.length <= 4 && lines.length * leading <= boxH) {
+      const blockH = (lines.length - 1) * leading + size * 0.74;
+      const top = (H - blockH) / 2 + size * 0.74;
+      const placed = [];
+      lines.forEach((l, li) => {
+        let x = P.align === "center" ? (W - l.width) / 2 : (W - boxW) / 2;
+        for (const word of l.words) {
+          const w = ctx.measureText(word).width;
+          placed.push({ word, x, y: top + li * leading, w, line: li });
+          x += w + space;
+        }
+      });
+      return { size, leading, words: placed, lines: lines.length };
+    }
+  }
+  return null;
+}
+
+// ---- timeline -----------------------------------------------------------------
+// The accent dot is each phrase's full stop: a trailing period becomes the dot;
+// after ? or ! the dot stays hidden until it swells into the next ground.
+const raw = P.phrases.map(String).map((p) => p.trim()).filter(Boolean).slice(0, 6);
+const phrases = raw.map((p) => p.replace(/\.+$/, ""));
+const hideDot = raw.map((p) => /[?!…]$/.test(p));
+const layouts = phrases.map(layout);
+const N = phrases.length;
+const slot = D / N;                                         // each phrase owns an equal beat
+const swell = clamp(slot * 0.18, 0.3, 0.55) / P.tempo;      // circle-wipe length
+const colorsFor = (i) => {
+  // Alternate: base ground, then accent ground with base-coloured type.
+  const [base, ink, accent] = P.palette;
+  return i % 2 === 0 ? { bg: base, ink, accent } : { bg: accent, ink: base, accent: ink };
+};
+
+function luminance(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  const c = [v >> 16 & 255, v >> 8 & 255, v & 255].map((x) => {
+    x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contrast(a, b) {
+  const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
+function dotAfter(i) {
+  const L = layouts[i];
+  const last = L.words[L.words.length - 1];
+  const r = L.size * 0.13;
+  return { x: last.x + last.w + r * 1.6, y: last.y - r, r };
+}
+
+function grid(t, color) {
+  if (P.grid <= 0) return;
+  const step = unit * 0.06, drift = (t * step * 0.18) % step;
+  ctx.fillStyle = color;
+  ctx.globalAlpha = P.grid * 0.35;
+  for (let y = -step; y < H + step; y += step)
+    for (let x = -step; x < W + step; x += step) {
+      ctx.beginPath(); ctx.arc(x + drift, y + drift * 0.5, unit * 0.0022, 0, 6.2832); ctx.fill();
+    }
+  ctx.globalAlpha = 1;
+}
+
+function drawPhrase(i, local, colors) {
+  const L = layouts[i];
+  if (!L) return;
+  ctx.font = `${P.weight} ${L.size}px ${FONT}`;
+  ctx.textBaseline = "alphabetic";
+  const stagger = 0.055 / P.tempo, rise = 0.62 / P.tempo;
+  L.words.forEach((w, k) => {
+    const p = outExpo(clamp((local - 0.12 - k * stagger) / rise));
+    if (p <= 0) return;
+    const offset = (1 - p) * L.size * 0.95;
+    ctx.save();
+    // Line mask: words rise from behind the baseline of their own line.
+    ctx.beginPath();
+    ctx.rect(0, w.y - L.size * 0.98, W, L.size * 1.24);
+    ctx.clip();
+    const emphasis = P.accent_last_word && i === N - 1 && k === L.words.length - 1
+      && contrast(colors.accent, colors.bg) >= 3;
+    ctx.fillStyle = emphasis ? colors.accent : colors.ink;
+    ctx.fillText(w.word, w.x, w.y + offset);
+    ctx.restore();
+  });
+}
+
+function circle(x, y, r, color, blurFrom) {
+  ctx.fillStyle = color;
+  if (blurFrom) {  // Motion blur: sub-frame samples along the path.
+    for (let s = 0; s < 6; s++) {
+      const f = s / 5;
+      ctx.globalAlpha = 0.22;
+      ctx.beginPath(); ctx.arc(lerp(blurFrom.x, x, f), lerp(blurFrom.y, y, f), lerp(blurFrom.r, r, f), 0, 6.2832); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
+}
+
+// Circle state at time t: rests after the phrase, swells into the next ground.
+function dotState(i, local) {
+  const d = dotAfter(i);
+  const appear = hideDot[i] ? 0
+    : outBack(clamp((local - 0.12 - layouts[i].words.length * 0.055 / P.tempo - 0.25) / (0.4 / P.tempo)));
+  const start = slot - swell;
+  if (i < N - 1 && local > start) {
+    const k = inOutCubic(clamp((local - start) / swell));
+    const cover = Math.hypot(Math.max(d.x, W - d.x), Math.max(d.y, H - d.y)) * 1.05;
+    return { x: d.x, y: d.y, r: lerp(d.r, cover, k), k };
+  }
+  if (i === N - 1 && P.ending === "dot") {
+    // The last dot breathes once, softly.
+    const pulse = 1 + 0.08 * Math.sin(clamp((local - slot * 0.6) / (slot * 0.4)) * Math.PI);
+    return { x: d.x, y: d.y, r: d.r * appear * pulse, k: 0 };
+  }
+  return { x: d.x, y: d.y, r: d.r * appear, k: 0 };
+}
+
+let grainCanvas = null;
+function grain(t) {
+  if (P.grain <= 0) return;
+  if (!grainCanvas) {
+    grainCanvas = document.createElement("canvas");
+    grainCanvas.width = 256; grainCanvas.height = 256;
+    const g = grainCanvas.getContext("2d"), img = g.createImageData(256, 256);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  ctx.save();
+  ctx.globalAlpha = P.grain;
+  ctx.globalCompositeOperation = "overlay";
+  const ox = Math.floor((t * 977) % 256), oy = Math.floor((t * 613) % 256);
+  ctx.translate(-ox, -oy);
+  ctx.fillStyle = ctx.createPattern(grainCanvas, "repeat");
+  ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+
+let previous = null;
+function frame(now) {
+  const t = now / 1000;
+  const i = Math.min(N - 1, Math.floor(t / slot));
+  const local = t - i * slot;
+  const colors = colorsFor(i);
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(0, 0, W, H);
+  grid(t, colors.ink);
+  drawPhrase(i, local, colors);
+  const dot = dotState(i, local);
+  // While swelling, the circle carries the next ground's colour (the accent of this one).
+  const next = colorsFor(i + 1);
+  const dotColor = contrast(colors.accent, colors.bg) >= 3 ? colors.accent : colors.ink;
+  circle(dot.x, dot.y, dot.r, dot.k > 0 ? next.bg : dotColor,
+         dot.k > 0.02 && previous && previous.i === i ? previous : null);
+  previous = { ...dot, i };
+  grain(t);
+  requestAnimationFrame(frame);
+}
+
+if (!N || layouts.some((l) => !l)) {
+  throw new Error("kinetic-type: a phrase is too long to fit the frame; shorten it");
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

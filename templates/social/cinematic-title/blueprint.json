@@ -1,0 +1,274 @@
+{
+  "schema_version": "0.5.0",
+  "id": "social.cinematic-title",
+  "version": "0.1.0",
+  "title": "Cinematic 3D title opener (9:16)",
+  "category": "social",
+  "description": "A 12-second vertical title opener rendered in code (scene.cinematic-3d, Three.js): a generative 3D world under a slow camera, ending on a film-style title. Terrain looks fly low along a river through a seeded mountain valley at golden hour, dawn or dusk and climb over a far ridge to reveal the low sun; planet looks drift above the night side of a procedural planet until the sun breaks over the limb. The title letters fade in while their tracking settles, an accent rule grows and the subtitle rises. An ambient pad with a swell into the sun reveal and a soft impact under the title. The world is generated, not filmed: it depicts no real place.",
+  "tags": [
+    "social",
+    "vertical",
+    "3d",
+    "cinematic",
+    "title",
+    "intro",
+    "generative",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The film, series, channel or episode title exactly as written in the brief, up to 28 characters"
+    },
+    "subtitle": {
+      "type": "string",
+      "required": true,
+      "description": "One line under the title, up to 64 characters, saying what the film is about in the brief's own terms; no names, dates or facts the brief does not give"
+    },
+    "kicker": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional small line above the title, such as an episode or series label, copied exactly from the brief (up to 28 characters); leave empty when the brief has none"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "golden-hour",
+        "alpine-dawn",
+        "dusk-valley",
+        "orbit-sunrise",
+        "red-planet"
+      ],
+      "default": "golden-hour",
+      "description": "World and light. Earth landscapes: golden-hour (warm valley flyover at sunset), alpine-dawn (snowy mountain peaks, cool morning), dusk-valley (deep orange evening valley, bold title). Space: orbit-sunrise (Earth-like blue planet seen from orbit, for space, science or global topics), red-planet (Mars-like rust planet, for Mars, deserts or exploration)"
+    },
+    "mood": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "reflective",
+        "hopeful",
+        "dreamy",
+        "serious",
+        "warm"
+      ],
+      "default": "reflective",
+      "description": "Mood of the ambient music bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The 3D world and title; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.cinematic-3d",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "subtitle": "{{subtitle}}",
+            "kicker": "{{kicker}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Ambient bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.ambient-pad",
+          "preset": "{{mood}}"
+        }
+      }
+    },
+    "swell": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell that peaks as the sun clears the ridge or the limb",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft low impact under the title",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Opener for my travel vlog series Northbound, episode 3: we cycle the coast road from Bergen to Ålesund in late autumn. Title: Northbound. Label it Episode 3.",
+      "inputs": {
+        "title": "Northbound",
+        "subtitle": "Cycling the coast road from Bergen to Ålesund",
+        "kicker": "Episode 3",
+        "look": "alpine-dawn",
+        "mood": "hopeful"
+      },
+      "note": "The title and the kicker are copied exactly from the brief. The subtitle uses the brief's own places and activity instead of an invented slogan, and the look matches a cold northern autumn."
+    },
+    {
+      "brief": "Intro for a school astronomy club talk called Small World, about how thin Earth's atmosphere is.",
+      "inputs": {
+        "title": "Small World",
+        "subtitle": "How thin the air around Earth really is",
+        "look": "orbit-sunrise",
+        "mood": "reflective"
+      },
+      "note": "No label is given, so the kicker is left out. The subtitle restates the topic as a question the talk answers, with no figures the brief does not give."
+    }
+  ],
+  "style": {
+    "mood": "cinematic, quiet, epic",
+    "palette": [
+      "#FFF6EA",
+      "#F2B36B"
+    ],
+    "typography": "Inter Medium uppercase with wide tracking (or Inter ExtraBold sentence case), centred lower middle",
+    "pacing": "slow"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 330,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "opener",
+      "role": "title",
+      "duration_frames": 360,
+      "shots": [
+        {
+          "id": "world_and_title",
+          "kind": "animation",
+          "duration_frames": 360,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Exposure rises over 27 frames; flyover or orbital drift; the sun clears the ridge or limb around frame 166; title from frame 202, subtitle 238; camera move lands 223, then drifts"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "subtitle",
+            "kicker"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 20,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 360,
+        "gain_db": 0,
+        "fade_in_frames": 24,
+        "fade_out_frames": 45
+      },
+      {
+        "id": "reveal_swell",
+        "input_ref": "swell",
+        "start_frame": 46,
+        "duration_frames": 150,
+        "gain_db": -3
+      },
+      {
+        "id": "title_impact",
+        "input_ref": "impact",
+        "start_frame": 202,
+        "duration_frames": 90,
+        "gain_db": -9
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The world is generated from the job seed (terrain, planet surface, clouds, stars); it is not footage and depicts no real place, so do not caption it as one.",
+      "Title and kicker are VERBATIM: a writer may only copy them from the brief. The subtitle must not add facts the brief does not give.",
+      "Copy is fitted with measured glyphs (title up to two lines, subtitle up to two) inside the 9:16 safe area; the recipe throws rather than overflow. A scrim is drawn under the copy only as strongly as needed for 4.5:1 contrast against the rendered pixels.",
+      "Sound cues follow the recipe's beats for 12 seconds: the swell peaks at frame 166 (0.46D) as the sun clears the ridge or limb, the impact sits under the title at frame 202 (0.56D)."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "title_review",
+      "mode": "human",
+      "description": "The owner confirms the title, kicker and subtitle are approved and spelled correctly."
+    },
+    {
+      "id": "generated_world_review",
+      "mode": "human",
+      "description": "A reviewer confirms the generated landscape or planet is not presented as real footage of a specific place or mission."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "event-countdown",
+  "title": "Event teaser countdown",
+  "summary": "A hype teaser for an event: the name slams in over loud graphic shapes, a diagonal band wipe cuts to a 3-2-1 or days-to-go countdown with bursts and colour swaps, and a second wipe reveals a poster lockup with the date, place and a call to action.",
+  "family": "social",
+  "formats": ["9:16", "16:9", "1:1"],
+  "duration_seconds": [10, 15],
+  "recipes": ["scene.event-countdown"],
+  "templates": ["social.event-teaser", "social.event-days-teaser"],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": ["Canvas 2D", "diagonal band wipes", "circle colour swaps", "odometer digit roll with feathered window", "confetti and ring bursts", "motif clipped outside the copy box", "measured text fitting"],
+  "gallery_share": "Countdown and save-the-date teasers for launches, concerts and conferences are a staple of model-made social video.",
+  "limits": [
+    "The countdown is a fixed three-hit structure (3-2-1 or one days-to-go roll); it is not a live clock and cannot count hours or minutes.",
+    "The day count is whatever the brief states; nothing checks it against the calendar on the day the video is posted.",
+    "Inter Display / Inter only; very long names set at a smaller size."
+  ]
+}

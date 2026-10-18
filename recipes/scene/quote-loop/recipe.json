@@ -1,0 +1,198 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.quote-loop",
+  "version": "0.1.0",
+  "title": "Quote loop over a generative backdrop (Canvas)",
+  "description": "A quote or lyric card: a large accent opening mark settles, the quote arrives phrase by phrase in a refined serif (soft-focus fade and rise, paced at reading speed), then an accent rule draws and the attribution and optional source track in. Behind it a slow generative backdrop: a soft mesh gradient with silk flow lines, drifting bokeh dust, or the gradient alone, all periodic in the duration so the clip loops seamlessly. A pool of ground colour keeps the copy legible. Works at any aspect ratio.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "quote": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 140,
+        "default": "We read to know we are not alone.",
+        "description": "The quote or lyric, exactly as approved; surrounding quotation marks are drawn by the scene. Phrases break at punctuation"
+      },
+      "attribution": {
+        "type": "string",
+        "maxLength": 40,
+        "default": "William Nicholson",
+        "description": "Who said or wrote it, exactly as approved (empty for none)"
+      },
+      "source": {
+        "type": "string",
+        "maxLength": 48,
+        "default": "Shadowlands",
+        "description": "Optional work, album or year under the attribution (empty for none)"
+      },
+      "backdrop": {
+        "enum": [
+          "silk",
+          "dust",
+          "mesh"
+        ],
+        "default": "silk",
+        "description": "silk: flow-field lines with travelling glints; dust: drifting bokeh motes; mesh: the soft gradient alone"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 4,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#0E0A08",
+          "#F6EEE3",
+          "#E9A15B",
+          "#B2452C"
+        ],
+        "description": "Ground, ink (quote), accent (mark, rule, lines) and glow (second backdrop hue); ink is swapped for a readable one if it falls under 4.5:1"
+      },
+      "typeface": {
+        "enum": [
+          "serif",
+          "italic",
+          "sans"
+        ],
+        "default": "serif",
+        "description": "Quote face: system serif (EB Garamond, Noto Serif, Georgia...), its italic, or light Inter"
+      },
+      "align": {
+        "enum": [
+          "center",
+          "left"
+        ],
+        "default": "center",
+        "description": "Copy alignment"
+      },
+      "tempo": {
+        "type": "number",
+        "minimum": 0.7,
+        "maximum": 1.4,
+        "default": 1.0,
+        "description": "Reading pace as phrases arrive (1.0 = about 14 characters per second)"
+      },
+      "motion": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.6,
+        "description": "How far the backdrop drifts over the loop"
+      },
+      "density": {
+        "type": "number",
+        "minimum": 0.2,
+        "maximum": 1,
+        "default": 0.6,
+        "description": "Amount of lines or motes"
+      },
+      "scrim": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.65,
+        "description": "Strength of the soft ground-colour pool behind the copy"
+      },
+      "caps": {
+        "type": "boolean",
+        "default": true,
+        "description": "Set the attribution in tracked capitals"
+      },
+      "loop": {
+        "type": "boolean",
+        "default": true,
+        "description": "Dissolve the copy over the last 1.1 s so the last frame matches the first"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.12,
+        "default": 0.05,
+        "description": "Film grain amount (also prevents gradient banding)"
+      }
+    }
+  },
+  "presets": {
+    "ember": {},
+    "tide": {
+      "palette": [
+        "#06131A",
+        "#EAF4F2",
+        "#7FD6C2",
+        "#1F6F8B"
+      ],
+      "backdrop": "silk",
+      "typeface": "italic"
+    },
+    "nocturne": {
+      "palette": [
+        "#07080C",
+        "#F2F1EC",
+        "#D8BE84",
+        "#2B3A67"
+      ],
+      "backdrop": "dust",
+      "density": 0.7
+    },
+    "paper": {
+      "palette": [
+        "#F3EEE4",
+        "#1E1B18",
+        "#B5532E",
+        "#D8B98A"
+      ],
+      "backdrop": "silk",
+      "density": 0.5,
+      "grain": 0.04
+    },
+    "bloom": {
+      "palette": [
+        "#140C0E",
+        "#FFF5EE",
+        "#FF9A7A",
+        "#8E3B5A"
+      ],
+      "backdrop": "mesh",
+      "typeface": "sans",
+      "motion": 0.8
+    }
+  },
+  "tags": [
+    "scene",
+    "quote",
+    "lyric",
+    "typography",
+    "generative",
+    "flow-field",
+    "loop",
+    "canvas"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+    "Serif copy uses the first installed system serif (EB Garamond, Noto Serif Display, Georgia, Liberation Serif...); the attribution uses Inter or the system sans. No font is downloaded, so line breaks can differ between machines with different fonts.",
+    "Typesetting: the largest size that fits (searching down to 85% of it for better breaks), with line breaks that balance the measure, prefer breaking after punctuation and avoid ending a line on a short function word. The attribution is set in tracked capitals when it fits, else as written, else on two lines. The page throws if the copy cannot fit.",
+    "Beats: opening mark 0.3 s; first phrase at 0.9 s; later phrases at about 14 characters per second times tempo (at least 0.9 s each, slowed by at most 15% to fill a long shot, compressed to at most 20 characters per second); attribution 0.15 s after the last phrase; copy dissolves from D-1.1 s when loop is on. The page throws if the quote cannot be read in the duration (a 140-character quote with a 40-character attribution and 48-character source needs about 14 s).",
+    "Backdrop motion is periodic in the duration, so with loop on the last frame matches the first."
+  ],
+  "cost": {
+    "seconds_per_output_second": 3.5
+  }
+}

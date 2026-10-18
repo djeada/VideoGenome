@@ -1,0 +1,480 @@
+{
+  "schema_version": "0.5.0",
+  "id": "educational.how-it-works",
+  "version": "0.1.0",
+  "title": "How it works: animated system diagram (16:9)",
+  "category": "educational",
+  "description": "A 24-second 16:9 concept explainer in the diagram style of maths and engineering channels: the title rises and glides into a header, four labelled nodes with code-drawn line icons appear one per beat at the tips of self-drawing arrows, packets stream along the arrows to show the flow, the current node is lit with a caption explaining it while the camera frames what exists so far, and the last beat lights the whole system with a takeaway. Code-rendered (scene.how-it-works) with a procedural lo-fi bed, a click on each node and a swell when the system lights.",
+  "tags": [
+    "educational",
+    "explainer",
+    "diagram",
+    "how_it_works",
+    "system",
+    "process",
+    "flow",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "What the viewer will understand, phrased as the system or process, under 44 characters"
+    },
+    "node_1": {
+      "type": "string",
+      "required": true,
+      "description": "Node 1 of the flow: a part or stage the brief itself names, 1-3 words, in the order things happen. If the brief names fewer than four parts or steps, list this node under missing; never invent a part"
+    },
+    "node_2": {
+      "type": "string",
+      "required": true,
+      "description": "Node 2 of the flow: a part or stage the brief itself names, 1-3 words, in the order things happen. If the brief names fewer than four parts or steps, list this node under missing; never invent a part"
+    },
+    "node_3": {
+      "type": "string",
+      "required": true,
+      "description": "Node 3 of the flow: a part or stage the brief itself names, 1-3 words, in the order things happen. If the brief names fewer than four parts or steps, list this node under missing; never invent a part"
+    },
+    "node_4": {
+      "type": "string",
+      "required": true,
+      "description": "Node 4 of the flow: a part or stage the brief itself names, 1-3 words, in the order things happen. If the brief names fewer than four parts or steps, list this node under missing; never invent a part"
+    },
+    "caption_1": {
+      "type": "string",
+      "required": true,
+      "description": "One line explaining what node 1 does, under 64 characters; only facts the brief states"
+    },
+    "caption_2": {
+      "type": "string",
+      "required": true,
+      "description": "One line explaining what node 2 does, under 64 characters; only facts the brief states"
+    },
+    "caption_3": {
+      "type": "string",
+      "required": true,
+      "description": "One line explaining what node 3 does, under 64 characters; only facts the brief states"
+    },
+    "caption_4": {
+      "type": "string",
+      "required": true,
+      "description": "One line explaining what node 4 does, under 64 characters; only facts the brief states"
+    },
+    "icon_1": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "auto",
+        "user",
+        "phone",
+        "cloud",
+        "database",
+        "server",
+        "gear",
+        "lock",
+        "doc",
+        "chart",
+        "globe",
+        "bolt",
+        "mail",
+        "search",
+        "clock",
+        "spark",
+        "leaf",
+        "cart",
+        "signal",
+        "check",
+        "box",
+        "code"
+      ],
+      "default": "auto",
+      "description": "Line icon for node 1: pick the closest concrete object; auto shows the node's number"
+    },
+    "icon_2": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "auto",
+        "user",
+        "phone",
+        "cloud",
+        "database",
+        "server",
+        "gear",
+        "lock",
+        "doc",
+        "chart",
+        "globe",
+        "bolt",
+        "mail",
+        "search",
+        "clock",
+        "spark",
+        "leaf",
+        "cart",
+        "signal",
+        "check",
+        "box",
+        "code"
+      ],
+      "default": "auto",
+      "description": "Line icon for node 2: pick the closest concrete object; auto shows the node's number"
+    },
+    "icon_3": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "auto",
+        "user",
+        "phone",
+        "cloud",
+        "database",
+        "server",
+        "gear",
+        "lock",
+        "doc",
+        "chart",
+        "globe",
+        "bolt",
+        "mail",
+        "search",
+        "clock",
+        "spark",
+        "leaf",
+        "cart",
+        "signal",
+        "check",
+        "box",
+        "code"
+      ],
+      "default": "auto",
+      "description": "Line icon for node 3: pick the closest concrete object; auto shows the node's number"
+    },
+    "icon_4": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "auto",
+        "user",
+        "phone",
+        "cloud",
+        "database",
+        "server",
+        "gear",
+        "lock",
+        "doc",
+        "chart",
+        "globe",
+        "bolt",
+        "mail",
+        "search",
+        "clock",
+        "spark",
+        "leaf",
+        "cart",
+        "signal",
+        "check",
+        "box",
+        "code"
+      ],
+      "default": "auto",
+      "description": "Line icon for node 4: pick the closest concrete object; auto shows the node's number"
+    },
+    "takeaway": {
+      "type": "string",
+      "required": true,
+      "description": "Closing line shown while the whole system lights up, under 56 characters; no claim the brief does not make"
+    },
+    "layout": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "auto",
+        "loop"
+      ],
+      "default": "auto",
+      "description": "auto: a left-to-right flow; loop: a cycle where the last node feeds back into the first (only if the brief describes a repeating cycle)"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "chalkboard",
+        "blueprint",
+        "paper",
+        "terminal"
+      ],
+      "default": "chalkboard",
+      "description": "Visual look: chalkboard (dark, amber, sky-blue packets), blueprint (navy, cyan), paper (cream, vermilion), terminal (black, green)"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The diagram animation; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.how-it-works",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "layout": "{{layout}}",
+            "nodes": [
+              "{{node_1}}",
+              "{{node_2}}",
+              "{{node_3}}",
+              "{{node_4}}"
+            ],
+            "captions": [
+              "{{caption_1}}",
+              "{{caption_2}}",
+              "{{caption_3}}",
+              "{{caption_4}}"
+            ],
+            "icons": [
+              "{{icon_1}}",
+              "{{icon_2}}",
+              "{{icon_3}}",
+              "{{icon_4}}"
+            ],
+            "takeaway": "{{takeaway}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.lofi-beat",
+          "preset": "study"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft whoosh as the title glides into the header",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click as each node lands at its arrow's tip",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    },
+    "swell": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell as the whole system lights up",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Explain how a home solar setup powers a house: solar panels on the roof turn sunlight into direct current; an inverter converts it to the alternating current the house uses; appliances use what they need first; any surplus is exported to the grid through a smart meter. Make it clear the house uses its own power before selling any.",
+      "inputs": {
+        "title": "How rooftop solar powers a home",
+        "node_1": "Solar panels",
+        "node_2": "Inverter",
+        "node_3": "Appliances",
+        "node_4": "Smart meter",
+        "caption_1": "Panels turn sunlight into direct current",
+        "caption_2": "The inverter turns it into the AC your home uses",
+        "caption_3": "Appliances use what they need first",
+        "caption_4": "Any surplus is exported through a smart meter",
+        "icon_1": "spark",
+        "icon_2": "bolt",
+        "icon_3": "user",
+        "icon_4": "signal",
+        "takeaway": "Your home uses its own power before selling any",
+        "layout": "auto",
+        "look": "blueprint"
+      },
+      "note": "Nodes are the parts exactly as the brief names them, in the order energy flows; each caption is one fact from the brief in plain words; icons are the nearest concrete objects; the takeaway restates the brief's main point without adding numbers or claims."
+    }
+  ],
+  "style": {
+    "mood": "clear, curious, precise",
+    "palette": [
+      "#0F1218",
+      "#ECEFF4",
+      "#FFC857"
+    ],
+    "typography": "Inter, heavy title, bold node labels, medium captions",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 657,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "explainer",
+      "role": "explanation",
+      "duration_frames": 720,
+      "shots": [
+        {
+          "id": "diagram_scene",
+          "kind": "animation",
+          "duration_frames": 720,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Title into header; four nodes appear in flow order at the tips of self-drawing arrows, packets flow, the current node is lit and captioned; the whole system lights with a takeaway"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "node_1",
+            "node_2",
+            "node_3",
+            "node_4"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_in_frames": 6,
+    "fade_out_frames": 15,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 720,
+        "gain_db": 0,
+        "fade_in_frames": 12,
+        "fade_out_frames": 45
+      },
+      {
+        "id": "title_whoosh",
+        "input_ref": "whoosh",
+        "start_frame": 58,
+        "duration_frames": 24,
+        "gain_db": -9
+      },
+      {
+        "id": "node_1_click",
+        "input_ref": "click",
+        "start_frame": 88,
+        "duration_frames": 12,
+        "gain_db": -4
+      },
+      {
+        "id": "node_2_click",
+        "input_ref": "click",
+        "start_frame": 222,
+        "duration_frames": 12,
+        "gain_db": -4
+      },
+      {
+        "id": "node_3_click",
+        "input_ref": "click",
+        "start_frame": 355,
+        "duration_frames": 12,
+        "gain_db": -4
+      },
+      {
+        "id": "node_4_click",
+        "input_ref": "click",
+        "start_frame": 489,
+        "duration_frames": 12,
+        "gain_db": -4
+      },
+      {
+        "id": "system_lit_swell",
+        "input_ref": "swell",
+        "start_frame": 583,
+        "duration_frames": 48,
+        "gain_db": -6
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/how-it-works) rendered frame-exactly on a virtual clock; the content model supplies copy, four icon choices, a layout (flow or loop) and a look.",
+      "Copy is fitted with measured glyphs: all node labels share one size, all captions share one size, and the recipe throws rather than overflow (node labels max 24 characters, captions 72, takeaway 64).",
+      "At 24 s the nodes land at 2.95, 7.40, 11.85, 16.30 s (clicks), the title morph whooshes at 2.37 s and the system lights at 20.4 s (swell peaking at 20.7 s), derived from the recipe's intro, beat and outro formulas.",
+      "Node labels, captions and the takeaway are written from the brief, and a writer must report missing parts rather than invent them; nothing checks that mechanically (node names rarely appear verbatim in briefs), so a reviewer must confirm the flow is correct and in the right order (accuracy_review)."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -16 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17,
+        "max": -15
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "accuracy_review",
+      "mode": "human",
+      "description": "A subject-matter reviewer confirms the parts, their order and every caption are correct, with no step invented or left out."
+    }
+  ]
+}

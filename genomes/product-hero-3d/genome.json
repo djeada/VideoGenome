@@ -1,0 +1,21 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "product-hero-3d",
+  "title": "3D product hero (stylised stand-in)",
+  "summary": "A studio product shot built in code: a generic bottle, can, jar, box or phone-like slab with the product's name on its label, rim-lit then swept by a key light on a seamless floor while the camera orbits or pushes in, with the name, a tagline and a call-to-action pill set beside it.",
+  "family": "product",
+  "formats": ["16:9", "9:16", "1:1"],
+  "duration_seconds": [6, 12],
+  "recipes": ["scene.product-3d"],
+  "templates": ["commercial.product-hero-3d"],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": ["Three.js (software WebGL)", "lathe, extrude and rounded-box modelling", "strip-softbox PMREM environment", "additive glass", "faded mirror reflection shader", "canvas-texture labels", "transparent WebGL over a painted backdrop", "measured text fitting"],
+  "gallery_share": "Rotating 3D product heroes are among the most common model-made commercial shorts.",
+  "limits": [
+    "The product is a generic stand-in, never the real product's shape, label or logo; use a supplied model and a 3D provider (commercial.product-turntable) for fidelity",
+    "Five shapes only; no transmission, refraction, caustics or depth of field",
+    "Shadows are a soft contact blob, not ray-traced",
+    "Software WebGL: about 5-5.5 s of render per output second at 1080x1920; the optional bloom (glow) costs about 25 s per output second"
+  ]
+}

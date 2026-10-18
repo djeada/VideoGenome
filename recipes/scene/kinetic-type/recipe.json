@@ -1,0 +1,44 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.kinetic-type",
+  "version": "0.1.0",
+  "title": "Kinetic type reel (Canvas)",
+  "description": "A studio-style kinetic typography reel: each phrase rises word by word through line masks, an accent circle lands as the full stop and then swells to become the next phrase's ground, over a drifting dot grid with film grain. Copy is auto-fitted with measured glyphs. Works at any aspect ratio.",
+  "media": ["video", "image"],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "phrases": {"type": "array", "minItems": 1, "maxItems": 6,
+                  "items": {"type": "string", "minLength": 1, "maxLength": 48},
+                  "default": ["Motion that reads", "One idea per beat", "Made with VideoGenome"],
+                  "description": "On-screen phrases in order, one per beat; 2-5 words each read best"},
+      "palette": {"type": "array", "minItems": 3, "maxItems": 3,
+                  "items": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                  "default": ["#F4F1EA", "#121212", "#FF5A36"],
+                  "description": "Ground, ink and accent; grounds alternate between ground and accent"},
+      "align": {"enum": ["left", "center"], "default": "left", "description": "Text alignment"},
+      "weight": {"enum": [600, 700, 800, 900], "default": 800, "description": "Font weight (Inter or the system sans)"},
+      "tempo": {"type": "number", "minimum": 0.6, "maximum": 1.8, "default": 1.0, "description": "Speed of entrances and the circle wipe"},
+      "grid": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.35, "description": "Opacity of the drifting dot grid"},
+      "grain": {"type": "number", "minimum": 0, "maximum": 0.12, "default": 0.04, "description": "Film grain amount"},
+      "accent_last_word": {"type": "boolean", "default": true, "description": "Set the final phrase's last word in the accent colour"},
+      "ending": {"enum": ["dot", "none"], "default": "dot", "description": "Keep the breathing full stop on the final phrase"}
+    }
+  },
+  "presets": {
+    "swiss": {},
+    "neon": {"palette": ["#07080A", "#F2F2F2", "#B6FF3B"], "weight": 900, "grid": 0.5},
+    "ink": {"palette": ["#111318", "#F5F5F0", "#FF5A36"], "grain": 0.05},
+    "calm": {"palette": ["#EEF2F5", "#1B2A3A", "#2F7DF6"], "tempo": 0.75, "weight": 700, "align": "center"}
+  },
+  "tags": ["scene", "typography", "kinetic", "showreel", "canvas"],
+  "license": "MIT",
+  "authors": ["VideoGenome contributors"],
+  "notes": ["Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+            "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial."],
+  "cost": {"seconds_per_output_second": 2.0}
+}

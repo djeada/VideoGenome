@@ -1,0 +1,377 @@
+<!doctype html>
+<!--
+  Motion showreel: an abstract motion-design reel in a brand palette, built
+  as six designed beats with one focal point each and a hand-off between them:
+
+    S0 dots    a dot grid wakes with a ripple, then springs into a disc
+    S1 morph   the disc morphs circle > squircle > triangle > star > circle on
+               springs, with colour echoes and orbiting satellites; it then
+               irises open to fill the frame
+    S2 word 1  letters rise through a mask on the first colour; a stripe wipe
+               (staggered diagonal bands) carries the cut
+    S3 ring    circular kinetic type: word 2 runs round a rotating ring around
+               a sprung disc holding the word; the disc irises open
+    S4 word 3  a sliding panel masks word 3 in a second colour (two-tone
+               reveal); shutters close from top and bottom
+    S5 name    the name rises letter by letter, an impact ring fires, three
+               shapes spring in above it and the kicker tracks in below
+
+  Beat times are designed at 15 s and scale with D (k = D / 15):
+    morph pops 2.4, 3.0, 3.6 k      iris 4.1 k     stripes 6.5 k (covered 6.9 k)
+    ring iris 9.0 k                 shutters 11.4 k (closed 11.7 k)
+    name impact 12.2 k              kicker 12.6 k  hold to D
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock). Copy is
+  drawn with fillText and fitted with measured glyphs; the page throws when a
+  word or the name cannot fit.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, portrait, seed } = vg.setup({
+  name: "Northlight Studio",
+  words: ["Shape", "Rhythm", "Story"],
+  kicker: "Motion design",
+  palette: ["#0E0E10", "#F5F3EE", "#FF4D2E", "#2D5BFF", "#FFD23F"],
+  grid: 0.6, grain: 0.04,
+});
+const [BG, INK0, C1, C2, C3] = P.palette;
+const ctx = vg.canvas2d();
+const { clamp, lerp } = vg;
+const ease = { ...vg.ease, inExpo: (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10)) };
+const TAU = Math.PI * 2;
+const k = D / 15;
+const T = (s) => s * k;
+const cx = W / 2, cy = H / 2;
+const inkOn = (ground) => vg.readable(ground, [INK0, "#FFFFFF", "#0B0B0C"]);
+const accentOn = (ground, prefer) => (vg.contrast(prefer, ground) >= 3 ? prefer : inkOn(ground));
+const words = P.words.map((w) => String(w).trim());
+if (words.length !== 3 || words.some((w) => !w)) throw new Error("motion-showreel: give exactly three words or short phrases");
+const name = String(P.name).trim();
+if (!name) throw new Error("motion-showreel: the name is empty");
+const R = vg.rng(seed * 104729 + 3);
+
+// ---- copy -----------------------------------------------------------------------------
+const wordFit = (text, label, scale = 1) => vg.fit(ctx, text, {
+  maxSize: unit * (portrait ? 0.2 : 0.22) * scale, minSize: unit * 0.06, weight: 900, leading: 1.0,
+  maxWidth: W * (portrait ? 0.84 : 0.8), maxHeight: H * 0.5, maxLines: 2, label });
+const W1 = wordFit(words[0], "word 1");
+const W3 = wordFit(words[2], "word 3");
+const NAME = vg.fit(ctx, name, { maxSize: unit * (portrait ? 0.15 : 0.16), minSize: unit * 0.055, weight: 900, leading: 1.02,
+  maxWidth: W * (portrait ? 0.84 : 0.78), maxLines: 2, label: "name" });
+const kicker = String(P.kicker || "").trim().toUpperCase();
+const KS = Math.round(unit * 0.032);
+vg.font(ctx, KS, 700);
+const kickTrack = KS * 0.22;
+const kickW = kicker ? ctx.measureText(kicker).width + kickTrack * (kicker.length - 1) : 0;
+if (kickW > W * 0.86) throw new Error("motion-showreel: the kicker does not fit; shorten it");
+const ringR = unit * 0.37;
+const W2 = vg.fit(ctx, words[1], { maxSize: unit * 0.13, minSize: unit * 0.045, weight: 900, leading: 1.0,
+  maxWidth: ringR * 1.32, maxHeight: ringR * 1.1, maxLines: 2, label: "word 2" });
+
+// Per-glyph x positions for letter-by-letter reveals (cumulative measurement keeps kerning).
+function glyphs(block) {
+  vg.font(ctx, block.size, block.weight);
+  return block.lines.map((line) => {
+    const w = ctx.measureText(line).width;
+    return { line, w, xs: [...line].map((_, i) => ctx.measureText(line.slice(0, i)).width) };
+  });
+}
+function drawRise(block, x, y, t0, color, { stagger = 0.035, dur = 0.55, align = "center" } = {}) {
+  const G = glyphs(block);
+  vg.font(ctx, block.size, block.weight);
+  ctx.fillStyle = color; ctx.textBaseline = "alphabetic";
+  let n = 0;
+  G.forEach((g, li) => {
+    const ly = y + block.size * 0.78 + li * block.size * block.leading;
+    const lx = align === "center" ? x - g.w / 2 : x;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, ly - block.size * 0.98, W, block.size * 1.28); ctx.clip();
+    [...g.line].forEach((ch, i) => {
+      const p = ease.outBack(clamp((t0 + n++ * stagger) / dur), 1.1);
+      if (p <= 0 || ch === " ") return;
+      ctx.fillText(ch, lx + g.xs[i], ly + (1 - p) * block.size * 1.35);
+    });
+    ctx.restore();
+  });
+}
+
+// ---- shapes ---------------------------------------------------------------------------
+const NA = 180;
+const shapeR = {
+  circle: () => 1,
+  squircle: (a) => { const n = 5, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a)); return 0.92 * Math.pow(Math.pow(c, n) + Math.pow(s, n), -1 / n); },
+  triangle: (a) => { const seg = TAU / 3, x = ((a + Math.PI / 2) % seg + seg) % seg - seg / 2; return 0.62 / Math.cos(x); },
+  star: (a) => { const x = Math.cos(5 * (a + Math.PI / 2)); return 0.72 + 0.34 * x; },
+};
+const radii = Object.fromEntries(Object.entries(shapeR).map(([kname, f]) => [kname, Float32Array.from({ length: NA }, (_, i) => Math.min(1.25, f((i / NA) * TAU)))]));
+function shapePath(fromName, toName, p, x, y, size, rot) {
+  const a = radii[fromName], b = radii[toName];
+  ctx.beginPath();
+  for (let i = 0; i <= NA; i++) {
+    const j = i % NA, r = size * lerp(a[j], b[j], p), ang = (j / NA) * TAU + rot;
+    const px = x + Math.cos(ang) * r, py = y + Math.sin(ang) * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+// ---- backgrounds -----------------------------------------------------------------------
+function ground(color) { ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); }
+const step = unit * 0.05;
+const dots = [];
+for (let y = cy % step - step; y < H + step; y += step)
+  for (let x = cx % step - step; x < W + step; x += step) {
+    const d = Math.hypot(x - cx, y - cy), a = Math.atan2(y - cy, x - cx);
+    dots.push({ x, y, d, a, j: R() });
+  }
+const maxD = Math.hypot(W, H) / 2;
+
+// S0: the grid wakes with a ripple, then springs into a disc.
+function sceneDots(t) {
+  ground(BG);
+  const discR = unit * 0.16;
+  const ink = inkOn(BG);
+  const wave = ((t - T(0.2)) / T(1.1)) * maxD * 1.1;
+  ctx.fillStyle = ink;
+  for (const d of dots) {
+    const appear = clamp(0.35 + (t - d.d / maxD * T(0.35)) / 0.3);
+    if (appear <= 0) continue;
+    const bump = Math.exp(-Math.pow((d.d - wave) / (unit * 0.09), 2));
+    const pull = vg.spring(t - T(1.25) - (d.d / maxD) * T(0.16) - d.j * 0.02, { stiffness: 11, damping: 0.42 });
+    // Every dot lands inside the disc on its own bearing (sqrt keeps the density even).
+    const rr = discR * 0.92 * Math.sqrt(d.d / maxD);
+    const tx = cx + Math.cos(d.a) * rr, ty = cy + Math.sin(d.a) * rr;
+    const x = lerp(d.x, tx, pull), y = lerp(d.y, ty, pull);
+    const r = unit * 0.0038 * (1 + bump * 2.2) * (0.55 + 0.45 * appear) * (1 + pull * 0.4);
+    ctx.globalAlpha = Math.min(1, Math.max(0.3, P.grid * 0.6) + 0.65 * bump + pull);
+    ctx.fillStyle = bump > 0.5 && pull < 0.2 ? C1 : ink;
+    ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  ctx.globalAlpha = 1;
+  // The disc solidifies.
+  const solid = ease.outCubic(clamp((t - T(1.75)) / T(0.35)));
+  if (solid > 0) { ctx.fillStyle = C1; ctx.globalAlpha = solid; ctx.beginPath(); ctx.arc(cx, cy, discR * (0.9 + 0.1 * solid), 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+}
+
+// S1: shape morphs on springs with colour echoes and satellites; iris opens in C1.
+const morphs = [["circle", "squircle", 2.4, C2], ["squircle", "triangle", 3.0, C3], ["triangle", "star", 3.6, C1], ["star", "circle", 4.0, C1]];
+function morphAt(t) {
+  let from = "circle", to = "circle", p = 1, color = C1, rot = 0;
+  for (const [a, b, at, c] of morphs) {
+    const s = vg.spring(t - T(at), { stiffness: 14, damping: 0.38 });
+    if (t >= T(at)) { from = a; to = b; p = s; color = c; }
+    rot += vg.spring(t - T(at), { stiffness: 9, damping: 0.5 }) * (TAU / 8);
+  }
+  return { from, to, p, color, rot };
+}
+function sceneMorph(t) {
+  ground(BG);
+  const size = unit * 0.16;
+  vg.dotGrid(ctx, t, inkOn(BG), { alpha: 0.08 * P.grid, spacing: 0.05, drift: 0.15 });
+  // Echo outlines trail the shape in the other colours.
+  [[0.16, C3], [0.08, C2]].forEach(([lag, c], i) => {
+    const m = morphAt(t - lag * k);
+    shapePath(m.from, m.to, m.p, cx, cy, size * (1.18 + i * 0.12), m.rot - lag);
+    ctx.strokeStyle = c; ctx.lineWidth = unit * 0.006; ctx.globalAlpha = 0.85; ctx.stroke(); ctx.globalAlpha = 1;
+  });
+  const m = morphAt(t);
+  const pulse = 1 + 0.08 * Math.exp(-Math.pow((t - T(4.0)) / 0.12, 2));
+  shapePath(m.from, m.to, m.p, cx, cy, size * pulse, m.rot);
+  ctx.fillStyle = m.color; ctx.fill();
+  // Satellites.
+  [C2, C3, inkOn(BG)].forEach((c, i) => {
+    const a = t * (1.6 + i * 0.35) + i * TAU / 3, r = size * (1.75 + 0.18 * Math.sin(t * 2 + i));
+    const s = vg.spring(t - T(2.2) - i * 0.08, { stiffness: 12, damping: 0.4 });
+    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, unit * 0.014 * s, 0, TAU); ctx.fill();
+  });
+  // Iris.
+  const iris = ease.inOutExpo(clamp((t - T(4.1)) / T(0.42)));
+  if (iris > 0) { ctx.fillStyle = C1; ctx.beginPath(); ctx.arc(cx, cy, size + iris * maxD * 1.05, 0, TAU); ctx.fill(); }
+}
+
+// S2: word 1 on C1.
+function index(n, t0, ground_, t, y = cy - unit * 0.3) {
+  const a = clamp((t - t0) / 0.3);
+  vg.font(ctx, KS, 700);
+  ctx.fillStyle = inkOn(ground_); ctx.globalAlpha = a * 0.8; ctx.textAlign = "center";
+  ctx.fillText(`0${n} / 03`, cx, y - (1 - a) * unit * 0.02);
+  ctx.textAlign = "left"; ctx.globalAlpha = 1;
+}
+function sceneWord1(t) {
+  ground(C1);
+  const ink = inkOn(C1);
+  const y = cy - W1.height / 2;
+  drawRise(W1, cx, y, t - T(4.6), ink);
+  const bar = vg.spring(t - T(5.0), { stiffness: 10, damping: 0.45 });
+  ctx.fillStyle = accentOn(C1, C2 === ink ? C3 : C2);
+  const bw = Math.min(W1.width, unit * 0.5) * bar;
+  ctx.fillRect(cx - bw / 2, y + W1.height + unit * 0.035, bw, unit * 0.014);
+  index(1, T(4.7), C1, t, y - unit * 0.09);
+}
+
+// Stripe wipe: bands slide in (covering), the scene switches, then they slide out.
+function stripes(t, t0) {
+  const n = 6, ang = -0.35, cover = T(0.42), stagger = T(0.045);
+  const L = Math.hypot(W, H);
+  const colors = [C2, C3, inkOn(BG), C2, C3, BG];
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(ang);
+  const band = L / n;
+  for (let i = 0; i < n; i++) {
+    const a = ease.inOutCubic(clamp((t - t0 - i * stagger) / cover));
+    const b = ease.inOutCubic(clamp((t - t0 - cover - T(0.12) - i * stagger) / cover));
+    const x0 = -L / 2 + b * L, x1 = -L / 2 + a * L;
+    if (x1 <= x0) continue;
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fillRect(x0, -L / 2 + i * band - 1, x1 - x0, band + 2);
+  }
+  ctx.restore();
+}
+const stripesAt = 6.5, stripesFull = () => T(stripesAt) + T(0.42) + 5 * T(0.045);
+
+// S3: ring of type around a sprung disc holding word 2.
+const ringText = (() => {
+  const unitText = words[1].toUpperCase() + "  •  ";
+  const fsz = unit * 0.042;
+  vg.font(ctx, fsz, 800);
+  const per = ctx.measureText(unitText).width;
+  const reps = Math.max(2, Math.floor((TAU * ringR) / per));
+  const text = unitText.repeat(reps);
+  const widths = [...text].map((ch) => ctx.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0);
+  return { text, widths, total, fsz, spread: (TAU * ringR) / total };
+})();
+function sceneRing(t) {
+  ground(BG);
+  vg.dotGrid(ctx, t, inkOn(BG), { alpha: 0.07 * P.grid, spacing: 0.05, drift: 0.2 });
+  const local = t - stripesFull() + T(0.1);
+  const disc = vg.spring(local - 0.1, { stiffness: 9, damping: 0.42 });
+  const exitP = ease.inExpo(clamp((t - T(9.0)) / T(0.35)));
+  const scale = 1 + exitP * 2.2;
+  // Outer dashed ring.
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale);
+  ctx.rotate(-t * 0.25);
+  ctx.strokeStyle = C3; ctx.lineWidth = unit * 0.004; ctx.setLineDash([unit * 0.012, unit * 0.018]);
+  ctx.globalAlpha = clamp(local / 0.4);
+  ctx.beginPath(); ctx.arc(0, 0, ringR * 1.16 * (0.8 + 0.2 * disc), 0, TAU); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+  ctx.restore();
+  // Ring type.
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale);
+  vg.font(ctx, ringText.fsz, 800); ctx.fillStyle = inkOn(BG); ctx.textBaseline = "middle"; ctx.textAlign = "center";
+  let a = t * 0.55 - Math.PI / 2;
+  const chars = [...ringText.text];
+  chars.forEach((ch, i) => {
+    const w = ringText.widths[i] * ringText.spread, mid = a + (w / 2) / ringR;
+    const on = clamp((local - 0.15 - (i / chars.length) * 0.7) / 0.15);
+    if (on > 0) {
+      ctx.save(); ctx.globalAlpha = on; ctx.rotate(mid); ctx.translate(0, -ringR); ctx.fillText(ch, 0, 0); ctx.restore();
+    }
+    a += w / ringR;
+  });
+  ctx.restore();
+  // Disc with word 2.
+  const r = ringR * 0.8 * disc;
+  ctx.fillStyle = C2; ctx.beginPath(); ctx.arc(cx, cy, Math.max(0, r) + exitP * maxD * 1.2, 0, TAU); ctx.fill();
+  if (exitP < 0.3) {
+    ctx.save(); ctx.globalAlpha = 1 - exitP / 0.3;
+    ctx.beginPath(); ctx.arc(cx, cy, Math.max(0, r), 0, TAU); ctx.clip();
+    drawRise(W2, cx, cy - W2.height / 2, local - 0.35, inkOn(C2), { stagger: 0.03 });
+    ctx.restore();
+  }
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  if (exitP === 0) index(2, stripesFull() + T(0.2), BG, t, cy - ringR * 1.16 - unit * 0.07);
+}
+
+// S4: word 3 on C2, a C3 panel sweeps across showing it two-tone; shutters close.
+function sceneWord3(t) {
+  ground(C2);
+  const t0 = T(9.35), y = cy - W3.height / 2;
+  drawRise(W3, cx, y, t - t0 - 0.05, inkOn(C2));
+  const sweep = ease.inOutCubic(clamp((t - t0 - T(0.55)) / T(1.35)));
+  const pw = W * 0.34, px = lerp(-pw, W, sweep);
+  if (sweep > 0 && sweep < 1) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(px, 0, pw, H); ctx.clip();
+    ground(C3);
+    drawRise(W3, cx, y, t - t0 - 0.05, inkOn(C3));
+    ctx.restore();
+  }
+  index(3, t0 + 0.1, C2, t, y - unit * 0.09);
+  const shut = ease.inOutCubic(clamp((t - T(11.4)) / T(0.32)));
+  if (shut > 0) {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, (H / 2) * shut + 1);
+    ctx.fillRect(0, H - (H / 2) * shut - 1, W, (H / 2) * shut + 1);
+    ctx.fillStyle = C1; ctx.fillRect(0, (H / 2) * shut - unit * 0.006, W, unit * 0.006);
+    ctx.fillRect(0, H - (H / 2) * shut, W, unit * 0.006);
+  }
+}
+
+// S5: name lockup.
+function sceneName(t) {
+  ground(BG);
+  const push = 1 + 0.035 * clamp((t - T(11.7)) / (D - T(11.7)));
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(push, push); ctx.translate(-cx, -cy);
+  vg.dotGrid(ctx, t, inkOn(BG), { alpha: 0.06 * P.grid, spacing: 0.05, drift: 0.1 });
+  const ink = inkOn(BG);
+  const y = cy - NAME.height / 2;
+  const hit = T(12.2);
+  // Impact ring.
+  const ring = (t - hit) / 0.9;
+  if (ring > 0 && ring < 1) {
+    ctx.strokeStyle = C1; ctx.globalAlpha = 1 - ring; ctx.lineWidth = unit * 0.01 * (1 - ring);
+    ctx.beginPath(); ctx.arc(cx, cy, NAME.width * 0.35 + ease.outExpo(ring) * unit * 0.5, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  const letters = [...name].length;
+  drawRise(NAME, cx, y, t - (hit - 0.45 - letters * 0.02), ink, { stagger: 0.02, dur: 0.5 });
+  // Three shapes above the name.
+  const s = unit * 0.034, gy = y - unit * 0.1;
+  [["circle", C1], ["squircle", C2], ["triangle", C3]].forEach(([shape, c], i) => {
+    const sp = vg.spring(t - hit - 0.1 - i * 0.08, { stiffness: 13, damping: 0.36 });
+    if (sp <= 0) return;
+    const x = cx + (i - 1) * s * 3;
+    shapePath(shape, shape, 1, x, gy - (1 - sp) * unit * 0.05, s * sp, shape === "triangle" ? Math.sin(t * 1.5) * 0.15 : t * 0.4 * (i - 1));
+    ctx.fillStyle = c; ctx.fill();
+  });
+  // Kicker, tracked in letter by letter.
+  if (kicker) {
+    vg.font(ctx, KS, 700);
+    let x = cx - kickW / 2;
+    const ky = y + NAME.height + unit * 0.085;
+    [...kicker].forEach((ch, i) => {
+      const a = clamp((t - T(12.6) - i * 0.025) / 0.3);
+      ctx.globalAlpha = a; ctx.fillStyle = accentOn(BG, INK0);
+      ctx.fillText(ch, x + (1 - a) * KS * 0.6, ky);
+      x += ctx.measureText(ch).width + kickTrack;
+    });
+    ctx.globalAlpha = 1;
+    const rule = ease.outExpo(clamp((t - T(12.5)) / 0.7));
+    ctx.fillStyle = C1;
+    ctx.fillRect(cx - unit * 0.05 * rule, ky + unit * 0.035, unit * 0.1 * rule, Math.max(3, unit * 0.005));
+  }
+  ctx.restore();
+}
+
+vg.loop((t) => {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (t < T(2.1)) sceneDots(t);
+  else if (t < T(4.55)) sceneMorph(t);
+  else if (t < stripesFull()) sceneWord1(t);
+  else if (t < T(9.35)) sceneRing(t);
+  else if (t < T(11.72)) sceneWord3(t);
+  else sceneName(t);
+  if (t >= T(stripesAt) && t < stripesFull() + T(0.7)) stripes(t, T(stripesAt));
+  vg.vignette(ctx, vg.luminance(BG) > 0.5 ? 0.08 : 0.28);
+  vg.grain(ctx, t, P.grain);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+{
+  "schema_version": "0.5.0",
+  "id": "commercial.title-sting",
+  "version": "0.1.0",
+  "title": "Brand title sting (16:9)",
+  "category": "commercial",
+  "description": "A 6-second 16:9 brand or title reveal: letters fly in from depth and lock together on an impact (flash ring, sparks, camera punch), a light sweep crosses the name, an accent rule extends and the tagline tracks in. A procedural riser builds into an impact hit on the landing. Code-rendered (scene.title-sting).",
+  "tags": [
+    "commercial",
+    "brand",
+    "logo",
+    "intro",
+    "sting",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The brand, product or show name exactly as written in the brief, under 22 characters"
+    },
+    "tagline": {
+      "type": "string",
+      "required": true,
+      "description": "Short line under the name, under 44 characters; no claims the brief does not make"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "chrome",
+        "neon",
+        "studio",
+        "gold"
+      ],
+      "default": "chrome",
+      "description": "Finish: chrome (dark, metallic), neon (glow), studio (light, flat), gold (warm metallic)"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The reveal animation; rendered from the name unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.title-sting",
+          "preset": "{{look}}",
+          "params": {
+            "name": "{{name}}",
+            "tagline": "{{tagline}}"
+          }
+        }
+      }
+    },
+    "riser": {
+      "type": "audio",
+      "required": false,
+      "description": "Riser into the landing",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "riser"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Impact hit on the landing",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    },
+    "tail": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell under the tagline",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Intro sting for our podcast, Night Shift, where we interview the engineers who keep systems running at 3 am.",
+      "inputs": {
+        "name": "Night Shift",
+        "tagline": "The people who keep it running",
+        "look": "neon"
+      },
+      "note": "The name is copied exactly from the brief. The tagline restates who the show is about, with no claims the brief does not make."
+    }
+  ],
+  "style": {
+    "mood": "premium, cinematic, punchy",
+    "palette": [
+      "#07080B",
+      "#F4F4F2",
+      "#FF5A36"
+    ],
+    "typography": "Inter Black name, tracked semibold tagline",
+    "pacing": "dynamic"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 150,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "sting",
+      "role": "brand",
+      "duration_frames": 180,
+      "shots": [
+        {
+          "id": "reveal",
+          "kind": "animation",
+          "duration_frames": 180,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Fly-in, impact on frame 43, sweep, rule, tagline, slow push-in"
+          },
+          "input_refs": [
+            "scene",
+            "name",
+            "tagline"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 15,
+    "audio_tracks": [
+      {
+        "id": "riser",
+        "input_ref": "riser",
+        "start_frame": 0,
+        "duration_frames": 44,
+        "gain_db": 0,
+        "fade_in_frames": 6
+      },
+      {
+        "id": "impact",
+        "input_ref": "impact",
+        "start_frame": 43,
+        "duration_frames": 60,
+        "gain_db": -3
+      },
+      {
+        "id": "tail",
+        "input_ref": "tail",
+        "start_frame": 55,
+        "duration_frames": 125,
+        "gain_db": 0,
+        "fade_out_frames": 40
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The name is VERBATIM: a writer may only copy it from the brief, never invent or restyle it.",
+      "The letters land at 1.45 s (frame 43) for a 6-second reveal; the impact cue is locked to that frame."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -16 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17,
+        "max": -15
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "brand_review",
+      "mode": "human",
+      "description": "The brand owner confirms the name, spelling and tagline are approved."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.event-days-teaser",
+  "template": "social.event-days-teaser",
+  "template_version": "0.1.0",
+  "inputs": {
+    "event": "Signal Summit",
+    "date": "14 June 2026, 10am",
+    "place": "Harbour Hall, Lisbon",
+    "kicker": "The countdown is on",
+    "days_to_go": 30,
+    "count_label": "days to go",
+    "cta": "Get tickets",
+    "look": "pool"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

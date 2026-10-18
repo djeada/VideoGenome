@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.vertical-tips",
   "template": "social.vertical-tips",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "hook": "Three ways to make edits feel faster",
     "tip_1": "Cut on action so movement hides the edit.",

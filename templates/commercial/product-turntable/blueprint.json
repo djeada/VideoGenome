@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.4.0",
+  "schema_version": "0.5.0",
   "id": "commercial.product-turntable",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Square 3D product turntable",
   "category": "commercial",
   "description": "A 9-second 1:1 product spot: name card, a 3D turntable of the supplied product model rendered by any render_3d provider (e.g. Blender), and a call to action. The model file is a reference input; the turntable may also be supplied as finished footage.",
@@ -16,7 +16,8 @@
     "product_name": {
       "type": "string",
       "required": true,
-      "description": "Product name, under 30 characters"
+      "description": "Product name, under 30 characters",
+      "fill": "verbatim"
     },
     "tagline": {
       "type": "string",
@@ -86,6 +87,17 @@
       }
     }
   },
+  "copy_examples": [
+    {
+      "brief": "Square spot for the Northwind Kettle, our matte steel kettle that boils a litre in three minutes. Call to action: Available now.",
+      "inputs": {
+        "product_name": "Northwind Kettle",
+        "tagline": "A litre boiled in three minutes.",
+        "cta": "Available now"
+      },
+      "note": "The product name is copied exactly from the brief. The tagline turns the one stated fact into a benefit without adding claims."
+    }
+  ],
   "style": {
     "mood": "premium, precise",
     "palette": [

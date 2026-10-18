@@ -1,0 +1,20 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.code-snippet-vertical",
+  "template": "educational.code-snippet-vertical",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "Trim file names in Bash",
+    "filename": "trim.sh",
+    "language": "bash",
+    "code": "name=\"report.final.pdf\"\n\necho \"${name%%.*}\"\necho \"${name#*.}\"\necho \"${name##*.}\"",
+    "key_line": "echo \"${name##*.}\"",
+    "output": "report\nfinal.pdf\npdf",
+    "takeaway": "One # trims the shortest match, ## the longest",
+    "look": "terminal",
+    "energy": "late-night"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

@@ -1,0 +1,19 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.steps-explainer",
+  "template": "educational.steps-explainer",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "From brief to video",
+    "step_1": "Pick a template",
+    "note_1": "An expert already locked story, timing and look",
+    "step_2": "Let a writer fill the slots",
+    "note_2": "Copy is checked against the layout and the brief",
+    "step_3": "Produce, render and review",
+    "note_3": "Measured gates and a receipt for every asset",
+    "look": "night"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

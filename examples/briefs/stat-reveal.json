@@ -1,0 +1,18 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Briefs for the headline stat reveal (commercial.stat-highlights): three numbers with labels and a source, including one brief that lacks a number and one that lacks a source.",
+  "briefs": [
+    {"id": "food-bank-impact", "template": "commercial.stat-highlights",
+     "brief": "Vertical impact video for Harbour Food Bank. Our 2025 numbers: 860,000 meals served, 92% of donations handed out within a week, and 410 volunteers every month. Source: Harbour Food Bank annual report 2025. Warm, upbeat look."},
+    {"id": "saas-growth", "template": "commercial.stat-highlights",
+     "brief": "Launch-week post for Lumen, a scheduling app. Three numbers from our Q3 2025 investor letter: 2.4 million bookings made, 37% fewer no-shows for clinics using reminders, and $18M in annual recurring revenue. Source: Lumen Q3 2025 investor letter. Dark, techy."},
+    {"id": "school-results", "template": "commercial.stat-highlights",
+     "brief": "Short vertical clip for Northfield Academy's open evening: 96% of students passed maths, 14 languages are spoken in our classrooms, and 1,250 books were read in the summer reading challenge. Source: Northfield Academy results summary 2025. Paper look."},
+    {"id": "stats-without-numbers", "template": "commercial.stat-highlights", "expect": "incomplete",
+     "brief": "Make a numbers video for our bakery's first year. We sold loads of sourdough, most customers come back, and our team grew a lot. Source: our own sales records.",
+     "note": "The brief gives no figures; the number slots are verbatim, so the writer must report them missing rather than invent them."},
+    {"id": "stats-without-source", "template": "commercial.stat-highlights", "expect": "incomplete",
+     "brief": "Reel for Greenway Cycles: 3,400 bikes repaired this year, 78% of repairs done the same day, and 12 new mechanics trained.",
+     "note": "Three numbers but no source; the source slot is verbatim and required."}
+  ]
+}

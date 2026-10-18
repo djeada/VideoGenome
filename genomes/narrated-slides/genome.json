@@ -1,0 +1,34 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "narrated-slides",
+  "title": "Narrated illustrated slides",
+  "summary": "A title, three illustrated slides with narration and matching captions, and a closing line; images, voice and music come from whatever pipeline you choose.",
+  "family": "explainer",
+  "formats": [
+    "16:9"
+  ],
+  "duration_seconds": [
+    15,
+    40
+  ],
+  "recipes": [
+    "audio.ambient-pad",
+    "visual.aurora"
+  ],
+  "templates": [
+    "educational.narrated-slides"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "A pipeline that produces speech and images, or your own recordings and pictures"
+  ],
+  "techniques": [
+    "Ken Burns stills",
+    "frame-timed captions",
+    "ducking",
+    "loudness mastering"
+  ],
+  "limits": [
+    "Narration must fit fixed slots; take selection is planned"
+  ]
+}

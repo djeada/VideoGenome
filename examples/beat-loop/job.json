@@ -1,0 +1,16 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.beat-loop",
+  "template": "social.beat-loop",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "Night Transit",
+    "credit": "Weekly mix, Fridays at ten",
+    "kicker": "Now playing",
+    "look": "signal",
+    "energy": "night"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

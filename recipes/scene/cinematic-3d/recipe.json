@@ -1,0 +1,196 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.cinematic-3d",
+  "version": "0.1.0",
+  "title": "Cinematic 3D title (Three.js)",
+  "description": "A generative 3D world under a slow camera, ending on a title. Terrain: a seeded mountain valley at golden hour, dawn or dusk with baked long shadows, a reflective river, layered haze and drifting clouds; the camera flies low along the river and climbs over a far ridge to reveal the low sun. Planet: an orbital sunrise over a procedurally textured planet (terran, dust or ice) with clouds, an atmosphere rim and star field; the sun breaks over the limb with a glare. A tracked title, accent rule and subtitle settle over a scrim measured from the rendered pixels for 4.5:1 contrast. Any aspect ratio.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene",
+    "three"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "world": {
+        "enum": [
+          "terrain",
+          "planet"
+        ],
+        "default": "terrain",
+        "description": "terrain: valley flyover that climbs to reveal the sun; planet: orbital sunrise over a planet's limb"
+      },
+      "atmosphere": {
+        "enum": [
+          "golden",
+          "dawn",
+          "dusk"
+        ],
+        "default": "golden",
+        "description": "Terrain light: golden (warm low sun, blue sky), dawn (pink horizon, snow on the peaks), dusk (deep orange, violet shadows)"
+      },
+      "planet": {
+        "enum": [
+          "terran",
+          "dust",
+          "ice"
+        ],
+        "default": "terran",
+        "description": "Planet surface: terran (oceans, land, clouds, blue rim), dust (rust desert, thin warm haze), ice (pale bands and ice, cyan rim)"
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 28,
+        "default": "The Long Light",
+        "description": "Title set large in the lower middle of the frame"
+      },
+      "subtitle": {
+        "type": "string",
+        "maxLength": 64,
+        "default": "A journey through the northern valleys",
+        "description": "Line under the title (empty for none)"
+      },
+      "kicker": {
+        "type": "string",
+        "maxLength": 28,
+        "default": "",
+        "description": "Small tracked line above the title, e.g. a series or episode label (empty for none)"
+      },
+      "title_style": {
+        "enum": [
+          "tracked",
+          "bold"
+        ],
+        "default": "tracked",
+        "description": "tracked: medium uppercase with wide letter spacing (film title); bold: heavy sentence case"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#FFF6EA",
+          "#F2B36B"
+        ],
+        "description": "Ink (title and subtitle; a scrim is added under it when the scene behind is too bright) and accent (rule and kicker)"
+      },
+      "speed": {
+        "type": "number",
+        "minimum": 0.5,
+        "maximum": 1.6,
+        "default": 1.0,
+        "description": "Drift speed after the main move has landed"
+      },
+      "relief": {
+        "type": "number",
+        "minimum": 0.6,
+        "maximum": 1.5,
+        "default": 1.0,
+        "description": "Mountain height (terrain only)"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.08,
+        "default": 0.04,
+        "description": "Film grain amount"
+      },
+      "vignette": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.7,
+        "default": 0.35,
+        "description": "Edge darkening"
+      },
+      "msaa": {
+        "type": "boolean",
+        "default": true,
+        "description": "Multisample anti-aliasing (off renders faster for drafts)"
+      }
+    }
+  },
+  "presets": {
+    "golden-hour": {},
+    "alpine-dawn": {
+      "atmosphere": "dawn",
+      "relief": 1.3,
+      "palette": [
+        "#FFFFFF",
+        "#F6B7C1"
+      ],
+      "title": "Above the Clouds",
+      "subtitle": "Seven days on the high route"
+    },
+    "dusk-valley": {
+      "atmosphere": "dusk",
+      "relief": 0.9,
+      "title_style": "bold",
+      "palette": [
+        "#FFF1E6",
+        "#FF8A5C"
+      ],
+      "title": "Where the River Bends",
+      "subtitle": "Stories from the last ferry town"
+    },
+    "orbit-sunrise": {
+      "world": "planet",
+      "planet": "terran",
+      "palette": [
+        "#F4F8FF",
+        "#7FB2FF"
+      ],
+      "vignette": 0.25,
+      "title": "Pale Blue Dot",
+      "subtitle": "How small we are, and how rare",
+      "kicker": "Episode 1"
+    },
+    "red-planet": {
+      "world": "planet",
+      "planet": "dust",
+      "palette": [
+        "#FFF3EA",
+        "#FF9C6B"
+      ],
+      "title_style": "bold",
+      "title": "Red Horizon",
+      "subtitle": "The long road to Mars"
+    }
+  },
+  "tags": [
+    "scene",
+    "3d",
+    "cinematic",
+    "title",
+    "landscape",
+    "space",
+    "generative",
+    "threejs",
+    "webgl"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`; renders on software WebGL (SwiftShader).",
+    "The terrain, planet surface, clouds and stars are generated from spec.seed: change the seed for a different landscape.",
+    "Beats (D = duration): exposure rises over 0.9 s; the sun clears the ridge or limb at about 0.46D; title 0.56D; subtitle 0.66D; camera move lands at 0.62D, then drifts.",
+    "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial.",
+    "Measured on software WebGL (SwiftShader) at 1080x1920, 30 fps, including setup: about 6.6 s per output second for terrain and 3.9 s for planet."
+  ],
+  "cost": {
+    "seconds_per_output_second": 6.5
+  }
+}

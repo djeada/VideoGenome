@@ -1,0 +1,16 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "kinetic-type",
+  "title": "Kinetic typography reel",
+  "summary": "Short phrases rise word by word through line masks; an accent shape punctuates each phrase and becomes the cut into the next. The look of studio motion-design reels and launch teasers.",
+  "family": "typography",
+  "formats": ["9:16", "16:9", "1:1"],
+  "duration_seconds": [6, 15],
+  "recipes": ["scene.kinetic-type"],
+  "templates": ["social.kinetic-promo"],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": ["Canvas 2D", "masked word rises", "circle wipe", "measured text fitting", "film grain"],
+  "gallery_share": "Kinetic type and motion-design showreels are among the most common model-made videos.",
+  "limits": ["Latin scripts set best; very long words shrink the phrase", "One typeface (Inter or the system sans)"]
+}

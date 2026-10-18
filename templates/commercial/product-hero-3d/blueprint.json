@@ -1,0 +1,336 @@
+{
+  "schema_version": "0.5.0",
+  "id": "commercial.product-hero-3d",
+  "version": "0.1.0",
+  "title": "3D product hero (16:9)",
+  "category": "commercial",
+  "description": "An 8-second 16:9 studio product hero rendered in code (scene.product-3d, Three.js): a STYLISED STAND-IN product (generic bottle, can, jar, box or phone-like slab with the name printed on its label, not a model or likeness of the real product) sits on a seamless floor with a soft contact shadow and fading reflection. Rim lights draw its silhouette, the key light sweeps on, the camera orbits, pushes in or pulls back from a macro detail; the name rises word by word, then the tagline and a call-to-action pill, with an 'Illustrative 3D render' footnote that the template locks on screen. An ambient pad bed with a swell under the light sweep, an impact on the name and a click on the call to action.",
+  "tags": [
+    "commercial",
+    "product",
+    "3d",
+    "hero",
+    "studio",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The product name exactly as written in the brief, up to 24 characters; it is also printed on the stand-in's label"
+    },
+    "tagline": {
+      "type": "string",
+      "required": true,
+      "description": "One line under the name, up to 56 characters, built only from what the brief says about the product; no new claims, numbers or superlatives"
+    },
+    "cta": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The approved call to action exactly as written in the brief, up to 22 characters (e.g. Shop now, Pre-order)"
+    },
+    "form": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "bottle",
+        "can",
+        "jar",
+        "box",
+        "phone"
+      ],
+      "default": "bottle",
+      "description": "Stand-in shape closest to the product's packaging: bottle (drinks, oils, cosmetics), can (canned drinks), jar (creams, spreads, candles), box (packaged goods, kits), phone (devices, apps)"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "amber",
+        "citrus",
+        "noir",
+        "cream",
+        "forest"
+      ],
+      "default": "amber",
+      "description": "Studio look: amber (dark warm studio, glass), citrus (bright cream studio, printed metal), noir (black tech studio, blue rim light, metal), cream (soft beige studio, satin), forest (deep green studio, matte)"
+    },
+    "colorway": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "preset",
+        "amber",
+        "forest",
+        "coral",
+        "cobalt",
+        "ink",
+        "pearl",
+        "sand",
+        "crimson",
+        "sage",
+        "graphite"
+      ],
+      "default": "preset",
+      "description": "Body colour of the stand-in; 'preset' keeps the look's own colour. Choose another only when the brief names the product's colour"
+    },
+    "mood": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "warm",
+        "hopeful",
+        "dreamy",
+        "serious",
+        "reflective"
+      ],
+      "default": "warm",
+      "description": "Mood of the ambient music bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The 3D product hero; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.product-3d",
+          "preset": "{{look}}",
+          "params": {
+            "form": "{{form}}",
+            "colorway": "{{colorway}}",
+            "name": "{{name}}",
+            "tagline": "{{tagline}}",
+            "cta": "{{cta}}",
+            "footnote": "Illustrative 3D render"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Ambient bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.ambient-pad",
+          "preset": "{{mood}}"
+        }
+      }
+    },
+    "swell": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell that peaks as the key light reaches full",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Low impact as the name rises",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click as the call-to-action pill pops in",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Launch spot for Northwind, a stainless steel water bottle that keeps drinks cold for 24 hours and fits every car cup holder. Call to action: Shop the launch. Dark, premium feel.",
+      "inputs": {
+        "name": "Northwind",
+        "tagline": "Cold for 24 hours, made for the cup holder",
+        "cta": "Shop the launch",
+        "form": "bottle",
+        "look": "noir",
+        "colorway": "graphite",
+        "mood": "serious"
+      },
+      "note": "Name and call to action are copied exactly from the brief. The tagline keeps the brief's two concrete facts (24 hours, cup holder) and adds no claim of its own. The form matches the packaging and the colorway follows 'stainless steel'."
+    },
+    {
+      "brief": "Hero spot for Little Ember, a soy wax candle in a glass jar that smells of fig and cedar. CTA: Order now",
+      "inputs": {
+        "name": "Little Ember",
+        "tagline": "Soy wax candle with fig and cedar",
+        "cta": "Order now",
+        "form": "jar",
+        "look": "cream",
+        "colorway": "preset",
+        "mood": "warm"
+      },
+      "note": "A jar is the closest stand-in for a candle. The tagline is a plain restatement of the brief, which is safer than an invented benefit."
+    }
+  ],
+  "style": {
+    "mood": "premium, calm, studio",
+    "palette": [
+      "#14110F",
+      "#F6EFE6",
+      "#E8A13A"
+    ],
+    "typography": "Inter ExtraBold name rising through a line mask, Inter Medium tagline, pill call to action",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 210,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "hero",
+      "role": "product",
+      "duration_frames": 240,
+      "shots": [
+        {
+          "id": "product_hero",
+          "kind": "animation",
+          "duration_frames": 240,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Rim-lit silhouette, key light sweeps on (frames 14-77), camera move lands at frame 132; name rises at frame 101, tagline 120, call to action 149, footnote 126; hold"
+          },
+          "input_refs": [
+            "scene",
+            "name",
+            "tagline",
+            "cta"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 12,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 240,
+        "gain_db": 0,
+        "fade_in_frames": 10,
+        "fade_out_frames": 30
+      },
+      {
+        "id": "light_swell",
+        "input_ref": "swell",
+        "start_frame": 5,
+        "duration_frames": 90,
+        "gain_db": -4
+      },
+      {
+        "id": "name_impact",
+        "input_ref": "impact",
+        "start_frame": 101,
+        "duration_frames": 60,
+        "gain_db": -7
+      },
+      {
+        "id": "cta_click",
+        "input_ref": "click",
+        "start_frame": 149,
+        "duration_frames": 12,
+        "gain_db": -6
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The product on screen is a generic stand-in drawn in code (lathe, box and extrude primitives) with the name printed on it. It is NOT the real product, its shape or its packaging; the footnote 'Illustrative 3D render' is locked into the request and stays on screen from frame 126 to the end.",
+      "Name and call to action are VERBATIM: a writer may only copy them from the brief. The tagline must not add claims the brief does not make.",
+      "Copy is fitted with measured glyphs (name up to two lines, tagline up to two); the recipe throws rather than overflow, so shorten copy that does not fit.",
+      "Sound cues follow the recipe's beats for 8 seconds: the swell peaks at frame 77 as the key light reaches full, the impact lands on the name at frame 101 (0.42D) and the click on the call to action at frame 149 (0.62D)."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -16 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17,
+        "max": -15
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "stand_in_disclosure_review",
+      "mode": "human",
+      "description": "A reviewer confirms the spot is used where a stylised stand-in is acceptable: it must not be presented as a photograph or faithful model of the real product, and the 'Illustrative 3D render' footnote is visible."
+    },
+    {
+      "id": "brand_review",
+      "mode": "human",
+      "description": "The brand owner confirms the name, spelling, call to action and colours are approved."
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms the tagline makes no claim the brand cannot substantiate."
+    }
+  ]
+}

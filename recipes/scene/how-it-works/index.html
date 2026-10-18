@@ -1,0 +1,703 @@
+<!doctype html>
+<!--
+  How it works: a system-diagram explainer. A kicker and title rise in at the
+  centre, then glide up to become the header. Labelled nodes (cards with a
+  line icon drawn in code) appear one per beat; each arrow draws itself from
+  the previous node and the next node springs in at its tip. Packets stream
+  along every finished arrow to show the flow. The current node is lit (ring,
+  glow, filled icon disc) while a caption band below explains it, and the
+  camera leans gently towards it. The last beat lights the whole system in a
+  wave (a loop layout also draws the closing arrow), packets speed up, the
+  camera settles back and a takeaway line replaces the caption.
+
+  Layout adapts to node count and aspect ratio: a row (landscape, up to 4), a
+  column (portrait, up to 4), a snake grid (5-6 nodes) or a loop on an ellipse
+  for cyclic processes.
+
+  Beats (D = duration, N = nodes):
+    intro  = clamp(0.13 D, 1.6, 2.6)  title rises, then moves to the header
+    outro  = clamp(0.2 D, 2.2, 3.6)   system lit + takeaway
+    beat   = (D - intro - outro) / N
+    node k pops at intro + k * beat + 0.35 (its arrow draws in the 0.45 s before)
+    system lit at D - outro; takeaway at D - outro + 0.35
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Parameters arrive in window.vgSpec.params. Copy is drawn with fillText and
+  fitted with measured glyphs; the page throws when copy cannot fit.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, portrait } = vg.setup({
+  title: "How a payment goes through", kicker: "How it works",
+  nodes: ["You tap Pay", "Checkout", "Card network", "Your bank"],
+  captions: [
+    "Your phone sends an encrypted token, never the card number",
+    "The shop's checkout asks its processor to charge the token",
+    "The network routes the request to the bank that issued the card",
+    "The bank checks the balance and approves in under a second",
+  ],
+  icons: ["phone", "cart", "globe", "database"],
+  takeaway: "Four hops, about one second, and no card number shared",
+  layout: "auto",
+  palette: ["#0F1218", "#ECEFF4", "#FFC857", "#5BC0EB", "#7D8597"],
+  grid: 0.5, packets: 1, camera: 1, grain: 0.03,
+});
+
+const ICONS = new Set(["auto", "user", "phone", "cloud", "database", "server", "gear", "lock", "doc", "chart",
+  "globe", "bolt", "mail", "search", "clock", "spark", "leaf", "cart", "signal", "check", "box", "code"]);
+const TAU = Math.PI * 2;
+const { clamp, lerp, ease, tween } = vg;
+
+// ---- colour ------------------------------------------------------------------
+const [BG, INK0, ACCENT, FLOW, MUTED] = P.palette;
+const light = vg.luminance(BG) > 0.4;
+const INK = vg.readable(BG, [INK0, "#FFFFFF", "#0B0D10"]);
+const CARD = vg.mix(BG, INK, light ? 0.035 : 0.055);
+const CARD_INK = vg.readable(CARD, [INK0, INK, "#FFFFFF", "#0B0D10"]);
+// The lit card is tinted towards the accent only as far as its label stays 4.5:1.
+const LIT_CARD = (light ? [0.1, 0.07, 0.04] : [0.2, 0.15, 0.1, 0.06, 0.03]).map((k) => vg.mix(CARD, ACCENT, k))
+  .find((c) => vg.contrast(c, CARD_INK) >= 4.5) || CARD;
+const KICK = vg.contrast(ACCENT, BG) >= 4.5 ? ACCENT : INK;     // small accent text on the ground
+const NOTE = vg.readable(BG, [MUTED, vg.mix(MUTED, INK, 0.4), INK]);
+const ICON_OFF = vg.contrast(ACCENT, CARD) >= 3 ? ACCENT : CARD_INK; // icon on an unlit disc
+const ICON_ON = vg.readable(ACCENT, [BG, "#0B0D10", "#FFFFFF"], 3); // icon on the lit (accent) disc
+
+// ---- copy ----------------------------------------------------------------------
+const nodes = (P.nodes || []).map((s) => String(s).trim()).filter(Boolean).slice(0, 6);
+const N = nodes.length;
+if (N < 2) throw new Error("how-it-works: give at least two nodes");
+const captions = nodes.map((_, i) => String((P.captions || [])[i] || "").trim());
+const icons = nodes.map((_, i) => (ICONS.has((P.icons || [])[i]) ? P.icons[i] : "auto"));
+const kicker = String(P.kicker || "").trim().toUpperCase();
+const takeaway = String(P.takeaway || "").trim();
+
+const ctx = vg.canvas2d();
+
+// ---- regions (HUD space) ---------------------------------------------------------
+const aspect = W / H;
+const M = Math.round(W * (portrait ? 0.08 : 0.06));
+let header, area, band;
+if (aspect <= 0.8) {           // 9:16 and similar: copy stays between 12% and 78% of the height
+  header = { y: H * 0.12, h: H * 0.1 };
+  area = { x: W * 0.055, y: H * 0.235, w: W * 0.89, h: H * 0.41 };
+  band = { y: H * 0.66, h: H * 0.12 };
+} else if (aspect >= 1.3) {    // 16:9
+  header = { y: H * 0.065, h: H * 0.15 };
+  area = { x: M, y: H * 0.255, w: W - 2 * M, h: H * 0.47 };
+  band = { y: H * 0.765, h: H * 0.17 };
+} else {                       // square-ish
+  header = { y: H * 0.06, h: H * 0.14 };
+  area = { x: M, y: H * 0.23, w: W - 2 * M, h: H * 0.5 };
+  band = { y: H * 0.765, h: H * 0.17 };
+}
+const minText = unit * 0.03;
+
+// Header: kicker over a title of at most two lines.
+const kickSize = Math.round(unit * 0.03);
+const kickH = kicker ? kickSize * 1.7 : 0;
+const title = vg.fit(ctx, P.title, {
+  maxSize: unit * (portrait ? 0.056 : 0.06), minSize: unit * 0.034, weight: 800, maxWidth: W - 2 * M,
+  maxLines: 2, maxHeight: header.h - kickH, leading: 1.1, label: "title",
+});
+const headerBlockH = kickH + title.height;
+const headerCenter = { x: W / 2, y: header.y + headerBlockH / 2 };
+// The intro sets the title larger (up to three lines) and morphs it into the header.
+const introTitle = vg.fit(ctx, P.title, {
+  maxSize: unit * (portrait ? 0.105 : 0.1), minSize: title.size, weight: 800, maxWidth: (W - 2 * M) * 0.94,
+  maxLines: 3, maxHeight: H * 0.34, leading: 1.06, label: "title",
+});
+const introKick = kicker ? Math.round(kickSize * 1.25) : 0;
+const introH = (kicker ? introKick * 1.8 : 0) + introTitle.height;
+const introCenter = { x: W / 2, y: H * 0.46 };
+
+// ---- diagram layout ----------------------------------------------------------------
+function chooseLayout() {
+  if (["row", "column", "snake", "loop"].includes(P.layout)) return P.layout;
+  if (aspect >= 1.3) return N <= 4 ? "row" : "snake";
+  if (aspect <= 0.8) return N <= 3 ? "column" : "snake";
+  return N <= 3 ? "row" : "snake";
+}
+const layout = chooseLayout();
+
+function place(scale = 1, turn = 0) {
+  const cx = area.x + area.w / 2, cy = area.y + area.h / 2;
+  const out = [];
+  if (layout === "row") {
+    const cell = area.w / N, gap = Math.max(unit * 0.11, cell * 0.3);
+    const cw = (cell - gap) * scale, ch = Math.min(area.h * 0.7, cw * 0.92) * scale;
+    for (let i = 0; i < N; i++) out.push({ x: area.x + cell * (i + 0.5), y: cy, w: cw, h: ch });
+  } else if (layout === "column") {
+    const cell = area.h / N, gap = Math.max(unit * 0.1, cell * 0.36);
+    const ch = Math.min(cell - gap, unit * 0.2) * scale, cw = Math.min(area.w * 0.86, unit * 0.95) * scale;
+    for (let i = 0; i < N; i++) out.push({ x: cx, y: area.y + cell * (i + 0.5), w: cw, h: ch });
+  } else if (layout === "snake") {
+    const cols = aspect >= 1.3 ? Math.ceil(N / 2) : 2, rows = Math.ceil(N / cols);
+    const cellW = area.w / cols, cellH = area.h / rows;
+    const gapX = Math.max(unit * 0.1, cellW * 0.24), gapY = Math.max(unit * 0.09, cellH * 0.32);
+    const cw = (cellW - gapX) * scale, ch = Math.min(cellH - gapY, cw * 0.8) * scale;
+    for (let i = 0; i < N; i++) {
+      const r = Math.floor(i / cols), k = i % cols, c = r % 2 === 0 ? k : cols - 1 - k;
+      out.push({ x: area.x + cellW * (c + 0.5), y: area.y + cellH * (r + 0.5), w: cw, h: ch });
+    }
+  } else {                                   // loop on an ellipse, clockwise from the top
+    const cw = Math.min(area.w * (N <= 4 ? 0.34 : aspect < 1 ? 0.27 : 0.3), unit * 0.5) * scale;
+    const ch = Math.min(cw * 0.62, area.h * 0.32 * scale);
+    const rx = area.w / 2 - cw / 2, ry = area.h / 2 - ch / 2;
+    const start = -Math.PI / 2 + turn;
+    for (let i = 0; i < N; i++) {
+      const a = start + (TAU * i) / N;
+      out.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a), w: cw, h: ch, a, rx, ry, cx, cy });
+    }
+  }
+  return out;
+}
+const inside = (c, [x, y], pad) => Math.abs(x - c.x) < c.w / 2 + pad && Math.abs(y - c.y) < c.h / 2 + pad;
+function overlaps(list, pad) {
+  for (let i = 0; i < list.length; i++)
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j];
+      if (Math.abs(a.x - b.x) < (a.w + b.w) / 2 + pad && Math.abs(a.y - b.y) < (a.h + b.h) / 2 + pad) return true;
+    }
+  return false;
+}
+// Loops shrink their cards until neighbours clear each other with room for an arrow.
+// The visible length of the arc between two neighbours (outside both cards).
+function arcRoom(a, b) {
+  let a1 = b.a; while (a1 <= a.a) a1 += TAU;
+  let len = 0, prev = null;
+  for (let k = 0; k <= 60; k++) {
+    const th = lerp(a.a, a1, k / 60), pt = [a.cx + a.rx * Math.cos(th), a.cy + a.ry * Math.sin(th)];
+    const out = !inside(a, pt, unit * 0.015) && !inside(b, pt, unit * 0.024);
+    if (out && prev) len += Math.hypot(pt[0] - prev[0], pt[1] - prev[1]);
+    prev = out ? pt : null;
+  }
+  return len;
+}
+function roomy(list) {
+  if (layout !== "loop") return true;
+  for (let i = 0; i < list.length; i++) if (arcRoom(list[i], list[(i + 1) % list.length]) < unit * 0.06) return false;
+  return true;
+}
+let cards = place(1);
+if (layout === "loop") {
+  // Try the ring with a node at the top and rotated half a step; keep whichever allows larger cards.
+  let best = null;
+  for (const turn of [0, Math.PI / N]) {
+    for (let s = 1; s > 0.4; s -= 0.03) {
+      const list = place(s, turn);
+      if (!overlaps(list, unit * 0.05) && roomy(list)) { if (!best || s > best.s) best = { s, list }; break; }
+    }
+  }
+  if (best) cards = best.list;
+}
+if (overlaps(cards, unit * 0.02)) throw new Error("how-it-works: too many nodes for this frame; use fewer nodes");
+
+// Card content: the icon beside the label (wide cards) or above it; whichever arrangement gives every
+// label the larger shared size wins.
+function arrange(c, wide) {
+  c.wide = wide;
+  c.r = Math.min(c.w, c.h) * 0.16;
+  if (wide) {
+    c.disc = c.h * 0.27;
+    c.discX = -c.w / 2 + c.h * 0.15 + c.disc; c.discY = 0;
+    c.textX = c.discX + c.disc + c.h * 0.15; c.textW = c.w / 2 - c.textX - c.h * 0.12; c.textH = c.h * 0.8;
+  } else {
+    const short = c.h < unit * 0.2;                 // short cards: a smaller icon and tighter gaps
+    c.gap = c.h * (short ? 0.05 : 0.06);
+    c.disc = Math.min(c.h * (c.h > unit * 0.22 ? 0.19 : short ? 0.15 : 0.165), c.w * 0.2);
+    c.discY = -c.h / 2 + c.h * (short ? 0.07 : 0.085) + c.disc; c.discX = 0;
+    c.textX = 0; c.textW = c.w * 0.9; c.textH = c.h / 2 - (c.discY + c.disc + c.gap) - c.gap;
+  }
+}
+function sharedLabelSize(wide) {
+  let size = Infinity;
+  for (let i = 0; i < N; i++) {
+    arrange(cards[i], wide);
+    try {
+      size = Math.min(size, vg.fit(ctx, nodes[i], { maxSize: unit * 0.05, minSize: minText, weight: 700,
+        maxWidth: cards[i].textW, maxLines: 2, maxHeight: cards[i].textH, leading: 1.12, label: `node ${i + 1}` }).size);
+    } catch (e) { return { size: 0, error: e }; }
+  }
+  return { size };
+}
+const asWide = cards[0].w / cards[0].h >= 1.7 ? sharedLabelSize(true) : { size: 0 };
+const asTall = sharedLabelSize(false);
+// Wide cards read better with the icon beside the label, unless that costs a fifth of the label size.
+const useWide = asWide.size > 0 && asWide.size >= asTall.size * (cards[0].w / cards[0].h >= 2.4 ? 0.8 : 1.0001);
+if (!useWide && !asTall.size) throw asTall.error;
+const labelSize = useWide ? asWide.size : asTall.size;
+cards.forEach((c, i) => {
+  arrange(c, useWide);
+  c.label = vg.fit(ctx, nodes[i], { maxSize: labelSize, minSize: labelSize, weight: 700, maxWidth: c.textW,
+    maxLines: 2, leading: 1.12, label: `node ${i + 1}` });
+});
+
+// ---- arrows -------------------------------------------------------------------------
+const PAD = unit * 0.015;
+function makePath(i, j) {
+  const a = cards[i], b = cards[j], pts = [];
+  const S = 240;
+  if (layout === "loop") {
+    let a1 = b.a; while (a1 <= a.a) a1 += TAU;
+    for (let k = 0; k <= S; k++) {
+      const th = lerp(a.a, a1, k / S);
+      pts.push([a.cx + a.rx * Math.cos(th), a.cy + a.ry * Math.sin(th)]);
+    }
+  } else {
+    for (let k = 0; k <= S; k++) pts.push([lerp(a.x, b.x, k / S), lerp(a.y, b.y, k / S)]);
+  }
+  let s = 0, e = pts.length - 1;
+  while (s < e && inside(a, pts[s], PAD)) s++;
+  while (e > s && inside(b, pts[e], PAD * 1.6)) e--;
+  const kept = pts.slice(s, e + 1);
+  const cum = [0];
+  for (let k = 1; k < kept.length; k++) cum.push(cum[k - 1] + Math.hypot(kept[k][0] - kept[k - 1][0], kept[k][1] - kept[k - 1][1]));
+  return { pts: kept, cum, len: cum[cum.length - 1], from: i, to: j };
+}
+function at(path, s) {
+  const { pts, cum } = path;
+  s = clamp(s, 0, path.len);
+  let lo = 0, hi = cum.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= s) lo = mid; else hi = mid; }
+  const span = cum[hi] - cum[lo] || 1, f = (s - cum[lo]) / span;
+  const x = lerp(pts[lo][0], pts[hi][0], f), y = lerp(pts[lo][1], pts[hi][1], f);
+  return { x, y, dx: (pts[hi][0] - pts[lo][0]) / span, dy: (pts[hi][1] - pts[lo][1]) / span, k: hi };
+}
+const edges = [];
+for (let i = 0; i < N - 1; i++) edges.push(makePath(i, i + 1));
+const closing = layout === "loop" ? makePath(N - 1, 0) : null;
+edges.forEach((e) => { if (e.len < unit * 0.03) throw new Error("how-it-works: nodes too close for arrows"); });
+
+// ---- timeline ------------------------------------------------------------------------
+const intro = clamp(D * 0.13, 1.6, 2.6);
+const outro = clamp(D * 0.2, 2.2, 3.6);
+const beat = (D - intro - outro) / N;
+if (beat < 0.6) throw new Error(`how-it-works: ${D}s is too short for ${N} nodes`);
+const popT = (k) => intro + k * beat + 0.35;
+const litT = D - outro;
+const edgeStart = (i) => popT(i + 1) - 0.45;             // arrow i leads into node i + 1
+const closeStart = litT + 0.15;
+function activity(i, t) {
+  const on = tween(t, popT(i), 0.3, ease.outCubic);
+  const off = i < N - 1 ? tween(t, popT(i + 1) - 0.05, 0.4, ease.inOutCubic) : tween(t, litT, 0.4, ease.inOutCubic);
+  return on * (1 - off);
+}
+const litOf = (i, t) => tween(t, litT + i * Math.min(0.14, 0.9 / N), 0.45, ease.outCubic);
+
+// ---- caption band ---------------------------------------------------------------------
+const bandW = Math.min(W - 2 * M, unit * (portrait ? 0.9 : 1.45));
+const capKickH = kickSize * 1.75;
+let capSize = Infinity;
+captions.forEach((c, i) => {
+  if (!c) return;
+  const f = vg.fit(ctx, c, { maxSize: unit * (portrait ? 0.044 : 0.043), minSize: minText, weight: 500,
+    maxWidth: bandW, maxLines: 2, maxHeight: band.h - capKickH, leading: 1.22, label: `caption ${i + 1}` });
+  capSize = Math.min(capSize, f.size);
+});
+const capBlocks = captions.map((c, i) => (c ? vg.fit(ctx, c, { maxSize: capSize, minSize: capSize, weight: 500,
+  maxWidth: bandW, maxLines: 2, leading: 1.22, label: `caption ${i + 1}` }) : null));
+const capKick = nodes.map((n, i) => `${String(i + 1).padStart(2, "0")}  ${n}`.toUpperCase());
+capKick.forEach((k, i) => {
+  vg.font(ctx, kickSize, 700);
+  if (ctx.measureText(k).width > bandW * 1.15) capKick[i] = String(i + 1).padStart(2, "0");
+});
+const take = takeaway ? vg.fit(ctx, takeaway, { maxSize: unit * (portrait ? 0.058 : 0.056), minSize: minText,
+  weight: 750, maxWidth: bandW, maxLines: 2, maxHeight: band.h * 0.92, leading: 1.14, label: "takeaway" }) : null;
+
+// ---- drawing helpers ---------------------------------------------------------------------
+function tracked(text, x, y, size, color, alpha, spacing = 0.14) {
+  vg.font(ctx, size, 700);
+  ctx.letterSpacing = `${(size * spacing).toFixed(1)}px`;
+  ctx.fillStyle = color; ctx.globalAlpha = alpha; ctx.textAlign = "center";
+  ctx.fillText(text, x + size * spacing / 2, y);
+  ctx.letterSpacing = "0px"; ctx.textAlign = "left"; ctx.globalAlpha = 1;
+}
+
+// Ground, graph-paper grid and vignette are baked once; each frame blits them.
+const gridStep = Math.round(unit * 0.045), tile = gridStep * 4;
+const ground = document.createElement("canvas");
+ground.width = W + tile; ground.height = H + tile;
+{
+  const g = ground.getContext("2d");
+  g.fillStyle = BG; g.fillRect(0, 0, ground.width, ground.height);
+  if (P.grid > 0) {
+    g.strokeStyle = INK; g.lineWidth = Math.max(1, unit * 0.0009);
+    for (let k = 0; k * gridStep <= ground.width + gridStep; k++) {
+      g.globalAlpha = P.grid * (k % 4 === 0 ? 0.11 : 0.045);
+      g.beginPath(); g.moveTo(k * gridStep + 0.5, 0); g.lineTo(k * gridStep + 0.5, ground.height); g.stroke();
+    }
+    for (let k = 0; k * gridStep <= ground.height + gridStep; k++) {
+      g.globalAlpha = P.grid * (k % 4 === 0 ? 0.11 : 0.045);
+      g.beginPath(); g.moveTo(0, k * gridStep + 0.5); g.lineTo(ground.width, k * gridStep + 0.5); g.stroke();
+    }
+  }
+}
+const shade = document.createElement("canvas");
+shade.width = W; shade.height = H;
+vg.vignette(shade.getContext("2d"), light ? 0.1 : 0.3);
+
+function background(t) {
+  const d = (t * unit * 0.006) % tile;
+  ctx.drawImage(ground, -d, -(d * 0.5));
+}
+
+// ---- icons: line drawings in a box of half-size s ---------------------------------------
+function icon(name, i, s, t, color, holeColor, act) {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color;
+  ctx.lineWidth = s * 0.15; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const line = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0] * s, pts[1] * s); for (let k = 2; k < pts.length; k += 2) ctx.lineTo(pts[k] * s, pts[k + 1] * s); };
+  const circle = (x, y, r) => { ctx.beginPath(); ctx.arc(x * s, y * s, r * s, 0, TAU); };
+  const spin = t * 1.4 * act;
+  switch (name) {
+    case "user":
+      circle(0, -0.36, 0.3); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0.78 * s, 0.62 * s, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke(); break;
+    case "phone":
+      vg.roundRect(ctx, -0.4 * s, -0.72 * s, 0.8 * s, 1.44 * s, 0.16 * s); ctx.stroke();
+      line([-0.12, 0.5, 0.12, 0.5]); ctx.stroke(); break;
+    case "cloud": {
+      const parts = [[-0.36, 0.08, 0.3], [0.04, -0.14, 0.4], [0.42, 0.12, 0.26]];
+      ctx.lineWidth = s * 0.3;
+      parts.forEach(([x, y, r]) => { circle(x, y, r); ctx.stroke(); });
+      vg.roundRect(ctx, -0.66 * s, 0.05 * s, 1.34 * s, 0.33 * s, 0.16 * s); ctx.stroke();
+      ctx.fillStyle = holeColor;
+      parts.forEach(([x, y, r]) => { circle(x, y, r); ctx.fill(); });
+      vg.roundRect(ctx, -0.66 * s, 0.05 * s, 1.34 * s, 0.33 * s, 0.16 * s); ctx.fill(); break;
+    }
+    case "database":
+      ctx.beginPath(); ctx.ellipse(0, -0.5 * s, 0.6 * s, 0.2 * s, 0, 0, TAU); ctx.stroke();
+      line([-0.6, -0.5, -0.6, 0.5]); ctx.stroke(); line([0.6, -0.5, 0.6, 0.5]); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0.5 * s, 0.6 * s, 0.2 * s, 0, 0, Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0, 0.6 * s, 0.2 * s, 0, 0, Math.PI); ctx.stroke(); break;
+    case "server":
+      [-0.62, 0.08].forEach((y, k) => {
+        vg.roundRect(ctx, -0.66 * s, y * s, 1.32 * s, 0.54 * s, 0.1 * s); ctx.stroke();
+        ctx.globalAlpha = k === Math.floor(t * 3) % 2 && act > 0.5 ? 1 : 0.55;
+        circle(0.36, y + 0.27, 0.08); ctx.fill(); ctx.globalAlpha = 1;
+        line([-0.42, y + 0.27, -0.08, y + 0.27]); ctx.stroke();
+      }); break;
+    case "gear": {
+      ctx.rotate(spin);
+      ctx.beginPath();
+      const teeth = 8;
+      for (let k = 0; k < teeth * 2; k++) {
+        const r = (k % 2 ? 0.52 : 0.72) * s, a0 = (k / (teeth * 2)) * TAU, a1 = ((k + 1) / (teeth * 2)) * TAU;
+        ctx.lineTo(r * Math.cos(a0 + 0.05), r * Math.sin(a0 + 0.05)); ctx.lineTo(r * Math.cos(a1 - 0.05), r * Math.sin(a1 - 0.05));
+      }
+      ctx.closePath(); ctx.stroke(); circle(0, 0, 0.2); ctx.stroke(); break;
+    }
+    case "lock":
+      ctx.beginPath(); ctx.arc(0, -0.2 * s, 0.32 * s, Math.PI, TAU); ctx.lineTo(0.32 * s, 0); ctx.moveTo(-0.32 * s, 0); ctx.lineTo(-0.32 * s, -0.2 * s); ctx.stroke();
+      vg.roundRect(ctx, -0.52 * s, -0.04 * s, 1.04 * s, 0.76 * s, 0.12 * s); ctx.stroke();
+      circle(0, 0.3, 0.08); ctx.fill(); break;
+    case "doc":
+      line([-0.48, -0.72, 0.18, -0.72, 0.5, -0.4, 0.5, 0.72, -0.48, 0.72]); ctx.closePath(); ctx.stroke();
+      line([0.18, -0.72, 0.18, -0.4, 0.5, -0.4]); ctx.stroke();
+      [-0.08, 0.18, 0.44].forEach((y, k) => { line([-0.26, y, k === 2 ? 0.08 : 0.28, y]); ctx.stroke(); }); break;
+    case "chart": {
+      line([-0.66, -0.66, -0.66, 0.62, 0.7, 0.62]); ctx.stroke();
+      const grow = 0.75 + 0.25 * Math.sin(t * 3) * act;
+      [[-0.3, 0.45], [0.06, 0.8], [0.42, 1.1]].forEach(([x, h]) => { line([x, 0.4, x, 0.4 - h * grow]); ctx.stroke(); }); break;
+    }
+    case "globe": {
+      circle(0, 0, 0.68); ctx.stroke();
+      line([-0.68, 0, 0.68, 0]); ctx.stroke();
+      const rx = 0.3 * Math.abs(Math.cos(spin * 0.8)) + 0.04;
+      ctx.beginPath(); ctx.ellipse(0, 0, rx * s, 0.68 * s, 0, 0, TAU); ctx.stroke();
+      line([-0.58, -0.36, 0.58, -0.36]); ctx.stroke(); line([-0.58, 0.36, 0.58, 0.36]); ctx.stroke(); break;
+    }
+    case "bolt":
+      line([0.14, -0.76, -0.44, 0.1, -0.02, 0.1, -0.14, 0.76, 0.44, -0.1, 0.02, -0.1]); ctx.closePath(); ctx.stroke(); break;
+    case "mail":
+      vg.roundRect(ctx, -0.68 * s, -0.46 * s, 1.36 * s, 0.92 * s, 0.1 * s); ctx.stroke();
+      line([-0.6, -0.36, 0, 0.1, 0.6, -0.36]); ctx.stroke(); break;
+    case "search":
+      circle(-0.12, -0.12, 0.42); ctx.stroke(); line([0.2, 0.2, 0.64, 0.64]); ctx.stroke(); break;
+    case "clock": {
+      circle(0, 0, 0.68); ctx.stroke();
+      const m = -Math.PI / 2 + spin * 2.2, h = -Math.PI / 2 + 2.1 + spin * 0.2;
+      line([0, 0, 0.46 * Math.cos(m), 0.46 * Math.sin(m)]); ctx.stroke();
+      line([0, 0, 0.3 * Math.cos(h), 0.3 * Math.sin(h)]); ctx.stroke(); break;
+    }
+    case "spark": {
+      ctx.rotate(spin * 0.25);
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const r = (k % 2 ? 0.2 : 0.74) * s, a = (k / 8) * TAU - Math.PI / 2;
+        ctx.lineTo(r * Math.cos(a), r * Math.sin(a));
+      }
+      ctx.closePath(); ctx.stroke(); break;
+    }
+    case "leaf":
+      ctx.beginPath(); ctx.moveTo(-0.55 * s, 0.55 * s);
+      ctx.quadraticCurveTo(-0.6 * s, -0.6 * s, 0.62 * s, -0.62 * s);
+      ctx.quadraticCurveTo(0.6 * s, 0.6 * s, -0.55 * s, 0.55 * s); ctx.stroke();
+      line([-0.66, 0.66, 0.2, -0.2]); ctx.stroke(); break;
+    case "cart":
+      line([-0.74, -0.56, -0.5, -0.56, -0.3, 0.26, 0.52, 0.26, 0.66, -0.3, -0.42, -0.3]); ctx.stroke();
+      circle(-0.22, 0.56, 0.1); ctx.fill(); circle(0.44, 0.56, 0.1); ctx.fill(); break;
+    case "signal": {
+      circle(0, 0.5, 0.09); ctx.fill();
+      [0.36, 0.66, 0.96].forEach((r, k) => {
+        ctx.globalAlpha = act > 0.5 ? (Math.floor(t * 4) % 4 > k ? 1 : 0.35) : 1;
+        ctx.beginPath(); ctx.arc(0, 0.5 * s, r * s, Math.PI * 1.25, Math.PI * 1.75); ctx.stroke();
+      });
+      ctx.globalAlpha = 1; break;
+    }
+    case "check":
+      line([-0.52, 0.04, -0.14, 0.42, 0.58, -0.36]); ctx.stroke(); break;
+    case "box":
+      line([0, -0.72, 0.64, -0.38, 0.64, 0.38, 0, 0.72, -0.64, 0.38, -0.64, -0.38]); ctx.closePath(); ctx.stroke();
+      line([-0.64, -0.38, 0, -0.04, 0.64, -0.38]); ctx.stroke(); line([0, -0.04, 0, 0.72]); ctx.stroke(); break;
+    case "code":
+      line([-0.3, -0.46, -0.7, 0, -0.3, 0.46]); ctx.stroke(); line([0.3, -0.46, 0.7, 0, 0.3, 0.46]); ctx.stroke();
+      line([0.12, -0.6, -0.12, 0.6]); ctx.stroke(); break;
+    default: {                                  // auto: the node's number
+      vg.font(ctx, s * 1.15, 800); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(String(i + 1), 0, s * 0.06);
+    }
+  }
+  ctx.restore();
+}
+
+// ---- camera: frames the nodes revealed so far, then pulls back to the whole system ----
+const diagramCenter = { x: area.x + area.w / 2, y: area.y + area.h / 2 };
+const zoomMax = 1 + 0.35 * P.camera;
+const framing = cards.map((_, k) => {
+  const shown = cards.slice(0, k + 1);
+  const x0 = Math.min(...shown.map((c) => c.x - c.w * 0.6)), x1 = Math.max(...shown.map((c) => c.x + c.w * 0.6));
+  const y0 = Math.min(...shown.map((c) => c.y - c.h * 0.6)), y1 = Math.max(...shown.map((c) => c.y + c.h * 0.6));
+  const zoom = clamp(Math.min(area.w / (x1 - x0), area.h / (y1 - y0)), 1, zoomMax);
+  // Never frame beyond the diagram: at zoom z the view spans area / z around the centre.
+  // Centre what exists so far; the empty rest of the diagram may fall outside the view.
+  const on = P.camera > 0 ? 1 : 0;
+  return { x: lerp(diagramCenter.x, (x0 + x1) / 2, on), y: lerp(diagramCenter.y, (y0 + y1) / 2, on), zoom };
+});
+function camera(t) {
+  let { x, y, zoom } = framing[0];
+  for (let k = 1; k < N; k++) {
+    const p = tween(t, edgeStart(k - 1) - 0.35, 0.8, ease.inOutCubic);
+    if (p <= 0) break;
+    x = lerp(framing[k - 1].x, framing[k].x, p); y = lerp(framing[k - 1].y, framing[k].y, p);
+    zoom = Math.exp(lerp(Math.log(framing[k - 1].zoom), Math.log(framing[k].zoom), p));
+  }
+  const back = tween(t, litT - 0.1, 1.2, ease.inOutCubic);
+  const settle = 1 - 0.025 * P.camera * back;
+  // A slow breath keeps the frame alive during holds.
+  const breath = 1 + 0.006 * P.camera * Math.sin(t * 0.9);
+  return { x: lerp(x, diagramCenter.x, back), y: lerp(y, diagramCenter.y, back),
+           zoom: Math.exp(lerp(Math.log(zoom), 0, back)) * settle * breath };
+}
+
+// ---- scene parts ----------------------------------------------------------------------------
+function drawTitleBlock(block, kSize, cx, cy, scale, alpha, t, rises) {
+  const kH = kicker ? kSize * 1.8 : 0, h = kH + block.height;
+  ctx.save();
+  ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.translate(0, -h / 2);
+  if (kicker) {
+    const k = tween(t, 0.05, 0.6, ease.outCubic);
+    tracked(kicker, 0, kSize * 0.95, kSize, KICK, k * alpha, lerp(0.4, 0.16, k));
+  }
+  vg.font(ctx, block.size, block.weight);
+  block.lines.forEach((ln, k) => {
+    const p = rises ? ease.outExpo(clamp((t - 0.15 - k * 0.09) / 0.75)) : 1;
+    const y = kH + k * block.size * block.leading;
+    const w = ctx.measureText(ln).width;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-W, y - block.size * 0.05, W * 2, block.size * 1.22); ctx.clip();
+    ctx.fillStyle = INK; ctx.globalAlpha = clamp(p * 1.4) * alpha;
+    ctx.fillText(ln, -w / 2, y + block.size * 0.8 + (1 - p) * block.size * 1.05);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+function drawHeader(t) {
+  const move = tween(t, intro - 0.65, 0.85, ease.inOutCubic);
+  // The large intro title flies up and shrinks towards the header while the header resolves in place.
+  const toHeader = title.size / introTitle.size;
+  if (move < 1) {
+    const s = lerp(1, toHeader, move);
+    drawTitleBlock(introTitle, introKick, W / 2, lerp(introCenter.y, headerCenter.y, move), s,
+                   1 - clamp((move - 0.15) / 0.3), t, true);
+  }
+  if (move > 0.45) {
+    const a = clamp((move - 0.45) / 0.4);
+    drawTitleBlock(title, kickSize, W / 2, headerCenter.y + (1 - a) * title.size * 0.35, 1, a, t, false);
+  }
+}
+
+function drawEdge(path, p, focus, t) {
+  if (p <= 0) return;
+  const len = path.len * p, head = at(path, len);
+  const lw = Math.max(2, unit * 0.0045);
+  ctx.strokeStyle = vg.mix(MUTED, ACCENT, focus); ctx.lineWidth = lw; ctx.lineCap = "round";
+  ctx.globalAlpha = 0.55 + 0.45 * focus;
+  ctx.beginPath(); ctx.moveTo(path.pts[0][0], path.pts[0][1]);
+  for (let k = 1; k < head.k; k++) ctx.lineTo(path.pts[k][0], path.pts[k][1]);
+  ctx.lineTo(head.x, head.y); ctx.stroke();
+  // Arrowhead grows in with the line.
+  const a = unit * 0.019 * clamp(p * 3), nx = -head.dy, ny = head.dx;
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.beginPath();
+  ctx.moveTo(head.x + head.dx * a * 0.4, head.y + head.dy * a * 0.4);
+  ctx.lineTo(head.x - head.dx * a + nx * a * 0.62, head.y - head.dy * a + ny * a * 0.62);
+  ctx.lineTo(head.x - head.dx * a * 0.62, head.y - head.dy * a * 0.62);
+  ctx.lineTo(head.x - head.dx * a - nx * a * 0.62, head.y - head.dy * a - ny * a * 0.62);
+  ctx.closePath(); ctx.fill();
+  if (p < 1) {                                   // a bright pen tip while drawing
+    ctx.globalAlpha = 0.9; ctx.fillStyle = FLOW;
+    ctx.beginPath(); ctx.arc(head.x, head.y, lw * 1.6, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPackets(path, done, t, boost) {
+  if (P.packets <= 0 || t < done) return;
+  const speed = unit * 0.24 * (1 + boost * 0.9);
+  const gap = unit * 0.16 / P.packets;
+  const elapsed = t - done;
+  // Packet m leaves the source at done + m * gap / speed and travels to the target.
+  const last = Math.floor((elapsed * speed) / gap), first = Math.max(0, Math.ceil(((elapsed * speed) - path.len) / gap));
+  const r = unit * 0.0085;
+  for (let m = first; m <= last; m++) {
+    const s = elapsed * speed - m * gap;
+    if (s < 0 || s > path.len) continue;
+    const fade = clamp(s / (unit * 0.03)) * clamp((path.len - s) / (unit * 0.03));
+    for (let k = 4; k >= 0; k--) {
+      const q = at(path, s - k * r * 1.3);
+      ctx.globalAlpha = fade * (k === 0 ? 1 : 0.32 * (1 - k / 5));
+      ctx.fillStyle = FLOW;
+      ctx.beginPath(); ctx.arc(q.x, q.y, r * (1 - k * 0.13), 0, TAU); ctx.fill();
+    }
+    const q = at(path, s);
+    ctx.globalAlpha = fade * 0.22; ctx.beginPath(); ctx.arc(q.x, q.y, r * 2.6, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCard(i, t) {
+  const c = cards[i], local = t - popT(i);
+  if (local < 0) return;
+  const pop = vg.spring(local, { stiffness: 16, damping: 0.45 });
+  const appear = clamp(local / 0.22);
+  const act = activity(i, t), lit = litOf(i, t);
+  const focus = Math.max(act, lit);
+  const dim = 0.5 + 0.5 * Math.max(focus, i === N - 1 && t < popT(i) + 0.3 ? 1 : 0);
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  // Glow behind the lit card.
+  if (focus > 0.01) {
+    const R = Math.max(c.w, c.h) * 0.8;
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    g.addColorStop(0, vg.rgba(ACCENT, (light ? 0.13 : 0.2) * focus)); g.addColorStop(1, vg.rgba(ACCENT, 0));
+    ctx.fillStyle = g; ctx.fillRect(-R, -R, 2 * R, 2 * R);
+  }
+  // A ring ripples out as the node lands.
+  const ripple = clamp(local / 0.8);
+  if (ripple < 1) {
+    const grow = 1 + ease.outCubic(ripple) * 0.22;
+    ctx.strokeStyle = ACCENT; ctx.globalAlpha = (1 - ripple) * 0.6; ctx.lineWidth = Math.max(2, unit * 0.003);
+    vg.roundRect(ctx, -c.w * grow / 2, -c.h * grow / 2, c.w * grow, c.h * grow, c.r * grow); ctx.stroke();
+  }
+  ctx.scale(pop, pop);
+  ctx.globalAlpha = appear;
+  vg.roundRect(ctx, -c.w / 2, -c.h / 2, c.w, c.h, c.r);
+  ctx.fillStyle = vg.mix(CARD, LIT_CARD, focus); ctx.fill();
+  ctx.strokeStyle = vg.mix(vg.mix(BG, MUTED, 0.6), ACCENT, focus);
+  ctx.lineWidth = Math.max(1.5, unit * (0.0022 + 0.0022 * focus)); ctx.stroke();
+  // Icon disc.
+  ctx.globalAlpha = appear * (0.6 + 0.4 * dim);
+  ctx.save();
+  ctx.translate(c.discX, c.discY);
+  const discFill = vg.mix(vg.mix(CARD, ACCENT, 0.14), ACCENT, focus);
+  ctx.fillStyle = discFill; ctx.beginPath(); ctx.arc(0, 0, c.disc, 0, TAU); ctx.fill();
+  ctx.strokeStyle = ACCENT; ctx.lineWidth = Math.max(1.5, unit * 0.0022); ctx.stroke();
+  const iconIn = ease.outBack(clamp((local - 0.08) / 0.45));
+  ctx.scale(iconIn, iconIn);
+  icon(icons[i], i, c.disc * 0.56, t, focus > 0.5 ? ICON_ON : ICON_OFF, discFill, act);
+  ctx.restore();
+  // Label.
+  ctx.globalAlpha = appear * dim;
+  const L = c.label, lead = L.size * L.leading;
+  const blockH = (L.lines.length - 1) * lead + L.size * 0.74;
+  const top = c.wide ? -blockH / 2 : c.discY + c.disc + c.gap + (c.textH - blockH) / 2;
+  const slide = ease.outExpo(clamp((local - 0.12) / 0.6));
+  vg.font(ctx, L.size, L.weight); ctx.fillStyle = CARD_INK;
+  ctx.globalAlpha = appear * dim * slide;
+  L.lines.forEach((ln, k) => {
+    const w = ctx.measureText(ln).width;
+    const x = c.wide ? c.textX : -w / 2;
+    ctx.fillText(ln, x, top + L.size * 0.74 + k * lead + (1 - slide) * L.size * 0.5);
+  });
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawBand(t) {
+  const x = W / 2, top = band.y;
+  for (let k = 0; k < N; k++) {
+    const enter = ease.outExpo(clamp((t - popT(k) - 0.06) / 0.6));
+    const leave = k < N - 1 ? tween(t, popT(k + 1) - 0.3, 0.3, ease.inCubic) : tween(t, litT, 0.3, ease.inCubic);
+    if (enter <= 0 || leave >= 1) continue;
+    const alpha = enter * (1 - leave), dy = (1 - enter) * unit * 0.03 - leave * unit * 0.025;
+    tracked(capKick[k], x, top + kickSize * 0.95 + dy, kickSize, KICK, alpha, 0.12);
+    const B = capBlocks[k];
+    if (B) vg.drawLines(ctx, B, x, top + capKickH + dy * 1.3, { color: INK, align: "center", alpha });
+  }
+  if (take) {
+    const enter = ease.outExpo(clamp((t - litT - 0.35) / 0.8));
+    if (enter > 0) {
+      const y = top + (band.h - take.height) / 2 + (1 - enter) * take.size * 0.6;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, top - unit * 0.02, W, band.h + unit * 0.04); ctx.clip();
+      vg.drawLines(ctx, take, x, y, { color: INK, align: "center", alpha: clamp(enter * 1.3) });
+      ctx.restore();
+      const rule = tween(t, litT + 0.6, 0.8, ease.outExpo);
+      ctx.fillStyle = ACCENT;
+      const rw = take.width * 0.22 * rule, ry = y + take.height + take.size * 0.28;
+      if (ry < band.y + band.h + unit * 0.03) ctx.fillRect(x - rw / 2, ry, rw, Math.max(3, unit * 0.005));
+    }
+  }
+}
+
+function frame(t) {
+  background(t);
+  // World (camera) layer: arrows, packets, cards.
+  const cam = camera(t);
+  ctx.save();
+  ctx.translate(diagramCenter.x, diagramCenter.y); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-cam.x, -cam.y);
+  const lit = tween(t, litT, 0.6, ease.outCubic);
+  if (lit > 0) {                                   // the whole system lit: a soft halo behind it
+    const g = ctx.createRadialGradient(diagramCenter.x, diagramCenter.y, 0, diagramCenter.x, diagramCenter.y, Math.max(area.w, area.h) * 0.6);
+    g.addColorStop(0, vg.rgba(ACCENT, 0.09 * lit)); g.addColorStop(1, vg.rgba(ACCENT, 0));
+    ctx.fillStyle = g; ctx.fillRect(area.x - W, area.y - H, area.w + 2 * W, area.h + 2 * H);
+  }
+  edges.forEach((e, i) => {
+    const p = tween(t, edgeStart(i), 0.45, ease.inOutCubic);
+    const focus = Math.max(activity(e.to, t), litOf(e.to, t));
+    drawEdge(e, p, Math.max(0.25, focus), t);
+  });
+  if (closing) drawEdge(closing, tween(t, closeStart, 0.7, ease.inOutCubic), litOf(0, t), t);
+  edges.forEach((e, i) => drawPackets(e, edgeStart(i) + 0.45, t, lit));
+  if (closing) drawPackets(closing, closeStart + 0.7, t, lit);
+  for (let i = 0; i < N; i++) drawCard(i, t);
+  ctx.restore();
+  drawHeader(t);
+  drawBand(t);
+  ctx.drawImage(shade, 0, 0);
+  vg.grain(ctx, t, P.grain);
+}
+
+vg.loop(frame);
+</script>
+</body>
+</html>

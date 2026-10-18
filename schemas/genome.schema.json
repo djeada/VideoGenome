@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VideoGenome genome (video class) v0.1",
+  "description": "One class of video in the library. Its level is derived, never declared: template when a ready-to-fill template exists, code when only recipes exist, prompt when only the authoring prompt exists.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["genome_schema", "id", "title", "summary", "family", "formats", "prompt"],
+  "properties": {
+    "genome_schema": {"const": "0.1.0"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]+$"},
+    "title": {"type": "string", "minLength": 3},
+    "summary": {"type": "string", "minLength": 20, "description": "What a viewer sees, in one or two sentences"},
+    "family": {"enum": ["typography", "data", "explainer", "brand", "product", "3d", "generative", "music",
+                        "social", "documentary", "story", "interactive", "code"],
+               "description": "Shelf in the library"},
+    "formats": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["16:9", "9:16", "1:1", "any"]}},
+    "duration_seconds": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number", "minimum": 1},
+                         "description": "Typical [min, max] length"},
+    "recipes": {"type": "array", "uniqueItems": true, "items": {"type": "string"},
+                "description": "Ready code: recipe ids that render this class"},
+    "templates": {"type": "array", "uniqueItems": true, "items": {"type": "string"},
+                  "description": "Ready to fill: template ids built on those recipes or on other media"},
+    "prompt": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+\\.md$",
+               "description": "Authoring prompt (Markdown) a frontier model can follow to build new code for this class"},
+    "needs": {"type": "array", "items": {"type": "string"},
+              "description": "What a user must bring beyond a brief (footage, a .glb model, a data table...)"},
+    "techniques": {"type": "array", "items": {"type": "string"}},
+    "gallery_share": {"type": "string", "description": "How common this class is in public model-made video galleries"},
+    "limits": {"type": "array", "items": {"type": "string"}, "description": "Honest limits of what ships today"}
+  }
+}

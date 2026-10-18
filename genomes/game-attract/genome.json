@@ -1,0 +1,27 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "game-attract",
+  "title": "Game attract mode",
+  "summary": "A small game rendered as a video: an AI-played attract mode (paddle, runner, shooter or puzzle) with score, juice effects and a title, deterministic from the seed.",
+  "family": "interactive",
+  "formats": [
+    "16:9",
+    "9:16"
+  ],
+  "duration_seconds": [
+    10,
+    30
+  ],
+  "recipes": [],
+  "templates": [],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "scripted or seeded AI player",
+    "screen shake",
+    "particles",
+    "pixel art in Canvas"
+  ],
+  "gallery_share": "Many gallery entries are games; as videos they need an autoplay mode.",
+  "limits": []
+}

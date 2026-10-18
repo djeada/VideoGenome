@@ -1,0 +1,486 @@
+{
+  "schema_version": "0.5.0",
+  "id": "social.route-story",
+  "version": "0.1.0",
+  "title": "Route story map (9:16)",
+  "category": "social",
+  "description": "A 16-second vertical journey map on real coastlines (Natural Earth, public domain): the title rises, the map settles on the route, then for each leg the camera eases to frame it while a marker draws the route, a ripple and a stop card fire on arrival, and distance and duration counters count up to the totals stated in the brief. It ends on the whole labelled route. Three to five stops placed from latitude and longitude. Code-rendered (scene.route-map), so it needs no footage, maps service or downloads.",
+  "tags": [
+    "social",
+    "vertical",
+    "map",
+    "route",
+    "travel",
+    "journey",
+    "motion_graphics",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "Title of the journey, under 40 characters (e.g. 'Lisbon to Seville by rail'); only places and facts the brief states"
+    },
+    "stop_1": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Name of stop 1 in travel order, exactly as written in the brief, under 20 characters"
+    },
+    "lat_1": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Latitude of stop 1 in decimal degrees exactly as stated in the brief (south negative)"
+    },
+    "lon_1": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Longitude of stop 1 in decimal degrees exactly as stated in the brief (west negative)"
+    },
+    "note_1": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional short detail for stop 1's card copied from the brief (what happens there, a day), under 28 characters"
+    },
+    "stop_2": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Name of stop 2 in travel order, exactly as written in the brief, under 20 characters"
+    },
+    "lat_2": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Latitude of stop 2 in decimal degrees exactly as stated in the brief (south negative)"
+    },
+    "lon_2": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Longitude of stop 2 in decimal degrees exactly as stated in the brief (west negative)"
+    },
+    "note_2": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional short detail for stop 2's card copied from the brief (what happens there, a day), under 28 characters"
+    },
+    "stop_3": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Name of stop 3 in travel order, exactly as written in the brief, under 20 characters"
+    },
+    "lat_3": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Latitude of stop 3 in decimal degrees exactly as stated in the brief (south negative)"
+    },
+    "lon_3": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Longitude of stop 3 in decimal degrees exactly as stated in the brief (west negative)"
+    },
+    "note_3": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional short detail for stop 3's card copied from the brief (what happens there, a day), under 28 characters"
+    },
+    "stop_4": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Name of stop 4 in travel order, exactly as written in the brief, under 20 characters (leave out if the route has fewer stops)"
+    },
+    "lat_4": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "default": 0,
+      "description": "Latitude of stop 4 in decimal degrees exactly as stated in the brief (south negative)"
+    },
+    "lon_4": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "default": 0,
+      "description": "Longitude of stop 4 in decimal degrees exactly as stated in the brief (west negative)"
+    },
+    "note_4": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional short detail for stop 4's card copied from the brief (what happens there, a day), under 28 characters"
+    },
+    "stop_5": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Name of stop 5 in travel order, exactly as written in the brief, under 20 characters (leave out if the route has fewer stops)"
+    },
+    "lat_5": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "default": 0,
+      "description": "Latitude of stop 5 in decimal degrees exactly as stated in the brief (south negative)"
+    },
+    "lon_5": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "default": 0,
+      "description": "Longitude of stop 5 in decimal degrees exactly as stated in the brief (west negative)"
+    },
+    "note_5": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional short detail for stop 5's card copied from the brief (what happens there, a day), under 28 characters"
+    },
+    "distance": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "default": 0,
+      "description": "Total distance exactly as stated in the brief (number only; leave out if the brief states none, and the counter is hidden)"
+    },
+    "distance_unit": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "km",
+        "mi",
+        "nmi"
+      ],
+      "default": "km",
+      "description": "Unit of the stated distance"
+    },
+    "duration": {
+      "type": "number",
+      "required": false,
+      "fill": "verbatim",
+      "default": 0,
+      "description": "Total trip duration exactly as stated in the brief (number only; leave out if none, and the counter is hidden)"
+    },
+    "duration_unit": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "min",
+        "h",
+        "days",
+        "weeks"
+      ],
+      "default": "days",
+      "description": "Unit of the stated duration"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "atlas",
+        "night",
+        "transit",
+        "voyage"
+      ],
+      "default": "atlas",
+      "description": "Map look: atlas (light paper map, arcs, dot marker), night (dark dot-matrix land, plane), transit (dark, straight legs, dot), voyage (deep sea, sand land, plane)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "sunny",
+        "study",
+        "late-night"
+      ],
+      "default": "sunny",
+      "description": "Mood of the procedural lo-fi bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The route animation; rendered from the stops unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.route-map",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "stops": [
+              "{{stop_1}}",
+              "{{stop_2}}",
+              "{{stop_3}}",
+              "{{stop_4}}",
+              "{{stop_5}}"
+            ],
+            "notes": [
+              "{{note_1}}",
+              "{{note_2}}",
+              "{{note_3}}",
+              "{{note_4}}",
+              "{{note_5}}"
+            ],
+            "lat": [
+              "{{lat_1}}",
+              "{{lat_2}}",
+              "{{lat_3}}",
+              "{{lat_4}}",
+              "{{lat_5}}"
+            ],
+            "lon": [
+              "{{lon_1}}",
+              "{{lon_2}}",
+              "{{lon_3}}",
+              "{{lon_4}}",
+              "{{lon_5}}"
+            ],
+            "distance": "{{distance}}",
+            "distance_unit": "{{distance_unit}}",
+            "duration": "{{duration}}",
+            "duration_unit": "{{duration_unit}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.lofi-beat",
+          "preset": "{{energy}}"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh under the opening zoom and the closing pull-back",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click as the first stop card lands",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    },
+    "tail": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell under the final overview",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Island-hopping recap for our travel account: Piraeus (37.94, 23.64), Mykonos (37.45, 25.33) and Santorini (36.42, 25.43), 9 days in all. Card notes: Ferry from Athens, Two days of beaches, Sunset in Oia. Voyage look.",
+      "inputs": {
+        "title": "Island hopping in the Aegean",
+        "stop_1": "Piraeus",
+        "lat_1": 37.94,
+        "lon_1": 23.64,
+        "note_1": "Ferry from Athens",
+        "stop_2": "Mykonos",
+        "lat_2": 37.45,
+        "lon_2": 25.33,
+        "note_2": "Two days of beaches",
+        "stop_3": "Santorini",
+        "lat_3": 36.42,
+        "lon_3": 25.43,
+        "note_3": "Sunset in Oia",
+        "duration": 9,
+        "duration_unit": "days",
+        "look": "voyage",
+        "energy": "sunny"
+      },
+      "note": "Places, coordinates, notes and the duration are copied exactly from the brief; no distance is stated, so it is left out and the distance counter is hidden. The title names the trip without adding claims."
+    }
+  ],
+  "style": {
+    "mood": "warm, cartographic, guided",
+    "palette": [
+      "#CFDDE6",
+      "#F8F5EF",
+      "#151A21",
+      "#E4572E"
+    ],
+    "typography": "Inter ExtraBold title and stop names, tracked caps counter labels",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 470,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "journey",
+      "role": "story",
+      "duration_frames": 480,
+      "shots": [
+        {
+          "id": "route_map",
+          "kind": "animation",
+          "duration_frames": 480,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Map settles on the route; per leg the camera frames it, the marker draws it, a card lands on arrival; pull back to the whole route"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "stop_1",
+            "stop_2",
+            "stop_3",
+            "stop_4",
+            "stop_5"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 12,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 480,
+        "gain_db": -2,
+        "fade_in_frames": 12,
+        "fade_out_frames": 36
+      },
+      {
+        "id": "open_whoosh",
+        "input_ref": "whoosh",
+        "start_frame": 0,
+        "duration_frames": 24,
+        "gain_db": -9
+      },
+      {
+        "id": "first_card",
+        "input_ref": "click",
+        "start_frame": 23,
+        "duration_frames": 12,
+        "gain_db": -6
+      },
+      {
+        "id": "pullback",
+        "input_ref": "whoosh",
+        "start_frame": 396,
+        "duration_frames": 24,
+        "gain_db": -9
+      },
+      {
+        "id": "overview_swell",
+        "input_ref": "tail",
+        "start_frame": 400,
+        "duration_frames": 80,
+        "gain_db": -10,
+        "fade_out_frames": 20
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/route-map) on Natural Earth 1:50m land and boundaries (public domain); the content model supplies only the title, stop names, coordinates, optional notes and totals, all copied verbatim from the brief except the title.",
+      "Stops 4 and 5 are optional; a named stop whose coordinates are left at 0, 0 fails the render instead of being placed in the Gulf of Guinea. Legs are stylised arcs or rhumb lines, never real roads or rails.",
+      "Distance and duration are shown exactly as stated; legs share them in proportion to great-circle length while the counters run. The recipe never computes a distance of its own.",
+      "Copy is fitted with measured glyphs (title 40, stop 20, note 28 characters); the render fails rather than overflowing.",
+      "Sound is cued to beats that do not depend on the number of stops: the opening zoom (frame 0), the first card (frame 23, 0.77 s), the pull-back (frame 396, 13.2 s) and a swell under the final overview. Arrival times vary with the stop count, so arrivals carry no fixed cue."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "accuracy_review",
+      "mode": "human",
+      "description": "A reviewer checks every place name, coordinate, distance and duration against the source, and confirms the Natural Earth borders shown are acceptable for the audience."
+    }
+  ]
+}

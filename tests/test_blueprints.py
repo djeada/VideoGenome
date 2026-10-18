@@ -13,7 +13,8 @@ class BlueprintValidationTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.schema = load_schema()
         cls.paths = sorted((ROOT / "templates").glob("**/blueprint.json"))
-        cls.good = json.loads(cls.paths[0].read_text(encoding="utf-8"))
+        # A fixed multi-scene template: the duplicate-id tests need at least two scenes.
+        cls.good = json.loads((ROOT / "templates/commercial/product-reveal/blueprint.json").read_text(encoding="utf-8"))
 
     def test_examples_validate(self) -> None:
         self.assertGreaterEqual(len(self.paths), 3)

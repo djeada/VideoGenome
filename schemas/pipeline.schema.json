@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VideoGenome pipeline profile v0.1",
-  "description": "Operator-owned composition of providers, renderer, analyzers and exporters. Never supplied by a job.",
+  "description": "Operator-owned composition of providers, renderer, analyzers, exporters and an optional writer. Never supplied by a job.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -148,6 +148,10 @@
       "items": {
         "$ref": "#/$defs/plugin"
       }
+    },
+    "writer": {
+      "$ref": "#/$defs/plugin",
+      "description": "Language model that proposes slot copy for `videogenome fill` (never used at render time)"
     }
   }
 }

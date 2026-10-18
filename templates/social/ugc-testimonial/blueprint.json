@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.5.0",
   "id": "social.ugc-testimonial",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "UGC testimonial short",
   "category": "social",
   "description": "Authentic vertical testimonial composed from talking-head footage, real b-roll and readable captions.",
@@ -24,20 +24,34 @@
     },
     "hook_line": {
       "type": "string",
-      "description": "Short opening claim from the real testimony",
-      "required": true
+      "description": "Short opening claim, copied word for word from the participant's transcript",
+      "required": true,
+      "fill": "verbatim"
     },
     "testimonial_line": {
       "type": "string",
-      "description": "Actual testimonial spoken by the participant",
-      "required": true
+      "description": "The participant's own words from the transcript (an exact excerpt, at most about 69 characters)",
+      "required": true,
+      "fill": "verbatim"
     },
     "cta": {
       "type": "string",
-      "description": "Approved call to action",
-      "required": true
+      "description": "The approved call to action, exactly as approved",
+      "required": true,
+      "fill": "verbatim"
     }
   },
+  "copy_examples": [
+    {
+      "brief": "Testimonial clip from Dana, who owns a bakery (release signed). Transcript: \"I used to spend Sunday nights on invoices. Now it takes me ten minutes on Monday morning, and I get my weekend back.\" Approved call to action: Try it free for 30 days.",
+      "inputs": {
+        "hook_line": "I used to spend Sunday nights on invoices.",
+        "testimonial_line": "Now it takes me ten minutes on Monday morning",
+        "cta": "Try it free for 30 days"
+      },
+      "note": "Every slot is an exact excerpt: the hook is the participant's problem in their words, the proof line is their result, and the call to action is the approved wording. Nothing is paraphrased or improved."
+    }
+  ],
   "style": {
     "mood": "natural, direct and personable",
     "palette": [
@@ -165,5 +179,32 @@
       "mode": "human",
       "description": "Footage, likeness and music have the required permissions."
     }
-  ]
+  ],
+  "timeline": {
+    "source_audio": "preserve",
+    "captions": {
+      "style": {
+        "font_size": 40,
+        "margin_x": 72,
+        "margin_bottom": 420,
+        "max_chars_per_line": 23,
+        "max_lines": 3,
+        "max_chars_per_second": 17
+      },
+      "cues": [
+        {
+          "id": "hook",
+          "start_frame": 6,
+          "duration_frames": 108,
+          "text_template": "{{hook_line}}"
+        },
+        {
+          "id": "proof",
+          "start_frame": 126,
+          "duration_frames": 198,
+          "text_template": "{{testimonial_line}}"
+        }
+      ]
+    }
+  }
 }

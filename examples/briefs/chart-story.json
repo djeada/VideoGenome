@@ -1,0 +1,15 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Briefs for the animated chart with one takeaway (educational.chart-story): categories, a time series, a short list, and one brief that lacks the values.",
+  "briefs": [
+    {"id": "commute-modes", "template": "educational.chart-story",
+     "brief": "Explainer chart: how residents of Lakeside get to work, share of commuters in 2025. Bus 34%, Car 28%, Bicycle 17%, Walking 12%, Train 9%. The point: the bus is now the most common way to work. Source: Lakeside travel survey 2025."},
+    {"id": "heat-pump-trend", "template": "educational.chart-story",
+     "brief": "Show how heat pump installations grew, installations per year in thousands: 2021 18, 2022 27, 2023 41, 2024 58, 2025 79. Make it a line chart; the takeaway is that installations more than quadrupled in four years. Source: National Heat Pump Register, 2026 release."},
+    {"id": "museum-visits", "template": "educational.chart-story",
+     "brief": "Visitors to the city's three museums in 2025: Maritime Museum 214,000, Art Gallery 162,000, Science Hall 98,000. Highlight the Maritime Museum, which drew the most visitors. Source: City Museums annual report 2025. Ocean look."},
+    {"id": "chart-without-values", "template": "educational.chart-story", "expect": "incomplete",
+     "brief": "Make a chart showing that our coffee shop sells more oat milk lattes than any other drink. Source: till data from March.",
+     "note": "Names one category and no values; label and value slots are verbatim, so they must be reported missing."}
+  ]
+}

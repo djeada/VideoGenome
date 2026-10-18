@@ -1,0 +1,544 @@
+<!doctype html>
+<!--
+  History timeline: the camera travels along a timeline axis. A kicker and
+  title rise in, then slide up into a header while the axis draws itself.
+  For each event the camera glides to its point on the axis (year ticks and a
+  large ghost year counter roll by), a pin drops onto the axis with a ripple,
+  its stem grows and a card lands with the date, a label and an optional note.
+  The travelled part of the axis turns to the accent colour and a progress
+  track fills underneath. Finally the camera zooms out to show the whole
+  axis, every pin lights in a wave with its date, and a summary line lands.
+
+  Dates are drawn exactly as given. When every date contains a year (1969,
+  "July 1969", "c. 3000 BCE"), ticks and the ghost counter use those years;
+  otherwise the axis keeps plain even ticks and no counter.
+
+  Beats (D = duration, N = events):
+    intro  = clamp(0.12 D, 1.6, 2.4)       title, then header + axis draws
+    outro  = clamp(0.18 D, 2.4, 3.6)       zoom out, pins lit, summary
+    beat   = (D - intro - outro) / N
+    travel = min(1.0, 0.3 beat)            camera move into event k starts at intro + k beat - travel
+    event k lands at intro + k * beat      (pin hits the axis 0.1 s before)
+    summary view at D - outro; summary line lands at D - outro + 0.6
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Parameters arrive in window.vgSpec.params. Copy is drawn with fillText and
+  fitted with measured glyphs; the page throws when copy cannot fit.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, portrait } = vg.setup({
+  title: "Five moments that made the web", kicker: "A short history",
+  dates: ["1969", "1983", "1989", "1993", "2004"],
+  labels: ["ARPANET sends its first message", "TCP/IP becomes the standard", "Tim Berners-Lee proposes the web",
+           "Mosaic brings pictures to pages", "Web 2.0 makes everyone a publisher"],
+  notes: ["Two computers, one crash, the letters L and O", "Every network can now talk to every other",
+          "A memo his boss called vague but exciting", "The first browser most people ever used",
+          "Blogs, wikis and comments take over"],
+  summary: "Fifty years from two letters to billions of pages",
+  spacing: "even",
+  palette: ["#14110F", "#F3EEE6", "#F2A541", "#E8D5B7", "#857B6F"],
+  grid: 0.5, grain: 0.035,
+});
+const TAU = Math.PI * 2;
+const { clamp, lerp, ease, tween } = vg;
+
+// ---- colour ------------------------------------------------------------------
+const [BG, INK0, ACCENT, PAPER, MUTED] = P.palette;
+const light = vg.luminance(BG) > 0.4;
+const INK = vg.readable(BG, [INK0, "#FFFFFF", "#0B0B0B"]);
+const CARD = vg.mix(BG, PAPER, light ? 0.18 : 0.08);
+const CARD_INK = vg.readable(CARD, [INK0, INK, "#FFFFFF", "#0B0B0B"]);
+const DATE_INK = vg.contrast(ACCENT, CARD) >= 3 ? ACCENT : CARD_INK;       // large bold text: 3:1
+const NOTE_INK = vg.readable(CARD, [MUTED, vg.mix(MUTED, CARD_INK, 0.35), vg.mix(MUTED, CARD_INK, 0.6), CARD_INK]);
+const KICK = vg.contrast(ACCENT, BG) >= 4.5 ? ACCENT : INK;
+const TICK_INK = vg.readable(BG, [MUTED, vg.mix(MUTED, INK, 0.35), vg.mix(MUTED, INK, 0.6), INK]);
+
+// ---- copy ----------------------------------------------------------------------
+// A date is a string drawn as given, or a whole year (negative years are shown as BC).
+const dates = (P.dates || []).map((s) => (typeof s === "number" ? (s < 0 ? `${-s} BC` : String(s)) : String(s).trim()));
+const labels = (P.labels || []).map((s) => String(s).trim());
+const N = Math.min(dates.length, labels.length, 7);
+if (N < 2) throw new Error("history-timeline: give at least two events (a date and a label each)");
+if (dates.length !== labels.length) throw new Error("history-timeline: give one label per date");
+for (let i = 0; i < N; i++) if (!dates[i] || !labels[i]) throw new Error(`history-timeline: event ${i + 1} needs a date and a label`);
+const notes = dates.slice(0, N).map((_, i) => String((P.notes || [])[i] || "").trim());
+const kicker = String(P.kicker || "").trim().toUpperCase();
+const summary = String(P.summary || "").trim();
+
+// Years from the date strings: the first 3-6 digit run (else 1-2 digits), negative for BC/BCE.
+function parseYear(text) {
+  const s = text.replace(/(\d)[,  ](?=\d{3}\b)/g, "$1");
+  if (/million|billion|\bma\b|\bbya\b/i.test(s)) return null;
+  const m = s.match(/(?<!\d)(\d{3,6})(?!\d)/) || s.match(/(?<!\d)(\d{1,2})(?!\d)/);
+  if (!m) return null;
+  const v = parseInt(m[1], 10);
+  return /\b(B\.?C\.?E?\.?|BCE)(?![a-z])/i.test(s) ? -v : v;
+}
+const years = dates.slice(0, N).map(parseYear);
+const numeric = years.every((y) => y !== null) && years.every((y, i) => i === 0 || y >= years[i - 1]) && years[N - 1] > years[0];
+
+const ctx = vg.canvas2d();
+const aspect = W / H;
+const M = Math.round(W * (portrait ? 0.08 : 0.065));
+const minText = unit * 0.03;
+
+// ---- regions -----------------------------------------------------------------------
+// 9:16 keeps copy between 12% and 78% of the height (platform UI).
+const R = aspect <= 0.8
+  ? { header: H * 0.12, headerH: H * 0.1, cardTop: H * 0.245, axis: H * 0.585, ticks: H * 0.612, progress: H * 0.745,
+      ghost: H * 0.68, spacing: W * 0.86, cardW: W * 0.8, summaryTop: H * 0.27, summaryH: H * 0.22 }
+  : { header: H * 0.065, headerH: H * 0.15, cardTop: H * 0.235, axis: H * 0.635, ticks: H * 0.665, progress: H * 0.93,
+      ghost: H * 0.69, spacing: W * (aspect < 1.3 ? 0.72 : 0.5),
+      cardW: Math.min(W * (aspect < 1.3 ? 0.64 : 0.4), unit * 0.9), summaryTop: H * 0.26, summaryH: H * 0.3 };
+const stemMin = unit * 0.05;
+const cardMaxH = R.axis - stemMin - R.cardTop;
+
+// Header: kicker over a title of at most two lines, left-aligned at the margin.
+const kickSize = Math.round(unit * 0.03);
+const kickH = kicker ? kickSize * 1.7 : 0;
+const title = vg.fit(ctx, P.title, {
+  maxSize: unit * (portrait ? 0.056 : 0.058), minSize: unit * 0.034, weight: 800, maxWidth: W - 2 * M,
+  maxLines: 2, maxHeight: R.headerH - kickH, leading: 1.1, label: "title",
+});
+const headerH = kickH + title.height;
+const introScale = Math.max(1, Math.min(1.75, (W - 2 * M) * 0.94 / title.width, (H * 0.34) / headerH));
+
+// ---- cards: one size for every date, label and note --------------------------------------
+const pad = unit * 0.04;
+const innerW = R.cardW - 2 * pad;
+function fitAll(texts, opts, label) {
+  let size = Infinity;
+  texts.forEach((t, i) => { if (t) size = Math.min(size, vg.fit(ctx, t, { ...opts, label: `${label} ${i + 1}` }).size); });
+  return texts.map((t, i) => (t ? vg.fit(ctx, t, { ...opts, maxSize: size, minSize: size, label: `${label} ${i + 1}` }) : null));
+}
+// Fit every card to the width, then step all sizes down together until the tallest
+// card also fits the height above the axis; refuse only below the legibility floor.
+let dateBlocks, labelBlocks, noteBlocks, cards, cardH;
+const gapDL = unit * 0.022, gapLN = unit * 0.02;
+for (let scale = 1; ; scale -= 0.05) {
+  const floor = (size) => Math.max(minText, size * scale);
+  dateBlocks = fitAll(dates.slice(0, N), { maxSize: floor(unit * (portrait ? 0.085 : 0.08)),
+    minSize: Math.min(floor(unit * (portrait ? 0.085 : 0.08)), unit * 0.045), weight: 800, maxWidth: innerW,
+    maxLines: 1, leading: 1.0 }, "date");
+  labelBlocks = fitAll(labels.slice(0, N), { maxSize: floor(unit * (portrait ? 0.052 : 0.048)), minSize: minText,
+    weight: 700, maxWidth: innerW, maxLines: 2, leading: 1.14 }, "label");
+  noteBlocks = fitAll(notes, { maxSize: floor(unit * (portrait ? 0.036 : 0.034)), minSize: minText,
+    weight: 500, maxWidth: innerW, maxLines: 2, leading: 1.25 }, "note");
+  cards = [];
+  for (let i = 0; i < N; i++) {
+    const d = dateBlocks[i], l = labelBlocks[i], n = noteBlocks[i];
+    const h = pad * 0.9 + d.size * 0.74 + gapDL + l.height + (n ? gapLN + n.height : 0) + pad * 0.75;
+    cards.push({ d, l, n, h });
+  }
+  cardH = Math.max(...cards.map((c) => c.h));
+  if (cardH <= cardMaxH) break;
+  if (scale <= 0.55) throw new Error("history-timeline: an event's label and note do not fit the card; shorten them");
+}
+// Short cards ride on a longer stem so they sit in the middle of the space above the axis.
+const stemLen = stemMin + Math.max(0, cardMaxH - cardH) * 0.45;
+
+// ---- world positions along the axis --------------------------------------------------------
+let xs = dates.slice(0, N).map((_, i) => i * R.spacing);
+if (P.spacing === "proportional" && numeric) {
+  const span = (N - 1) * R.spacing, y0 = years[0], y1 = years[N - 1];
+  xs = years.map((y) => ((y - y0) / (y1 - y0)) * span);
+  const minGap = Math.max(R.cardW * 1.06, R.spacing * 0.6);
+  for (let i = 1; i < N; i++) xs[i] = Math.max(xs[i], xs[i - 1] + minGap);
+}
+const axisStart = xs[0] - R.spacing * 1.3, axisEnd = xs[N - 1] + R.spacing * 1.3;
+// World x -> year, piecewise linear between events (extrapolated at the ends).
+function yearAt(x) {
+  if (!numeric) return null;
+  let i = 0;
+  while (i < N - 2 && x > xs[i + 1]) i++;
+  const span = xs[i + 1] - xs[i];
+  return years[i] + ((x - xs[i]) / span) * (years[i + 1] - years[i]);
+}
+const xAt = (y) => {
+  let i = 0;
+  while (i < N - 2 && y > years[i + 1]) i++;
+  return xs[i] + ((y - years[i]) / (years[i + 1] - years[i] || 1)) * (xs[i + 1] - xs[i]);
+};
+
+// Ticks: per segment, the finest "nice" year interval whose ticks sit at least ~3% of the frame apart.
+const NICE = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 50000, 100000];
+const ticks = [];
+if (numeric) {
+  for (let i = -1; i < N; i++) {
+    const a = i < 0 ? 0 : i, b = i < 0 ? 1 : Math.min(i + 1, N - 1);
+    if (i === N - 1 && N > 1) { /* extend past the last event using the last segment's density */ }
+    const sa = i < 0 ? 0 : i === N - 1 ? N - 2 : i;
+    const dy = years[sa + 1] - years[sa], dx = xs[sa + 1] - xs[sa];
+    if (dy <= 0) continue;
+    const pxPerYear = dx / dy;
+    const minor = NICE.find((m) => m * pxPerYear >= unit * 0.03) || NICE[NICE.length - 1];
+    const major = NICE.find((m) => m >= minor * 5 && m % minor === 0 && m * pxPerYear >= unit * 0.2) || minor * 10;
+    const from = i < 0 ? years[0] - (xs[0] - axisStart) / pxPerYear : years[a];
+    const to = i === N - 1 ? years[N - 1] + (axisEnd - xs[N - 1]) / pxPerYear : years[b];
+    for (let y = Math.ceil(from / minor) * minor; y < to + (i === N - 1 ? 1e-6 : 0); y += minor) {
+      if (i >= 0 && i < N - 1 && y === years[b]) continue;
+      const x = i < 0 ? xs[0] - (years[0] - y) * pxPerYear : i === N - 1 ? xs[N - 1] + (y - years[N - 1]) * pxPerYear : xAt(y);
+      ticks.push({ x, y, major: y % major === 0 });
+    }
+  }
+} else {
+  for (let x = axisStart; x <= axisEnd; x += R.spacing / 8) ticks.push({ x, y: null, major: false });
+}
+const yearText = (y) => (y < 0 ? `${-y} BC` : String(y));
+ticks.forEach((tk) => {
+  tk.near = xs.some((x) => Math.abs(x - tk.x) < unit * 0.09);
+  tk.label = numeric && tk.major && !tk.near ? yearText(tk.y) : null;
+});
+
+// ---- timeline -------------------------------------------------------------------------------
+const intro = clamp(D * 0.12, 1.6, 2.4);
+const outro = clamp(D * 0.18, 2.4, 3.6);
+const beat = (D - intro - outro) / N;
+if (beat < 0.9) throw new Error(`history-timeline: ${D}s is too short for ${N} events`);
+const travel = Math.min(1.0, beat * 0.3);
+const land = (k) => intro + k * beat;
+const sumT = D - outro;
+const drift = R.spacing * 0.035;          // slow push along the axis while an event holds
+
+function cameraX(t, withDrift = true) {
+  // Before the first event the camera waits at the start of the axis.
+  let x = xs[0] - R.spacing * 0.9;
+  for (let k = 0; k < N; k++) {
+    const from = k === 0 ? xs[0] - R.spacing * 0.9 : xs[k - 1] + drift * 0.5;
+    const to = xs[k] - drift * 0.5;
+    const p = tween(t, land(k) - travel, travel, ease.inOutCubic);
+    if (p <= 0) break;
+    x = lerp(from, to, p);
+    const holdEnd = k < N - 1 ? land(k + 1) - travel : sumT;
+    if (withDrift) x += drift * clamp((t - land(k)) / (holdEnd - land(k)));
+    else if (t >= land(k)) x = xs[k];
+  }
+  return x;
+}
+// Summary view: zoom the x axis out until every event fits.
+const span = xs[N - 1] - xs[0];
+const zoomOut = Math.min(1, (W - 2 * M - unit * 0.12) / Math.max(1, span));
+function view(t) {
+  const z = tween(t, sumT, 1.3, ease.inOutCubic);
+  const cx = lerp(cameraX(t), (xs[0] + xs[N - 1]) / 2, z);
+  const s = Math.exp(lerp(0, Math.log(zoomOut), z));
+  return { cx, s, z };
+}
+const toScreen = (x, v) => W / 2 + (x - v.cx) * v.s;
+
+// Compact date labels for the summary view: one row when they fit, else alternate two rows, else years only.
+const compactSize = Math.round(unit * 0.032);
+vg.font(ctx, compactSize, 700);
+const gap = span * zoomOut / Math.max(1, N - 1);
+const widest = Math.max(...dates.slice(0, N).map((d) => ctx.measureText(d).width));
+const compactRows = widest < gap * 0.9 ? 1 : widest < gap * 1.8 ? 2 : 0;
+const compactText = compactRows ? dates.slice(0, N) : numeric ? years.map(yearText) : dates.slice(0, N).map((_, i) => String(i + 1));
+const compactRowsUsed = compactRows || (Math.max(...compactText.map((d) => ctx.measureText(d).width)) < gap * 0.9 ? 1 : 2);
+
+// Summary: big, centred over the axis once the cards have gone.
+const summaryBlock = summary ? vg.fit(ctx, summary, { maxSize: unit * (portrait ? 0.075 : 0.07), minSize: minText,
+  weight: 800, maxWidth: Math.min(W - 2 * M, unit * 1.45), maxLines: 3, maxHeight: R.summaryH, leading: 1.1, label: "summary" }) : null;
+
+// ---- background: baked ground with faint horizontal rules and a vignette -----------------------
+const ground = document.createElement("canvas");
+ground.width = W; ground.height = H;
+{
+  const g = ground.getContext("2d");
+  g.fillStyle = BG; g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(W / 2, R.axis, 0, W / 2, R.axis, Math.max(W, H) * 0.7);
+  glow.addColorStop(0, vg.rgba(ACCENT, light ? 0.07 : 0.08)); glow.addColorStop(1, vg.rgba(ACCENT, 0));
+  g.fillStyle = glow; g.fillRect(0, 0, W, H);
+  vg.vignette(g, light ? 0.1 : 0.32);
+}
+// Parallax layer: faint vertical rules, far behind, drawn from a tile.
+const farStep = Math.round(unit * 0.09);
+function farLayer(v) {
+  if (P.grid <= 0) return;
+  ctx.fillStyle = INK; ctx.globalAlpha = P.grid * 0.06;
+  const off = ((-(v.cx * v.s) * 0.35) % farStep + farStep) % farStep;
+  const w = Math.max(1, unit * 0.0012);
+  for (let x = off; x < W; x += farStep) ctx.fillRect(x, H * 0.04, w, H * 0.92);
+  ctx.globalAlpha = 1;
+}
+
+// ---- drawing ------------------------------------------------------------------------------------
+function tracked(text, x, y, size, color, alpha, spacing = 0.14, align = "left") {
+  vg.font(ctx, size, 700);
+  ctx.letterSpacing = `${(size * spacing).toFixed(1)}px`;
+  ctx.fillStyle = color; ctx.globalAlpha = alpha; ctx.textAlign = align;
+  ctx.fillText(text, x, y);
+  ctx.letterSpacing = "0px"; ctx.textAlign = "left"; ctx.globalAlpha = 1;
+}
+
+function drawHeader(t) {
+  const move = tween(t, intro - 0.75, 0.85, ease.inOutCubic);
+  const s = lerp(introScale, 1, move);
+  const blockW = Math.max(title.width, kicker ? 0 : 0);
+  const left = lerp((W - blockW * introScale) / 2, M, move);
+  const top = lerp(H * 0.44 - (headerH * introScale) / 2, R.header, move);
+  ctx.save();
+  ctx.translate(left, top); ctx.scale(s, s);
+  if (kicker) tracked(kicker, 0, kickSize * 0.95, kickSize, KICK, tween(t, 0.05, 0.6, ease.outCubic), 0.16);
+  vg.font(ctx, title.size, title.weight);
+  title.lines.forEach((ln, k) => {
+    const p = ease.outExpo(clamp((t - 0.15 - k * 0.09) / 0.75));
+    const y = kickH + k * title.size * title.leading;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-W, y - title.size * 0.05, W * 3, title.size * 1.22); ctx.clip();
+    ctx.fillStyle = INK; ctx.globalAlpha = clamp(p * 1.4);
+    ctx.fillText(ln, 0, y + title.size * 0.8 + (1 - p) * title.size * 1.05);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+// Odometer digits: each column rolls only while the column to its right wraps from 9 to 0.
+function odometer(value, x, y, size, color, alpha) {
+  const neg = value < 0, v = Math.abs(value);
+  const digits = Math.max(1, String(Math.floor(v + 1e-6)).length);
+  vg.font(ctx, size, 800);
+  const dw = ctx.measureText("0").width * 1.02;
+  const suffix = neg ? " BC" : "";
+  const sw = suffix ? ctx.measureText(suffix).width : 0;
+  const total = digits * dw + sw;
+  let cx = x - total / 2;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x - total, y - size * 0.86, total * 2, size * 1.02); ctx.clip();
+  ctx.fillStyle = color; ctx.globalAlpha = alpha; ctx.textAlign = "center";
+  for (let p = digits - 1; p >= 0; p--) {
+    const place = Math.pow(10, p);
+    const whole = Math.floor(v / place) % 10;
+    const below = v % place;
+    const frac = p === 0 ? v - Math.floor(v) : clamp(below - (place - 1));
+    const roll = ease.inOutCubic(frac);
+    const gx = cx + dw / 2;
+    ctx.fillText(String(whole), gx, y - roll * size * 1.0);
+    ctx.fillText(String((whole + 1) % 10), gx, y + (1 - roll) * size * 1.0);
+    cx += dw;
+  }
+  if (suffix) { ctx.textAlign = "left"; ctx.fillText(suffix, cx, y); }
+  ctx.restore();
+}
+
+function drawAxis(t, v) {
+  const grow = tween(t, intro - 0.9, 1.2, ease.inOutCubic);
+  const x0 = toScreen(axisStart, v), x1raw = toScreen(axisEnd, v);
+  const x1 = lerp(x0, x1raw, grow);
+  const camS = W / 2;
+  const lw = Math.max(2, unit * 0.004);
+  // Ahead of the camera: muted. Travelled: accent.
+  ctx.fillStyle = vg.mix(BG, MUTED, 0.75);
+  ctx.fillRect(Math.max(0, x0), R.axis - lw / 2, Math.min(W, x1) - Math.max(0, x0), lw);
+  const travelled = v.z > 0 ? lerp(Math.min(camS, x1), toScreen(xs[N - 1], v), v.z) : Math.min(camS, x1);
+  if (t > land(0) - travel) {
+    ctx.fillStyle = ACCENT;
+    const from = Math.max(0, toScreen(xs[0], v));
+    ctx.fillRect(from, R.axis - lw * 0.75, Math.max(0, travelled - from), lw * 1.5);
+  }
+  // Ticks.
+  const tickH = unit * 0.012;
+  vg.font(ctx, Math.round(unit * 0.028), 600);
+  ctx.textAlign = "center";
+  for (const tk of ticks) {
+    const x = toScreen(tk.x, v);
+    if (x < -50 || x > W + 50 || x > x1) continue;
+    const spacingPx = (numeric ? 1 : 1) * v.s;
+    const fadeMinor = tk.major ? 1 : clamp((spacingPx - 0.45) / 0.35);
+    const edge = clamp(Math.min(x, W - x) / (W * 0.08));
+    const a = (tk.major ? 0.75 : 0.4) * fadeMinor * edge;
+    if (a <= 0.01) continue;
+    ctx.fillStyle = TICK_INK; ctx.globalAlpha = a;
+    const h = tk.major ? tickH * 1.6 : tickH;
+    ctx.fillRect(x - lw * 0.35, R.axis + lw, lw * 0.7, h);
+    if (tk.label) {
+      ctx.globalAlpha = 0.85 * edge * (1 - v.z);
+      if (ctx.globalAlpha > 0.01) ctx.fillText(tk.label, x, R.ticks + unit * 0.028);
+    }
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = "left";
+}
+
+function drawGhost(t, v) {
+  if (!numeric) return;
+  const appear = tween(t, intro - 0.5, 0.8) * (1 - tween(t, sumT, 0.6));
+  if (appear <= 0) return;
+  // The counter follows the travel only (not the slow drift), so it rests on each event's year.
+  const z = v.z > 0 ? v.cx : cameraX(t, false);
+  const y = yearAt(z);
+  const size = unit * (portrait ? 0.3 : 0.24);
+  odometer(Math.round(y * 100) / 100, W / 2, R.ghost + size * 0.36, size, INK, (light ? 0.07 : 0.06) * appear);
+}
+
+function drawPin(i, t, v) {
+  const x = toScreen(xs[i], v);
+  if (x < -unit * 0.1 || x > W + unit * 0.1) return;
+  const local = t - (land(i) - 0.1);
+  const lit = tween(t, sumT + 0.4 + i * Math.min(0.12, 0.8 / N), 0.4);
+  const r = unit * 0.014;
+  if (local < 0) {                          // waiting on the axis: a small hollow marker
+    if (t > intro - 0.3) {
+      ctx.strokeStyle = vg.mix(BG, MUTED, 0.9); ctx.lineWidth = Math.max(2, unit * 0.003);
+      ctx.globalAlpha = tween(t, intro - 0.3, 0.5);
+      ctx.beginPath(); ctx.arc(x, R.axis, r * 0.6, 0, TAU); ctx.fillStyle = BG; ctx.fill(); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    return;
+  }
+  const drop = vg.spring(local, { stiffness: 18, damping: 0.42 });
+  const current = i === activeIndex(t) && v.z < 0.5;
+  // Ripple when it lands, and a slow pulse while current.
+  const rip = clamp(local / 0.9);
+  if (rip < 1) {
+    ctx.strokeStyle = ACCENT; ctx.globalAlpha = (1 - rip) * 0.7; ctx.lineWidth = Math.max(2, unit * 0.003);
+    ctx.beginPath(); ctx.arc(x, R.axis, r * (1 + 3.2 * ease.outCubic(rip)), 0, TAU); ctx.stroke();
+  }
+  if (current) {
+    const ph = ((t - land(i)) % 1.6) / 1.6;
+    ctx.strokeStyle = ACCENT; ctx.globalAlpha = (1 - ph) * 0.35; ctx.lineWidth = Math.max(1.5, unit * 0.002);
+    ctx.beginPath(); ctx.arc(x, R.axis, r * (1.4 + 1.6 * ph), 0, TAU); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  const y = R.axis - (1 - drop) * unit * 0.06;
+  ctx.fillStyle = ACCENT;
+  ctx.beginPath(); ctx.arc(x, y, r * Math.max(0, drop), 0, TAU); ctx.fill();
+  ctx.fillStyle = BG;
+  ctx.beginPath(); ctx.arc(x, y, r * 0.42 * Math.max(0, drop) * (1 - lit), 0, TAU); ctx.fill();
+}
+
+function activeIndex(t) {
+  let k = -1;
+  for (let i = 0; i < N; i++) if (t >= land(i) - travel * 0.5) k = i;
+  return k;
+}
+
+function drawCard(i, t, v) {
+  const local = t - land(i);
+  if (local < 0) return;
+  const x = toScreen(xs[i], v);
+  const c = cards[i];
+  if (x < -R.cardW || x > W + R.cardW) return;
+  const leave = tween(t, sumT, 0.45, ease.inCubic);
+  if (leave >= 1) return;
+  // Current card full strength; others dim as the camera moves on.
+  const next = i < N - 1 ? tween(t, land(i + 1) - travel, travel * 0.8, ease.inOutCubic) : 0;
+  const focus = 1 - 0.62 * next;
+  const stem = ease.outCubic(clamp(local / 0.35));
+  const pop = vg.spring(local - 0.15, { stiffness: 14, damping: 0.5 });
+  const appear = clamp((local - 0.15) / 0.25);
+  const bottom = R.axis - stemLen;
+  const top = bottom - cardH;
+  const lw = Math.max(2, unit * 0.003);
+  // Stem from the pin up to the card.
+  ctx.globalAlpha = focus * (1 - leave);
+  ctx.fillStyle = ACCENT;
+  ctx.fillRect(x - lw / 2, R.axis - (R.axis - bottom) * stem, lw, (R.axis - bottom) * stem);
+  if (appear <= 0) { ctx.globalAlpha = 1; return; }
+  ctx.save();
+  ctx.translate(x, bottom);
+  const sc = lerp(0.86, 1, pop) * (1 - 0.04 * next);
+  ctx.scale(sc, sc);
+  ctx.globalAlpha = appear * focus * (1 - leave);
+  vg.roundRect(ctx, -R.cardW / 2, -cardH, R.cardW, cardH, unit * 0.022);
+  ctx.fillStyle = CARD; ctx.fill();
+  ctx.strokeStyle = vg.mix(CARD, ACCENT, 0.35 * focus); ctx.lineWidth = Math.max(1.5, unit * 0.002); ctx.stroke();
+  // Accent tab at the top edge.
+  ctx.fillStyle = ACCENT;
+  ctx.fillRect(-R.cardW * 0.08, -cardH, R.cardW * 0.16 * ease.outExpo(clamp((local - 0.25) / 0.5)), Math.max(3, unit * 0.005));
+  // Content, centred, top-aligned with the card's own padding (cards share one height).
+  const contentH = c.h - pad * 0.9 - pad * 0.75;
+  let y = -cardH + (cardH - contentH) / 2;
+  const rise = (delay, dur = 0.55) => ease.outExpo(clamp((local - delay) / dur));
+  const masked = (block, color, delay, yy) => {
+    const p = rise(delay);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-R.cardW / 2, yy - block.size * 0.1, R.cardW, block.height + block.size * 0.3); ctx.clip();
+    vg.drawLines(ctx, block, 0, yy + (1 - p) * block.size * 1.1, { color, align: "center", alpha: ctx.globalAlpha * clamp(p * 1.5) });
+    ctx.restore();
+  };
+  const a = ctx.globalAlpha;
+  masked(c.d, DATE_INK, 0.2, y); ctx.globalAlpha = a;
+  y += c.d.size * 0.74 + gapDL + c.d.size * 0.04;
+  masked(c.l, CARD_INK, 0.32, y); ctx.globalAlpha = a;
+  y += c.l.height + gapLN;
+  if (c.n) {
+    const p = rise(0.55, 0.7);
+    vg.drawLines(ctx, c.n, 0, y + (1 - p) * c.n.size * 0.4, { color: NOTE_INK, align: "center", alpha: a * p });
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawProgress(t, v) {
+  const a = tween(t, intro - 0.2, 0.6) * (1 - tween(t, sumT, 0.5));
+  if (a <= 0) return;
+  const w = portrait ? W * 0.5 : W * 0.26, x0 = (W - w) / 2, y = R.progress;
+  const p = clamp((cameraX(t) + drift * 0.5 - xs[0]) / (xs[N - 1] - xs[0] || 1));
+  const lw = Math.max(2, unit * 0.003);
+  ctx.globalAlpha = a;
+  ctx.fillStyle = vg.mix(BG, MUTED, 0.6); ctx.fillRect(x0, y - lw / 2, w, lw);
+  ctx.fillStyle = ACCENT; ctx.fillRect(x0, y - lw / 2, w * p, lw);
+  for (let i = 0; i < N; i++) {
+    const dx = x0 + (w * (xs[i] - xs[0])) / (xs[N - 1] - xs[0] || 1);
+    const reached = t >= land(i) - 0.1;
+    ctx.fillStyle = reached ? ACCENT : vg.mix(BG, MUTED, 0.9);
+    ctx.beginPath(); ctx.arc(dx, y, unit * (reached ? 0.007 : 0.005), 0, TAU); ctx.fill();
+  }
+  const k = Math.max(0, activeIndex(t));
+  vg.font(ctx, Math.round(unit * 0.03), 700);
+  ctx.fillStyle = TICK_INK; ctx.textAlign = "right";
+  ctx.fillText(`${String(k + 1).padStart(2, "0")} / ${String(N).padStart(2, "0")}`, x0 - unit * 0.03, y + unit * 0.011);
+  ctx.textAlign = "left"; ctx.globalAlpha = 1;
+}
+
+function drawSummary(t, v) {
+  if (v.z <= 0) return;
+  // Compact dates under each pin.
+  vg.font(ctx, compactSize, 700);
+  ctx.textAlign = "center";
+  for (let i = 0; i < N; i++) {
+    const a = tween(t, sumT + 0.5 + i * Math.min(0.12, 0.8 / N), 0.45);
+    if (a <= 0) continue;
+    const x = toScreen(xs[i], v);
+    const row = compactRowsUsed === 2 ? i % 2 : 0;
+    ctx.globalAlpha = a; ctx.fillStyle = i === N - 1 ? KICK : INK;
+    ctx.fillText(compactText[i], x, R.axis + unit * 0.065 + row * compactSize * 1.3 + (1 - a) * unit * 0.02);
+  }
+  ctx.textAlign = "left"; ctx.globalAlpha = 1;
+  if (summaryBlock) {
+    const p = ease.outExpo(clamp((t - sumT - 0.6) / 0.9));
+    if (p > 0) {
+      const top = R.summaryTop + (R.summaryH - summaryBlock.height) / 2;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, top - unit * 0.02, W, summaryBlock.height + unit * 0.05); ctx.clip();
+      vg.drawLines(ctx, summaryBlock, W / 2, top + (1 - p) * summaryBlock.size * 0.9, { color: INK, align: "center", alpha: clamp(p * 1.3) });
+      ctx.restore();
+    }
+  }
+}
+
+function frame(t) {
+  ctx.drawImage(ground, 0, 0);
+  const v = view(t);
+  farLayer(v);
+  drawGhost(t, v);
+  drawHeader(t);
+  drawAxis(t, v);
+  for (let i = 0; i < N; i++) drawCard(i, t, v);
+  for (let i = 0; i < N; i++) drawPin(i, t, v);
+  drawProgress(t, v);
+  drawSummary(t, v);
+  vg.grain(ctx, t, P.grain);
+}
+
+vg.loop(frame);
+</script>
+</body>
+</html>

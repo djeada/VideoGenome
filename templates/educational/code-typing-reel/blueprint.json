@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.4.0",
+  "schema_version": "0.5.0",
   "id": "educational.code-typing-reel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Vertical code typing reel",
   "category": "educational",
   "description": "A 16-second 9:16 reel: a hook card, a typed code walkthrough produced by any 'typing' provider (e.g. Type-Simulator) or a supplied recording, and a takeaway card. Keyboard sound from the typing clip is kept; an optional music bed sits underneath.",
@@ -87,6 +87,18 @@
       }
     }
   },
+  "copy_examples": [
+    {
+      "brief": "Reel for JavaScript beginners about optional chaining: read a nested property that may be missing without crashing. The point to land: ?. returns undefined instead of throwing.",
+      "inputs": {
+        "hook": "Stop crashing on missing properties",
+        "code": "const user = { profile: null };\n\n// Before: TypeError when profile is null\n// const city = user.profile.address.city;\n\nconst city = user.profile?.address?.city;\nconsole.log(city ?? \"unknown\");\n",
+        "takeaway": "?. returns undefined instead of throwing.",
+        "file_name": "chaining.js"
+      },
+      "note": "The hook names the bug the viewer has hit. The code is seven short lines: the failing version as a comment, then the fix. The takeaway is the brief's own point."
+    }
+  ],
   "style": {
     "mood": "focused, nerdy, satisfying",
     "palette": [

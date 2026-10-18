@@ -1,0 +1,25 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.stat-highlights",
+  "template": "commercial.stat-highlights",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "Northwind Couriers in 2025",
+    "stat_1": 98,
+    "stat_1_unit": "%",
+    "stat_1_label": "of parcels delivered on the first attempt",
+    "stat_2": 4.2,
+    "stat_2_prefix": "$",
+    "stat_2_unit": "M",
+    "stat_2_label": "invested in electric vans",
+    "stat_3": 12000,
+    "stat_3_unit": "+",
+    "stat_3_label": "deliveries every day",
+    "source": "Northwind Couriers annual review 2025 (sample data)",
+    "look": "night",
+    "energy": "keynote"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

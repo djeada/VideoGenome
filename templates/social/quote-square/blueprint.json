@@ -1,0 +1,230 @@
+{
+  "schema_version": "0.5.0",
+  "id": "social.quote-square",
+  "version": "0.1.0",
+  "title": "Quote loop (1:1)",
+  "category": "social",
+  "description": "A 15-second square quote or lyric card that loops: a slow generative backdrop (silk flow-field ribbons, bokeh dust or a soft mesh gradient, all periodic in the clip length), a large opening mark, the quote arriving phrase by phrase in a system serif at reading speed, then an accent rule and the attribution. A procedural ambient pad sits underneath. Code-rendered (scene.quote-loop): no footage, models or downloads. The quote and attribution are copied verbatim from the brief, never written.",
+  "tags": [
+    "social",
+    "square",
+    "quote",
+    "lyric",
+    "typography",
+    "generative",
+    "loop",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "quote": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The quote or lyric word for word as it appears in the brief, at most 140 characters; never paraphrased, shortened, completed or invented",
+      "whole_quote": true
+    },
+    "attribution": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Who said or wrote it, exactly as named in the brief, at most 40 characters"
+    },
+    "source": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Optional work, album, speech or year exactly as given in the brief, at most 48 characters; leave empty if the brief names none"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "ember",
+        "tide",
+        "nocturne",
+        "paper",
+        "bloom"
+      ],
+      "default": "nocturne",
+      "description": "Visual look: ember (warm dark, amber silk), tide (deep teal, italic, silk), nocturne (black, gold bokeh dust), paper (cream, rust silk), bloom (dark rose gradient, light sans)"
+    },
+    "mood": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "reflective",
+        "dreamy",
+        "warm",
+        "hopeful",
+        "serious"
+      ],
+      "default": "reflective",
+      "description": "Mood of the ambient pad under the quote"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The quote animation; rendered from the quote unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.quote-loop",
+          "preset": "{{look}}",
+          "params": {
+            "quote": "{{quote}}",
+            "attribution": "{{attribution}}",
+            "source": "{{source}}",
+            "loop": true
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Ambient bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.ambient-pad",
+          "preset": "{{mood}}"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Square post for our history society's lecture on abolition, quoting Frederick Douglass, 1857: \"If there is no struggle there is no progress.\" Serious tone.",
+      "inputs": {
+        "quote": "If there is no struggle there is no progress.",
+        "attribution": "Frederick Douglass",
+        "source": "1857",
+        "look": "nocturne",
+        "mood": "serious"
+      },
+      "note": "Quote, speaker and year are copied exactly from the brief. A short quote gets a large setting and a long, calm hold."
+    }
+  ],
+  "style": {
+    "mood": "contemplative, refined, quiet",
+    "palette": [
+      "#0E0A08",
+      "#F6EEE3",
+      "#E9A15B",
+      "#B2452C"
+    ],
+    "typography": "System serif (EB Garamond, Noto Serif, Georgia...) for the quote; tracked Inter capitals for the attribution",
+    "pacing": "slow"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1080,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 380,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "card",
+      "role": "quote",
+      "duration_frames": 450,
+      "shots": [
+        {
+          "id": "quote_loop",
+          "kind": "animation",
+          "duration_frames": 450,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Backdrop drifts from frame 0; opening mark at 0.3 s; phrases from 0.9 s at reading pace; attribution after the last phrase; copy dissolves from 13.9 s so the loop closes"
+          },
+          "input_refs": [
+            "scene",
+            "quote",
+            "attribution",
+            "source"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "audio_tracks": [
+      {
+        "id": "pad",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 450,
+        "gain_db": 0,
+        "fade_in_frames": 20,
+        "fade_out_frames": 45
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The quote, attribution and source are VERBATIM: a writer may only copy them from the brief. A brief without a quote or without an attribution is incomplete, never filled with an invented or misattributed line.",
+      "The scene (recipes/scene/quote-loop) typesets the quote with measured glyphs at the largest size that fits, breaks lines after punctuation where it can, and throws if the quote cannot fit or cannot be read in 15 s; the 140-character limit always fits.",
+      "Phrases break at punctuation and arrive at about 14 characters per second; the attribution follows the last phrase, so its time depends on the quote length. No sound cue is tied to it: the pad is continuous.",
+      "The backdrop motion is periodic in 15 s and the copy dissolves over the last 1.1 s, so the video loops without a visible jump in the picture."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -16 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17,
+        "max": -15
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "quote_accuracy_review",
+      "mode": "human",
+      "description": "A reviewer checks the quote word for word against a primary source and confirms the attribution; misattributed quotes are common."
+    },
+    {
+      "id": "quote_rights_review",
+      "mode": "human",
+      "description": "A reviewer confirms the words may be published: public domain, licensed (song lyrics and recent writing usually are not free to use), or the speaker's own approved words."
+    }
+  ]
+}

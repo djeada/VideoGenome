@@ -1,0 +1,29 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.history-timeline",
+  "template": "educational.history-timeline",
+  "template_version": "0.1.0",
+  "inputs": {
+    "title": "Five moments that made the web",
+    "year_1": 1969,
+    "event_1": "ARPANET sends its first message",
+    "note_1": "Two computers and the letters L and O",
+    "year_2": 1983,
+    "event_2": "ARPANET switches to TCP/IP",
+    "note_2": "One language for every network",
+    "year_3": 1989,
+    "event_3": "Tim Berners-Lee proposes the web",
+    "note_3": "A memo written at CERN",
+    "year_4": 1993,
+    "event_4": "Mosaic puts pictures on pages",
+    "note_4": "The browser that made the web popular",
+    "year_5": 2004,
+    "event_5": "Web 2.0 gets its name",
+    "note_5": "Blogs, wikis and comments take over",
+    "summary": "Thirty-five years from two letters to everyone online",
+    "look": "archive"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

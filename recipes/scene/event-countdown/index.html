@@ -1,0 +1,437 @@
+<!doctype html>
+<!--
+  Event countdown: a hype teaser for an event. A kicker pill and the event
+  name slam in over an energetic motif (diagonal stripes, pulsing rings or
+  sliding blocks); a three-band diagonal wipe cuts to the countdown, which
+  hits three times: either 3-2-1 (each digit slams in with ghost trails, a
+  ring burst and confetti while the ground swaps colour through an expanding
+  circle) or "N days to go" (a slot-machine roll that lands on the stated
+  number, its label slamming in on the middle hit). A second wipe reveals the
+  poster lockup: kicker, event name, the date in an accent block, the place
+  with a pin, and a call-to-action pill, while the motif keeps moving.
+
+  Beats (D = duration):
+    A  = clamp(0.28 D, 2.2, 4.0)    title section; wipe centred on A (+-0.25 s)
+    c  = clamp(0.085 D, 0.7, 1.1)   countdown hit spacing
+    hits at A + 0.18, A + 0.18 + c, A + 0.18 + 2c (3-2-1: each digit lands; days: the
+      number appears, the label lands, the roll locks on the number)
+    CE = A + 3c + 0.1               second wipe centred on CE (+-0.25 s)
+    reveal: name at CE + 0.1, date block at CE + 0.4, place at CE + 0.65,
+      CTA at CE + 0.9; holds to the end (needs D - CE >= 2.5 s)
+  At D = 12: A = 3.36, hits 3.54 / 4.56 / 5.58, CE = 6.52 s.
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Parameters arrive in window.vgSpec.params; copy is drawn with fillText and
+  fitted with vg.fit, which throws when it cannot fit.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, portrait, seed } = vg.setup({
+  event: "Signal Summit", date: "14 June 2026", place: "Harbour Hall, Lisbon", kicker: "Save the date",
+  cta: "Get tickets", count: "3-2-1", days: 30, count_label: "days to go",
+  palette: ["#0A0A0B", "#F5F5F0", "#C8FF2E", "#FF3D7F"], motif: "stripes", energy: 1.0, grain: 0.04,
+});
+const [GROUND, INK0, ACC, ACC2] = P.palette;
+const { clamp, lerp, ease, rgba } = vg;
+const ctx = vg.canvas2d();
+const DISPLAY = '"Inter Display", "Inter", "Helvetica Neue", Arial, sans-serif';
+const TAU = Math.PI * 2;
+
+// ---- copy -----------------------------------------------------------------------------
+const event = String(P.event).trim(), date = String(P.date).trim();
+if (!event) throw new Error("event-countdown: event is empty");
+if (!date) throw new Error("event-countdown: date is empty");
+const place = String(P.place || "").trim(), kicker = String(P.kicker || "").trim().toUpperCase();
+const cta = String(P.cta || "").trim(), label = String(P.count_label || "").trim();
+const days = Math.round(P.days);
+
+// ---- colour ----------------------------------------------------------------------------
+const INK = vg.readable(GROUND, [INK0, "#FFFFFF", "#0A0A0A"]);
+const on = (bg) => vg.readable(bg, [GROUND, INK, "#FFFFFF", "#0A0A0A"]);
+const SOFT = vg.contrast(vg.mix(INK, GROUND, 0.25), GROUND) >= 4.5 ? vg.mix(INK, GROUND, 0.25) : INK;
+const ACC_T = vg.contrast(ACC, GROUND) >= 4.5 ? ACC : vg.contrast(ACC2, GROUND) >= 4.5 ? ACC2 : INK;
+
+// ---- timeline ----------------------------------------------------------------------------
+const A = clamp(D * 0.28, 2.2, 4.0), c = clamp(D * 0.085, 0.7, 1.1), CE = A + 3 * c + 0.1;
+const hits = [A + 0.18, A + 0.18 + c, A + 0.18 + 2 * c];
+if (D - CE < 2.5) throw new Error("event-countdown: duration too short; the reveal needs at least 2.5 s");
+const tempo = P.energy;
+
+// ---- layout ------------------------------------------------------------------------------
+const m = Math.round(W * (portrait ? 0.08 : 0.07));
+const safeTop = H * (portrait ? 0.12 : 0.09), safeBot = H * (portrait ? 0.78 : 0.91);
+const colW = portrait ? W - 2 * m : W * 0.56;
+
+// Title section: kicker pill + the event name, as large as fits.
+const tKick = kicker ? vg.fit(ctx, kicker, { maxSize: unit * 0.042, minSize: Math.floor(unit * 0.03), weight: 800, maxWidth: colW * 0.9, maxLines: 1, label: "kicker" }) : null;
+const tName = vg.fit(ctx, event, { maxSize: unit * (portrait ? 0.29 : 0.22), minSize: unit * 0.07, weight: 900, family: DISPLAY,
+  maxWidth: portrait ? W - 2 * m : W * 0.8, maxLines: portrait ? 4 : 3, maxHeight: H * (portrait ? 0.42 : 0.55), leading: 0.98, label: "event" });
+const pill = (b) => ({ w: b.width + b.size * 1.6, h: b.size * 2.0 });
+const tKickPill = tKick ? pill(tKick) : { w: 0, h: 0 };
+const titleH = (tKick ? tKickPill.h + unit * 0.04 : 0) + tName.height;
+const titleTop = (portrait ? H * 0.45 : H * 0.5) - titleH / 2;
+
+// Reveal lockup: shrink everything together until it fits the safe area.
+function lockup(k) {
+  const L = {};
+  L.kick = kicker ? vg.fit(ctx, kicker, { maxSize: unit * 0.042 * k, minSize: Math.floor(unit * 0.03), weight: 800, maxWidth: colW, maxLines: 1, label: "kicker" }) : null;
+  L.name = vg.fit(ctx, event, { maxSize: unit * (portrait ? 0.16 : 0.13) * k, minSize: unit * 0.05, weight: 900, family: DISPLAY,
+    maxWidth: colW, maxLines: 3, leading: 0.98, label: "event" });
+  const padX = unit * 0.035;
+  L.date = vg.fit(ctx, date, { maxSize: unit * 0.1 * k, minSize: unit * 0.045, weight: 900, family: DISPLAY,
+    maxWidth: colW - 2 * padX, maxLines: 2, leading: 1.02, label: "date" });
+  L.padX = padX; L.padY = L.date.size * 0.42;
+  const icon = unit * 0.05 * Math.max(0.8, k);
+  L.icon = icon;
+  L.place = place ? vg.fit(ctx, place, { maxSize: unit * 0.058 * k, minSize: Math.floor(unit * 0.032), weight: 700,
+    maxWidth: colW - icon * 1.5, maxLines: 2, leading: 1.15, label: "place" }) : null;
+  L.cta = cta ? vg.fit(ctx, cta, { maxSize: unit * 0.056 * k, minSize: Math.floor(unit * 0.032), weight: 800, maxWidth: colW * 0.8, maxLines: 1, label: "cta" }) : null;
+  const gap = unit * 0.04 * Math.max(0.75, k);
+  L.gap = gap;
+  L.dateBox = { w: L.date.width + 2 * padX, h: L.date.height + 2 * L.padY };
+  L.ctaBox = L.cta ? { w: L.cta.width + L.cta.size * 2.4, h: L.cta.size * 2.5 } : null;
+  L.total = (L.kick ? L.kick.height + gap * 0.6 : 0) + L.name.height + gap * 0.9 + L.dateBox.h
+    + (L.place ? gap * 0.8 + Math.max(L.place.height, icon) : 0) + (L.ctaBox ? gap * 1.2 + L.ctaBox.h : 0);
+  return L;
+}
+let R = null;
+for (let k = portrait ? 1 : 1.25; k >= 0.55 && !R; k -= 0.05) { const L = lockup(k); if (L.total <= safeBot - safeTop) R = L; }
+if (!R) throw new Error("event-countdown: the reveal copy does not fit; shorten the event, date or place");
+{
+  let y = safeTop + (safeBot - safeTop - R.total) / 2;
+  if (R.kick) { R.kickY = y; y += R.kick.height + R.gap * 0.6; }
+  R.nameY = y; y += R.name.height + R.gap * 0.9;
+  R.dateY = y; y += R.dateBox.h;
+  if (R.place) { y += R.gap * 0.8; R.placeY = y; y += Math.max(R.place.height, R.icon); }
+  if (R.ctaBox) { y += R.gap * 1.2; R.ctaY = y; y += R.ctaBox.h; }
+  R.bottom = y;
+  R.width = Math.max(R.name.width, R.dateBox.w, R.place ? R.place.width + R.icon * 1.2 : 0, R.ctaBox ? R.ctaBox.w : 0, R.kick ? R.kick.width : 0);
+}
+
+// Countdown type.
+const digitFont = portrait ? Math.min(H * 0.5, W * 0.9 / 0.66) : H * 0.72;
+const cols = String(Math.max(0, days)).length;
+const dayFont = Math.min(portrait ? digitFont : H * 0.5, (portrait ? W * 0.84 : W * 0.6) / (cols * 0.66));
+const cLabel = label ? vg.fit(ctx, label.toUpperCase(), { maxSize: unit * 0.07, minSize: unit * 0.035, weight: 900, family: DISPLAY,
+  maxWidth: portrait ? W - 2 * m : W * 0.7, maxLines: 1, label: "count_label" }) : null;
+const smallName = vg.fit(ctx, event, { maxSize: unit * 0.045, minSize: Math.floor(unit * 0.03), weight: 800, maxWidth: W - 2 * m, maxLines: 1, label: "event" });
+
+// Confetti for each hit, seeded.
+const rnd = vg.rng(seed * 4241 + 7);
+const bursts = hits.concat([CE + 0.05]).map(() => Array.from({ length: 26 }, () => ({
+  a: rnd() * TAU, v: unit * (0.35 + rnd() * 0.7), spin: (rnd() - 0.5) * 14, w: unit * (0.012 + rnd() * 0.02),
+  h: unit * (0.005 + rnd() * 0.008), col: rnd() < 0.5 ? 0 : 1, life: 0.6 + rnd() * 0.5,
+})));
+
+// ---- drawing helpers ------------------------------------------------------------------------
+const diag = Math.hypot(W, H);
+function maskedLines(block, x, y, t0, t, color, { align = "left", stagger = 0.09, dur = 0.6 } = {}) {
+  vg.font(ctx, block.size, block.weight, block.family);
+  block.lines.forEach((line, i) => {
+    const p = ease.outExpo(clamp((t - t0 - i * stagger) / (dur / tempo)));
+    if (p <= 0) return;
+    const ly = y + i * block.size * block.leading;
+    const w = ctx.measureText(line).width;
+    const lx = align === "center" ? x - w / 2 : x;
+    ctx.save(); ctx.beginPath(); ctx.rect(lx - block.size, ly - block.size * 0.12, w + 2 * block.size, block.size * 1.18); ctx.clip();
+    ctx.fillStyle = color; ctx.fillText(line, lx, ly + block.size * 0.8 + (1 - p) * block.size * 1.15);
+    ctx.restore();
+  });
+}
+function pin(x, y, s, color) {
+  ctx.fillStyle = color; ctx.beginPath();
+  ctx.arc(x, y - s * 0.12, s * 0.34, Math.PI * 0.85, Math.PI * 0.15);
+  ctx.lineTo(x, y + s * 0.48); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = GROUND; ctx.beginPath(); ctx.arc(x, y - s * 0.12, s * 0.13, 0, TAU); ctx.fill();
+}
+
+// Motif layer: lives in a diagonal-cut region outside the copy's bounding box
+// (below it in portrait, right of it in landscape), so it never crosses text.
+function region(box) {
+  ctx.beginPath();
+  if (portrait) {
+    const yc = Math.min(H * 0.97, box.y1 + unit * 0.07);
+    ctx.moveTo(0, yc + W * 0.32); ctx.lineTo(W, yc); ctx.lineTo(W, H); ctx.lineTo(0, H);
+    return { x0: 0, y0: yc, x1: W, y1: H, cx: W * 0.72, cy: (yc + H) / 2 + W * 0.08 };
+  }
+  const xc = Math.min(W * 0.97, box.x1 + unit * 0.1);
+  ctx.moveTo(xc + H * 0.28, 0); ctx.lineTo(W, 0); ctx.lineTo(W, H); ctx.lineTo(xc, H);
+  return { x0: xc, y0: 0, x1: W, y1: H, cx: (xc + W) / 2 + H * 0.07, cy: H * 0.5 };
+}
+function motif(t, strength, bgColor, box) {
+  if (strength <= 0) return;
+  const k = strength;
+  ctx.save();
+  const g = region(box); ctx.clip();
+  const pick = (col) => (col === bgColor ? INK === bgColor ? GROUND : INK : col);
+  if (P.motif === "stripes") {
+    ctx.translate(g.cx, g.cy); ctx.rotate(-0.42);
+    const widths = [0.07, 0.02, 0.11, 0.014, 0.06, 0.03, 0.09], cols2 = [ACC, ACC2, ACC, INK, ACC2, ACC, ACC2];
+    const total = widths.reduce((a, w) => a + w + 0.03, 0);
+    let x = -unit * total / 2;
+    widths.forEach((w, i) => {
+      const p = ease.outExpo(clamp((t - 0.05 - i * 0.06) / (0.7 / tempo))) * k;
+      const drift = Math.sin(t * 1.1 * tempo + i * 1.3) * unit * 0.025;
+      ctx.fillStyle = pick(cols2[i]);
+      ctx.fillRect(x + drift, -diag * 0.7 + diag * 1.4 * (1 - p) * (i % 2 ? 1 : -1), unit * w, diag * 1.4);
+      x += unit * (w + 0.03);
+    });
+  } else if (P.motif === "rings") {
+    const cx = portrait ? W * 0.78 : g.cx, cy = portrait ? H * 0.95 : H * 0.55;
+    for (let i = 0; i < 8; i++) {
+      const p = ease.outBack(clamp((t - 0.05 - i * 0.05) / (0.6 / tempo))) * k;
+      const r = unit * (0.07 + i * 0.07) * p;
+      if (r <= 0) continue;
+      ctx.strokeStyle = pick(i % 3 === 1 ? ACC2 : ACC); ctx.globalAlpha = 1 - i * 0.07;
+      ctx.lineWidth = unit * (i % 2 ? 0.007 : 0.02);
+      const a0 = t * (0.6 + i * 0.15) * (i % 2 ? -1 : 1) * tempo;
+      ctx.setLineDash(i % 2 ? [unit * 0.02, unit * 0.025] : []);
+      ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + TAU * (i % 3 === 2 ? 0.7 : 1)); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  } else {
+    const n = 7, cols3 = [ACC, ACC2, INK, ACC, ACC2, ACC, INK];
+    const top = portrait ? g.y0 : H * 0.08, span = portrait ? H - g.y0 : H * 0.84;
+    const bh = span / n * 0.62;
+    for (let i = 0; i < n; i++) {
+      const p = ease.outExpo(clamp((t - 0.05 - i * 0.06) / (0.7 / tempo))) * k;
+      const len = (g.x1 - g.x0) * (0.35 + 0.6 * ((i * 0.618 + 0.3) % 1)) + Math.sin(t * 0.9 * tempo + i * 1.9) * unit * 0.03;
+      ctx.fillStyle = pick(cols3[i]);
+      ctx.fillRect(W - len * p, top + i * span / n + span / n * 0.19, len * p + 2, bh);
+    }
+  }
+  ctx.restore();
+}
+
+function burst(t, t0, idx, cx, cy, colors) {
+  const s = t - t0;
+  if (s < 0 || s > 1.2) return;
+  const ring = ease.outCubic(clamp(s / 0.55));
+  if (ring < 1) {
+    ctx.strokeStyle = rgba(colors[0], 1 - ring); ctx.lineWidth = unit * 0.012 * (1 - ring) + 1;
+    ctx.beginPath(); ctx.arc(cx, cy, unit * (0.15 + 0.45 * ring), 0, TAU); ctx.stroke();
+  }
+  // Speed lines.
+  const sl = clamp(s / 0.35);
+  if (sl < 1) {
+    ctx.strokeStyle = rgba(colors[1], 1 - sl); ctx.lineWidth = unit * 0.006; ctx.lineCap = "round";
+    for (let i = 0; i < 16; i++) {
+      const a = i / 16 * TAU + idx;
+      const r0 = unit * (0.28 + 0.25 * ease.outCubic(sl)), r1 = r0 + unit * 0.08 * (1 - sl);
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.stroke();
+    }
+  }
+  for (const b of bursts[idx]) {
+    const life = s / b.life;
+    if (life >= 1) continue;
+    const d = b.v * ease.outCubic(life);
+    const x = cx + Math.cos(b.a) * d, y = cy + Math.sin(b.a) * d + unit * 0.25 * life * life;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(b.spin * s);
+    ctx.fillStyle = colors[b.col]; ctx.globalAlpha = 1 - life * life;
+    ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+    ctx.restore();
+  }
+}
+
+// Three diagonal bands crossing the frame; the scene switches at mid-wipe, when the bands cover it.
+function wipe(t, center) {
+  const p = (t - (center - 0.25)) / 0.5;
+  if (p <= 0 || p >= 1) return;
+  const q = ease.inOutCubic(p);
+  const Lw = diag * 1.25, x0 = lerp(-diag / 2 - Lw - unit * 0.1, diag / 2 + unit * 0.1, q);
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(-0.35);
+  const parts = [[0.0, 0.34, ACC2], [0.34, 0.67, ACC], [0.67, 1.0, INK]];
+  for (const [a, b, col] of parts) {
+    ctx.fillStyle = col;
+    ctx.fillRect(x0 + Lw * a - 1, -diag, Lw * (b - a) + 2, diag * 2);
+  }
+  ctx.restore();
+}
+
+// ---- scenes ----------------------------------------------------------------------------------
+function sceneTitle(t) {
+  ctx.fillStyle = GROUND; ctx.fillRect(0, 0, W, H);
+  vg.dotGrid(ctx, t, INK, { spacing: 0.05, size: 0.003, alpha: 0.12, drift: 0.2 });
+  const x = portrait ? m : W * 0.08;
+  motif(t, 1, GROUND, { x1: x + Math.max(tName.width * 1.04, tKickPill.w), y1: titleTop + titleH * 1.04 + unit * 0.06 });
+  let y = titleTop;
+  if (tKick) {
+    const p = ease.outBack(clamp((t - 0.15) / (0.45 / tempo)), 2);
+    if (p > 0) {
+      ctx.save(); ctx.translate(x, y + tKickPill.h / 2); ctx.scale(p, p);
+      ctx.fillStyle = ACC; vg.roundRect(ctx, 0, -tKickPill.h / 2, tKickPill.w, tKickPill.h, tKickPill.h / 2); ctx.fill();
+      vg.drawLines(ctx, tKick, tKick.size * 0.8, -tKick.size * 0.58, { color: on(ACC) });
+      ctx.restore();
+    }
+    y += tKickPill.h + unit * 0.04;
+  }
+  // A slight push on the name for energy.
+  const push = 1 + 0.04 * clamp(t / A);
+  ctx.save(); ctx.translate(x, y); ctx.scale(push, push); ctx.translate(-x, -y);
+  maskedLines(tName, x, y, 0.35, t, INK, { stagger: 0.1, dur: 0.75 });
+  ctx.restore();
+  const rule = ease.outExpo(clamp((t - 0.9) / 0.7));
+  ctx.fillStyle = ACC2; ctx.fillRect(x, y + tName.height * push + unit * 0.03, unit * 0.22 * rule, unit * 0.014);
+}
+
+function sceneCount(t) {
+  const k = Math.max(0, Math.min(2, Math.floor((t - hits[0] + 0.04) / c)));
+  const bgs = [ACC, ACC2, INK];
+  if (P.count === "3-2-1") {
+    // Ground: previous colour, then the new one grows as a circle from the centre.
+    const prev = k === 0 ? ACC : bgs[k - 1], cur = bgs[k];
+    ctx.fillStyle = prev; ctx.fillRect(0, 0, W, H);
+    const grow = ease.outCubic(clamp((t - hits[k] + 0.04) / 0.28));
+    ctx.fillStyle = cur; ctx.beginPath(); ctx.arc(W / 2, H * 0.46, diag * 0.6 * grow, 0, TAU); ctx.fill();
+    const ink = on(cur), other = cur === ACC2 ? ACC : cur === INK ? ACC : ACC2;
+    const local = t - hits[k];
+    const cx = W / 2, cy = portrait ? H * 0.46 : H * 0.5;
+    motif(t - hits[k] + 0.2, 0.9, cur, { x1: cx + digitFont * 0.36, y1: cy + digitFont * 0.42 });
+    burst(t, hits[k], k, cx, cy, [ink, other]);
+    const p = ease.outExpo(clamp(local / (0.3 / tempo)));
+    const out = ease.inCubic(clamp((local - (c - 0.18)) / 0.18));
+    const s = lerp(1.7, 1, p) * (1 - 0.15 * out);
+    vg.font(ctx, digitFont, 900, DISPLAY); ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    const digit = String(3 - k), base = cy + digitFont * 0.36;
+    // Ghost trails behind the slam.
+    for (let g = 3; g >= 1; g--) {
+      const gs = s + g * 0.12 * (1 - p) + g * 0.04;
+      ctx.save(); ctx.translate(cx, cy); ctx.scale(gs, gs); ctx.translate(-cx, -cy);
+      const ga = (0.3 / g) * Math.sqrt(1 - p);
+      if (ga < 0.01) { ctx.restore(); continue; }
+      ctx.strokeStyle = rgba(ink, ga); ctx.lineWidth = unit * 0.004;
+      ctx.strokeText(digit, cx, base - out * H * 0.1); ctx.restore();
+    }
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy);
+    ctx.globalAlpha = clamp(p * 2);
+    ctx.fillStyle = ink; ctx.fillText(digit, cx, base - out * H * 0.1);
+    ctx.restore();
+    ctx.textAlign = "left";
+    vg.drawLines(ctx, smallName, W / 2, safeTop, { color: ink, align: "center", alpha: clamp((t - A) / 0.3) });
+  } else {
+    const cur = ACC, ink = on(cur);
+    ctx.fillStyle = cur; ctx.fillRect(0, 0, W, H);
+    const cx = W / 2, cy = portrait ? H * 0.42 : H * 0.44;
+    motif(t - A, 0.9, cur, { x1: cx + cols * dayFont * 0.33, y1: cy + dayFont * 0.5 + unit * 0.03 + (cLabel ? cLabel.height : 0) });
+    hits.forEach((h, i) => burst(t, h, i, cx, cy, [ink, ACC2 === cur ? INK : ACC2]));
+    // Slot-machine roll from days + span down to days, locking on the third hit.
+    const span = clamp(Math.round(days * 0.6), 12, 80);
+    const p = clamp((t - hits[0]) / (hits[2] - hits[0]));
+    const V = days + span * (1 - ease.outCubic(p));
+    const speed = span * 3 * Math.pow(1 - p, 2) / (hits[2] - hits[0]);
+    const cell = dayFont * 1.0, cw = dayFont * 0.64;
+    const totalW = cols * cw, left = cx - totalW / 2;
+    const appear = ease.outExpo(clamp((t - hits[0]) / 0.3));
+    const lock = 1 + 0.08 * Math.exp(-Math.pow((t - hits[2]) / 0.1, 2));
+    vg.font(ctx, dayFont, 900, DISPLAY); ctx.textAlign = "center";
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(lock * lerp(1.3, 1, appear), lock * lerp(1.3, 1, appear)); ctx.translate(-cx, -cy);
+    ctx.globalAlpha = appear;
+    for (let j = 0; j < cols; j++) {
+      const col = cols - 1 - j, x = left + cw * (j + 0.5);
+      const vj = V / Math.pow(10, col);
+      let d, frac;
+      if (col === 0) { d = Math.floor(vj) % 10; frac = vj - Math.floor(vj); }
+      else { const lower = (V / Math.pow(10, col - 1)) % 10; d = Math.floor(vj) % 10; frac = lower > 9 ? lower - 9 : 0; }
+      ctx.save(); ctx.beginPath(); ctx.rect(x - cw / 2, cy - cell / 2, cw, cell); ctx.clip();
+      ctx.fillStyle = ink;
+      const blur = col === 0 ? clamp(speed / 12) : 0;
+      for (const [digit, off] of [[d, frac], [(d + 1) % 10, frac - 1]]) {
+        const y = cy + dayFont * 0.36 + off * cell;
+        if (blur > 0.05) { ctx.globalAlpha = appear * 0.25 * blur; ctx.fillText(String(digit), x, y - cell * 0.12 * blur); ctx.fillText(String(digit), x, y + cell * 0.12 * blur); }
+        ctx.globalAlpha = appear;
+        ctx.fillText(String(digit), x, y);
+      }
+      // Feather the roll window so neighbouring digits fade instead of cutting hard.
+      for (const [y0, y1] of [[cy - cell / 2, cy - cell * 0.385], [cy + cell / 2, cy + cell * 0.385]]) {
+        const fg = ctx.createLinearGradient(0, y0, 0, y1);
+        fg.addColorStop(0, rgba(cur, 1)); fg.addColorStop(1, rgba(cur, 0));
+        ctx.globalAlpha = 1; ctx.fillStyle = fg; ctx.fillRect(x - cw / 2, Math.min(y0, y1), cw, Math.abs(y1 - y0));
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.textAlign = "left";
+    if (cLabel) {
+      const lp = ease.outBack(clamp((t - hits[1]) / 0.35), 2);
+      if (lp > 0) {
+        const ly = cy + cell / 2 + unit * 0.03;
+        ctx.save(); ctx.translate(cx, ly + cLabel.height / 2); ctx.scale(lp, lp); ctx.translate(-cx, -(ly + cLabel.height / 2));
+        vg.drawLines(ctx, cLabel, cx, ly, { color: ink, align: "center" });
+        ctx.restore();
+      }
+    }
+    vg.drawLines(ctx, smallName, W / 2, safeTop, { color: ink, align: "center", alpha: clamp((t - A) / 0.3) });
+  }
+}
+
+function sceneReveal(t) {
+  ctx.fillStyle = GROUND; ctx.fillRect(0, 0, W, H);
+  vg.dotGrid(ctx, t, INK, { spacing: 0.05, size: 0.003, alpha: 0.12, drift: 0.2 });
+  const lt = t - CE;
+  const x = portrait ? m : W * 0.08;
+  motif(lt + 0.1, 1, GROUND, { x1: x + R.width, y1: R.bottom });
+  burst(t, CE + 0.05, 3, portrait ? W * 0.78 : W * 0.82, portrait ? H * 0.9 : H * 0.5, [ACC, ACC2]);
+  if (R.kick) {
+    const p = ease.outCubic(clamp((lt - 0.05) / 0.5));
+    vg.drawLines(ctx, R.kick, x + (1 - p) * unit * 0.04, R.kickY, { color: ACC_T, alpha: p });
+  }
+  maskedLines(R.name, x, R.nameY, CE + 0.1, t, INK, { stagger: 0.08, dur: 0.7 });
+  // Date block: wipes open, then the date rises inside it.
+  const bw = ease.outExpo(clamp((lt - 0.4) / (0.55 / tempo)));
+  if (bw > 0) {
+    ctx.fillStyle = ACC; ctx.fillRect(x, R.dateY, R.dateBox.w * bw, R.dateBox.h);
+    ctx.save(); ctx.beginPath(); ctx.rect(x, R.dateY, R.dateBox.w * bw, R.dateBox.h); ctx.clip();
+    maskedLines(R.date, x + R.padX, R.dateY + R.padY, CE + 0.55, t, on(ACC), { stagger: 0.07, dur: 0.6 });
+    ctx.restore();
+    // A glint crossing the block every few seconds.
+    const g = ((lt - 1.2) % 3.2) / 0.7;
+    if (lt > 1.2 && g > 0 && g < 1) {
+      ctx.save(); ctx.beginPath(); ctx.rect(x, R.dateY, R.dateBox.w, R.dateBox.h); ctx.clip();
+      const gx = x + lerp(-R.dateBox.h, R.dateBox.w + R.dateBox.h, ease.inOutSine(g));
+      const gr = ctx.createLinearGradient(gx - R.dateBox.h, 0, gx + R.dateBox.h, 0);
+      gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.5, "rgba(255,255,255,0.35)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = gr; ctx.fillRect(x, R.dateY, R.dateBox.w, R.dateBox.h); ctx.restore();
+    }
+  }
+  if (R.place) {
+    const p = ease.outExpo(clamp((lt - 0.65) / (0.6 / tempo)));
+    if (p > 0) {
+      const dx = (1 - p) * unit * 0.06;
+      const rowH = Math.max(R.place.height, R.icon);
+      ctx.globalAlpha = p;
+      pin(x + R.icon * 0.45 + dx, R.placeY + Math.min(rowH, R.place.size * 1.1) / 2, R.icon, ACC2 === GROUND ? ACC : ACC2);
+      ctx.globalAlpha = 1;
+      vg.drawLines(ctx, R.place, x + R.icon * 1.2 + dx, R.placeY + (rowH - R.place.height) / 2, { color: INK, alpha: p });
+    }
+  }
+  if (R.ctaBox) {
+    const p = ease.outBack(clamp((lt - 0.9) / (0.45 / tempo)), 2);
+    if (p > 0) {
+      const b = R.ctaBox, cy = R.ctaY + b.h / 2;
+      const beat = 1 + 0.035 * Math.max(0, Math.sin((lt - 1.4) * Math.PI * 2 * 0.9)) * (lt > 1.4 ? 1 : 0);
+      ctx.save(); ctx.translate(x + b.w / 2, cy); ctx.scale(p * beat, p * beat);
+      ctx.fillStyle = ACC2; vg.roundRect(ctx, -b.w / 2, -b.h / 2, b.w, b.h, b.h / 2); ctx.fill();
+      vg.drawLines(ctx, R.cta, 0, -R.cta.size * 0.56, { color: on(ACC2), align: "center" });
+      ctx.restore();
+    }
+  }
+}
+
+vg.loop((t) => {
+  if (t < A) sceneTitle(t);
+  else if (t < CE) sceneCount(t);
+  else sceneReveal(t);
+  wipe(t, A);
+  wipe(t, CE);
+  vg.grain(ctx, t, P.grain);
+});
+</script>
+</body>
+</html>

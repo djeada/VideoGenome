@@ -1,4 +1,4 @@
-"""Extension points: providers, renderers, analyzers and exporters.
+"""Extension points: providers, renderers, analyzers, exporters and writers.
 
 Every stage of a pipeline is a plugin *type* looked up by name. Built-in types
 ship with VideoGenome; third-party packages add their own through Python entry
@@ -233,6 +233,15 @@ class Renderer(Plugin):
     def unsupported(self, plan: dict) -> list[str]:
         """Features in ``plan`` this renderer cannot honour (refuse, don't fake)."""
 
+    def check_copy(self, card: dict, output: dict, cards: list[dict]) -> list[tuple[str, str]]:
+        """``(shot_id, problem)`` for title-card copy this renderer could not set.
+
+        ``cards`` are compiled ``{"shot_id", "lines", "kicker", "font_size"}``
+        entries. The default trusts the compiler's estimate; renderers that
+        measure real glyphs report what would fail at render time.
+        """
+        return []
+
     @abstractmethod
     def render(self, plan: dict, job_directory: Path, output: Path) -> dict:
         """Render and verify; return a report merged into the receipt."""
@@ -256,6 +265,34 @@ class Exporter(Plugin):
     def export(self, plan: dict, output: Path, protected: set[Path]) -> dict[str, Path]:
         """Return ``{kind: path}`` for every file written."""
 
+    def finalize(self, receipt: dict, output: Path, protected: set[Path]) -> dict[str, Path]:
+        """Optional second pass once the receipt (gates, measurements) exists."""
+        return {}
+
+
+@dataclass
+class Written:
+    """A writer's raw reply plus facts it can vouch for (model, token counts)."""
+    text: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+class Writer(Plugin):
+    """Writes structured copy from a brief for ``videogenome fill``.
+
+    A writer only proposes text for a template's typed slots. Its reply is
+    untrusted: the filler parses it, checks it against the blueprint and the
+    compiler, and never lets it choose templates, media, rights or approvals.
+    """
+
+    @abstractmethod
+    def write(self, system: str, messages: list[dict], schema: dict) -> Written:
+        """Reply to ``messages`` (``{"role": "user"|"assistant", "content"}``)
+        with one JSON object that should match ``schema``."""
+
+    def describe(self) -> dict:
+        return {**super().describe(), "model": self.config.get("model", {})}
+
 
 # --------------------------------------------------------------------------
 # Registry
@@ -265,6 +302,7 @@ KINDS: dict[str, tuple[str, type[Plugin]]] = {
     "renderer": ("videogenome.renderers", Renderer),
     "analyzer": ("videogenome.analyzers", Analyzer),
     "exporter": ("videogenome.exporters", Exporter),
+    "writer": ("videogenome.writers", Writer),
 }
 
 BUILTINS: dict[str, dict[str, str]] = {
@@ -284,6 +322,11 @@ BUILTINS: dict[str, dict[str, str]] = {
         "subtitles": "videogenome.deliverables:SubtitleExporter",
         "poster": "videogenome.deliverables:PosterExporter",
         "contact_sheet": "videogenome.deliverables:ContactSheetExporter",
+        "review": "videogenome.review:ReviewPageExporter",
+    },
+    "writer": {
+        "openai-chat": "videogenome.writers:OpenAIChatWriter",
+        "command": "videogenome.writers:CommandWriter",
     },
 }
 

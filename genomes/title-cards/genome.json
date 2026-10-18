@@ -1,0 +1,31 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "title-cards",
+  "title": "Typographic title-card explainer",
+  "summary": "Three measured title cards (a hook, one insight, one action) with staggered entrances over a slow procedural backdrop and an optional music bed.",
+  "family": "typography",
+  "formats": [
+    "16:9"
+  ],
+  "duration_seconds": [
+    6,
+    15
+  ],
+  "recipes": [
+    "visual.flow-lines",
+    "audio.ambient-pad"
+  ],
+  "templates": [
+    "educational.title-card-sequence"
+  ],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "FFmpeg title cards",
+    "staggered entrances",
+    "dips"
+  ],
+  "limits": [
+    "Three fixed beats"
+  ]
+}

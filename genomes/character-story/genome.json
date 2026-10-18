@@ -1,0 +1,27 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "character-story",
+  "title": "Character micro-story",
+  "summary": "A small illustrated character (drawn in code) acts out a three-beat story: setup, problem, payoff, with squash-and-stretch, blinks and a caption per beat.",
+  "family": "story",
+  "formats": [
+    "16:9",
+    "9:16"
+  ],
+  "duration_seconds": [
+    10,
+    40
+  ],
+  "recipes": [],
+  "templates": [],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "vector characters in Canvas or SVG",
+    "squash and stretch",
+    "lip-free acting",
+    "beat captions"
+  ],
+  "gallery_share": "Character and story pieces are common but hard; none ship as templates yet.",
+  "limits": []
+}

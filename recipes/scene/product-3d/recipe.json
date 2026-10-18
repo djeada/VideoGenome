@@ -1,0 +1,259 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.product-3d",
+  "version": "0.1.0",
+  "title": "Product hero 3D (Three.js)",
+  "description": "A premium studio product hero built in code: a stylised stand-in product (bottle, can, jar, box or phone-like slab, generic shapes with the name printed on its label) sits on a seamless floor with a soft contact shadow and a fading reflection. Rim lights draw the silhouette, then the key light sweeps on; the camera orbits, pushes in or pulls back from a macro detail; the name rises word by word, the tagline follows and a call-to-action pill pops in, with an 'Illustrative 3D render' footnote. Any aspect ratio. Not a model of any real product.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene",
+    "three"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "form": {
+        "enum": [
+          "bottle",
+          "can",
+          "jar",
+          "box",
+          "phone"
+        ],
+        "default": "bottle",
+        "description": "Stand-in product shape: bottle (glass or plastic with cap and label), can (aluminium with printed wrap), jar (wide, lidded), box (printed package), phone (thin slab with screen and camera bump)"
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 24,
+        "default": "Aurelia",
+        "description": "Product name: the headline, also printed on the label"
+      },
+      "tagline": {
+        "type": "string",
+        "maxLength": 56,
+        "default": "Cold-pressed citrus, bottled at dawn",
+        "description": "One line under the name (empty for none)"
+      },
+      "cta": {
+        "type": "string",
+        "maxLength": 22,
+        "default": "Shop now",
+        "description": "Call to action in the pill button (empty for none)"
+      },
+      "footnote": {
+        "type": "string",
+        "maxLength": 40,
+        "default": "Illustrative 3D render",
+        "description": "Small line under the call to action; keep a disclosure that the product is a rendered stand-in"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#14110F",
+          "#F6EFE6",
+          "#E8A13A"
+        ],
+        "description": "Ground (studio backdrop and floor), ink (copy; replaced by a 4.5:1 colour if too low in contrast) and accent (cap or lid, rules, button)"
+      },
+      "body_color": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "default": "#C9762B",
+        "description": "Product body colour, used when colorway is 'preset'"
+      },
+      "colorway": {
+        "enum": [
+          "preset",
+          "amber",
+          "forest",
+          "coral",
+          "cobalt",
+          "ink",
+          "pearl",
+          "sand",
+          "crimson",
+          "sage",
+          "graphite"
+        ],
+        "default": "preset",
+        "description": "Named body colour; 'preset' uses body_color"
+      },
+      "finish": {
+        "enum": [
+          "matte",
+          "satin",
+          "gloss",
+          "metal",
+          "glass"
+        ],
+        "default": "glass",
+        "description": "Body surface; glass applies to bottle and jar (with tinted contents) and reads as gloss on other forms"
+      },
+      "label": {
+        "type": "boolean",
+        "default": true,
+        "description": "Print the name on the product's label or front face"
+      },
+      "move": {
+        "enum": [
+          "orbit",
+          "push",
+          "reveal"
+        ],
+        "default": "orbit",
+        "description": "Camera move over the first 55% of the shot: orbit (70-degree arc), push (wide to hero push-in), reveal (macro detail pulling back to the hero frame); then a slow drift"
+      },
+      "lighting": {
+        "enum": [
+          "studio",
+          "soft",
+          "dramatic"
+        ],
+        "default": "studio",
+        "description": "Light rig: studio (key, fill and two rims), soft (bright and even), dramatic (low environment, hard rims)"
+      },
+      "spin": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.5,
+        "default": 0.12,
+        "description": "Turns the product makes during the shot (it always ends facing the camera)"
+      },
+      "reflection": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.5,
+        "default": 0.22,
+        "description": "Floor reflection strength near the product (0 for none)"
+      },
+      "glow": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0,
+        "description": "Bloom on highlights (0 turns the post-processing pass off). Very costly on software WebGL: about 25 s of render per output second at 1080x1920, so no preset uses it"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.08,
+        "default": 0.035,
+        "description": "Film grain amount"
+      },
+      "msaa": {
+        "type": "boolean",
+        "default": true,
+        "description": "Multisample anti-aliasing on product edges (off renders somewhat faster for drafts)"
+      }
+    }
+  },
+  "presets": {
+    "amber": {},
+    "citrus": {
+      "form": "can",
+      "palette": [
+        "#F2EDE3",
+        "#1A1712",
+        "#E2462C"
+      ],
+      "body_color": "#F0B323",
+      "finish": "metal",
+      "move": "push",
+      "lighting": "soft",
+      "spin": 0.2,
+      "reflection": 0.16,
+      "name": "Fizzwell",
+      "tagline": "Sparkling yuzu, no added sugar"
+    },
+    "noir": {
+      "form": "phone",
+      "palette": [
+        "#090B11",
+        "#F2F4F7",
+        "#5B8CFF"
+      ],
+      "body_color": "#565C68",
+      "finish": "metal",
+      "move": "reveal",
+      "lighting": "dramatic",
+      "spin": 0.28,
+      "reflection": 0.3,
+      "name": "Lumen One",
+      "tagline": "All-day battery in a 7 mm frame",
+      "cta": "Pre-order"
+    },
+    "cream": {
+      "form": "jar",
+      "palette": [
+        "#E9DFD3",
+        "#2A211B",
+        "#B88A5A"
+      ],
+      "body_color": "#F4EEE6",
+      "finish": "satin",
+      "move": "orbit",
+      "lighting": "soft",
+      "spin": 0.1,
+      "reflection": 0.12,
+      "name": "Oat & Honey",
+      "tagline": "Rich night cream for dry skin",
+      "cta": "Discover"
+    },
+    "forest": {
+      "form": "box",
+      "palette": [
+        "#1E2A24",
+        "#F1EEE6",
+        "#E9C46A"
+      ],
+      "body_color": "#2F5D46",
+      "finish": "matte",
+      "move": "push",
+      "lighting": "studio",
+      "spin": 0.15,
+      "reflection": 0.0,
+      "name": "Field Kit",
+      "tagline": "Everything for a first night outdoors",
+      "cta": "Order today"
+    }
+  },
+  "tags": [
+    "scene",
+    "3d",
+    "product",
+    "hero",
+    "studio",
+    "commercial",
+    "threejs",
+    "webgl"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`; renders on software WebGL (SwiftShader).",
+    "The product is a generic stand-in built from lathe, box and extrude primitives; it is not a likeness of any real product, and the default footnote says so on screen.",
+    "Beats (D = duration): key light sweeps on 0.06D-0.32D, camera move ends 0.55D, name 0.42D, tagline 0.50D, call to action 0.62D, footnote 0.50D + 0.2 s.",
+    "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial.",
+    "Measured on software WebGL (SwiftShader) at 1080x1920, 30 fps, including setup: about 5.0-5.4 s of render per output second without glow."
+  ],
+  "cost": {
+    "seconds_per_output_second": 5.5
+  }
+}

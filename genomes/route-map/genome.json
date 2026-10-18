@@ -1,0 +1,43 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "route-map",
+  "title": "Route map journey",
+  "summary": "A stylised map story: the camera eases from leg to leg while a marker draws the route between labelled stops, stop cards land on arrival and distance and duration counters run to their stated totals, ending on the whole route.",
+  "family": "story",
+  "formats": [
+    "9:16",
+    "16:9",
+    "1:1"
+  ],
+  "duration_seconds": [
+    10,
+    20
+  ],
+  "recipes": [
+    "scene.route-map"
+  ],
+  "templates": [
+    "social.route-story"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "Stop names with latitude and longitude in decimal degrees",
+    "Optionally the total distance and duration, as stated facts"
+  ],
+  "techniques": [
+    "Canvas 2D",
+    "Web Mercator projection",
+    "Natural Earth 1:50m land and borders (public domain)",
+    "keyframed camera with log-space zoom",
+    "dot-matrix land from an offscreen mask",
+    "collision-aware card and label placement",
+    "great-circle proportional counters"
+  ],
+  "gallery_share": "Animated travel and route maps (road trips, flight paths, delivery and expedition routes) are a staple of travel reels and explainer videos.",
+  "limits": [
+    "Coastlines are 1:50m and simplified: fine for countries and regions, not city streets (the camera never zooms below about 2 degrees of span)",
+    "Legs are arcs or rhumb lines, not real roads, rails or flight paths",
+    "No city or country names besides the stops; borders are Natural Earth de facto lines",
+    "Coordinates must be supplied; the recipe has no gazetteer"
+  ]
+}

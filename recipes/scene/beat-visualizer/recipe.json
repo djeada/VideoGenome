@@ -1,0 +1,171 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.beat-visualizer",
+  "version": "0.1.0",
+  "title": "Beat visualizer synced by tempo (Canvas)",
+  "description": "A music visualizer that hits exactly on the beat of a known-tempo bed: rings (a core that swells on each kick, mirrored radial bars, ripples per beat, a bar-progress arc), bars (a mirrored equaliser whose low, middle and top bands follow kick, backbeat and off-beats) or orbit (a square that snaps a quarter turn per beat, dots thrown out by each kick, a beat-of-bar marker). Kicker, title, credit and a beat counter enter on the first beats. It is synced by bpm and offset, not by analysing audio: pair it with an audio recipe at the same bpm.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32,
+        "default": "Night Transit",
+        "description": "Show, mix, channel or track name exactly as approved"
+      },
+      "credit": {
+        "type": "string",
+        "maxLength": 44,
+        "default": "Weekly mix, Fridays at ten",
+        "description": "Line under the title: artist, host or schedule (empty for none)"
+      },
+      "kicker": {
+        "type": "string",
+        "maxLength": 22,
+        "default": "Now playing",
+        "description": "Small tracked label above the title (empty for none)"
+      },
+      "style": {
+        "enum": [
+          "rings",
+          "bars",
+          "orbit"
+        ],
+        "default": "rings",
+        "description": "Visualizer form"
+      },
+      "bpm": {
+        "type": "number",
+        "minimum": 60,
+        "maximum": 180,
+        "default": 120,
+        "description": "Tempo; must equal the music's tempo (audio.pulse 90-128, audio.lofi-beat 60-100)"
+      },
+      "beats_per_bar": {
+        "type": "integer",
+        "minimum": 2,
+        "maximum": 7,
+        "default": 4,
+        "description": "Beats per bar; beat 1 is the accented downbeat"
+      },
+      "offset": {
+        "type": "number",
+        "minimum": -2,
+        "maximum": 2,
+        "default": 0,
+        "description": "Seconds at which the first downbeat lands (0 for audio.pulse and audio.lofi-beat started at frame 0)"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 4,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#07080D",
+          "#F3F4F6",
+          "#FF5A36",
+          "#3D7BFF"
+        ],
+        "description": "Ground, ink (title), accent (downbeats, core, kicker) and second hue (gradient partner)"
+      },
+      "intensity": {
+        "type": "number",
+        "minimum": 0.3,
+        "maximum": 1.5,
+        "default": 1.0,
+        "description": "How hard each hit moves the shapes"
+      },
+      "offbeat": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.4,
+        "description": "Flick on the off-beat eighths (hats) in the top band"
+      },
+      "loop": {
+        "type": "boolean",
+        "default": true,
+        "description": "Copy leaves during the last bar so a whole number of bars loops"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.12,
+        "default": 0.05,
+        "description": "Film grain amount (also prevents gradient banding)"
+      }
+    }
+  },
+  "presets": {
+    "signal": {},
+    "club": {
+      "style": "bars",
+      "palette": [
+        "#060708",
+        "#F4F5F0",
+        "#C6FF3D",
+        "#19C3FF"
+      ],
+      "intensity": 1.15,
+      "offbeat": 0.6
+    },
+    "studio": {
+      "style": "orbit",
+      "palette": [
+        "#F2EFE8",
+        "#141414",
+        "#E4572E",
+        "#2F5BFF"
+      ],
+      "grain": 0.035
+    },
+    "lagoon": {
+      "style": "rings",
+      "palette": [
+        "#041418",
+        "#EAF7F5",
+        "#35E0B4",
+        "#2A6FDB"
+      ],
+      "intensity": 0.85,
+      "offbeat": 0.3
+    }
+  },
+  "tags": [
+    "scene",
+    "music",
+    "visualizer",
+    "beat",
+    "tempo-sync",
+    "loop",
+    "canvas"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+    "Synced by tempo, not by audio analysis: beat k lands at offset + k*60/bpm s. audio.pulse places its kick at exactly k*60/bpm from 0 s, so lock the same bpm in both recipes and keep offset 0. Supplied music must match the tempo and start on a downbeat at the offset.",
+    "Hits are evaluated half a frame late so each one peaks on the frame nearest its beat (within 16.7 ms at 30 fps; exact when the beat is a whole number of frames, e.g. 120 bpm at 30 fps).",
+    "No full-frame strobing: one soft glow per kick; faster accents only move small elements."
+  ],
+  "cost": {
+    "seconds_per_output_second": 3.0
+  }
+}

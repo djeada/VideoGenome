@@ -1,0 +1,258 @@
+{
+  "schema_version": "0.5.0",
+  "id": "social.kinetic-promo",
+  "version": "0.1.0",
+  "title": "Kinetic type promo (9:16)",
+  "category": "social",
+  "description": "A 10-second vertical kinetic-typography promo in the style of studio motion-design reels: four phrases rise word by word, an accent circle lands as each full stop and swells into the next phrase's ground, over a drifting dot grid, with a procedural pulse bed and a whoosh on every wipe. Code-rendered (scene.kinetic-type), so it renders with no footage, models or downloads.",
+  "tags": [
+    "social",
+    "vertical",
+    "typography",
+    "kinetic",
+    "promo",
+    "motion_graphics",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "hook": {
+      "type": "string",
+      "required": true,
+      "description": "Opening phrase that stops the scroll, 2-5 words"
+    },
+    "point_1": {
+      "type": "string",
+      "required": true,
+      "description": "First supporting phrase, 3-6 words"
+    },
+    "point_2": {
+      "type": "string",
+      "required": true,
+      "description": "Second supporting phrase, 3-6 words"
+    },
+    "payoff": {
+      "type": "string",
+      "required": true,
+      "description": "Closing phrase or brand line, 2-5 words; its last word is set in the accent colour"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "swiss",
+        "neon",
+        "ink",
+        "calm"
+      ],
+      "default": "swiss",
+      "description": "Visual look: swiss (off-white, black, orange), neon (black, white, acid green), ink (dark, cream, orange), calm (pale, navy, blue)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "upbeat",
+        "product",
+        "keynote",
+        "night"
+      ],
+      "default": "upbeat",
+      "description": "Music energy for the procedural bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The kinetic type animation; rendered from the phrases unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.kinetic-type",
+          "preset": "{{look}}",
+          "params": {
+            "phrases": [
+              "{{hook}}",
+              "{{point_1}}",
+              "{{point_2}}",
+              "{{payoff}}"
+            ]
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "{{energy}}"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh under each circle wipe",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Vertical promo for Fieldnotes, a notes app for field biologists that works offline and syncs when you are back in range. Close on the name.",
+      "inputs": {
+        "hook": "No signal? No problem.",
+        "point_1": "Notes that work fully offline",
+        "point_2": "Synced the moment you are back",
+        "payoff": "Made for fieldwork",
+        "look": "ink",
+        "energy": "product"
+      },
+      "note": "Each phrase is one beat a viewer reads in two seconds: the hook names the pain, two phrases give the two facts from the brief, and the payoff lands on the audience. No phrase repeats another."
+    }
+  ],
+  "style": {
+    "mood": "confident, editorial, kinetic",
+    "palette": [
+      "#F4F1EA",
+      "#121212",
+      "#FF5A36"
+    ],
+    "typography": "Inter Black, left aligned, word-by-word masked rises",
+    "pacing": "dynamic"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 285,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "reel",
+      "role": "promo",
+      "duration_frames": 300,
+      "shots": [
+        {
+          "id": "kinetic_reel",
+          "kind": "animation",
+          "duration_frames": 300,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Four phrases, one per beat; the accent circle is the full stop and the cut"
+          },
+          "input_refs": [
+            "scene",
+            "hook",
+            "point_1",
+            "point_2",
+            "payoff"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 10,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 300,
+        "gain_db": -3,
+        "fade_in_frames": 6,
+        "fade_out_frames": 24
+      },
+      {
+        "id": "wipe_1",
+        "input_ref": "whoosh",
+        "start_frame": 58,
+        "duration_frames": 24,
+        "gain_db": -7
+      },
+      {
+        "id": "wipe_2",
+        "input_ref": "whoosh",
+        "start_frame": 133,
+        "duration_frames": 24,
+        "gain_db": -7
+      },
+      {
+        "id": "wipe_3",
+        "input_ref": "whoosh",
+        "start_frame": 208,
+        "duration_frames": 24,
+        "gain_db": -7
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/kinetic-type) rendered frame-exactly on a virtual clock; the content model supplies only four phrases and two choices.",
+      "Phrases are auto-fitted with measured glyphs; each is capped at 48 characters by the recipe schema.",
+      "Whoosh cues sit on the circle wipes at 2.05 s, 4.55 s and 7.05 s, which the recipe derives from the 10-second duration and four phrases."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms every phrase is accurate and approved for the brand."
+    }
+  ]
+}

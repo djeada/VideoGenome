@@ -1,0 +1,435 @@
+{
+  "schema_version": "0.5.0",
+  "id": "commercial.stat-highlights",
+  "version": "0.1.0",
+  "title": "Three headline numbers (9:16)",
+  "category": "commercial",
+  "description": "A 13-second vertical stat reveal: a heading and source line frame three headline numbers, each landing as the hero of its own beat with an odometer digit roll, a gauge ring that fills only for percentages, and its label rising in; a recap sets all three side by side. Code-rendered (scene.stat-reveal) with a procedural pulse bed, a riser under each count, a soft impact as each number lands and a whoosh on each exit.",
+  "tags": [
+    "commercial",
+    "social",
+    "vertical",
+    "data",
+    "statistics",
+    "numbers",
+    "kpi",
+    "motion_graphics",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "stat_1": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The first number in the brief as a plain number: in '98% of orders shipped' it is 98, 12,400 is 12400, and in '4.2 million' it is 4.2 with the unit M",
+      "grounded_with": "stat_1_label"
+    },
+    "stat_1_label": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The words right after the first number in the brief, copied exactly: in '98% of orders shipped the same day' it is 'of orders shipped the same day'"
+    },
+    "stat_1_prefix": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Currency sign before the first number ($, £, €) when the brief writes one; empty for none"
+    },
+    "stat_1_unit": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Unit after the first number as the brief writes it: %, M (million), bn, k, +, x, km; empty for none"
+    },
+    "stat_2": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The second number in the brief as a plain number: in '98% of orders shipped' it is 98, 12,400 is 12400, and in '4.2 million' it is 4.2 with the unit M",
+      "grounded_with": "stat_2_label"
+    },
+    "stat_2_label": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The words right after the second number in the brief, copied exactly: in '98% of orders shipped the same day' it is 'of orders shipped the same day'"
+    },
+    "stat_2_prefix": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Currency sign before the second number ($, £, €) when the brief writes one; empty for none"
+    },
+    "stat_2_unit": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Unit after the second number as the brief writes it: %, M (million), bn, k, +, x, km; empty for none"
+    },
+    "stat_3": {
+      "type": "number",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The third number in the brief as a plain number: in '98% of orders shipped' it is 98, 12,400 is 12400, and in '4.2 million' it is 4.2 with the unit M",
+      "grounded_with": "stat_3_label"
+    },
+    "stat_3_label": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The words right after the third number in the brief, copied exactly: in '98% of orders shipped the same day' it is 'of orders shipped the same day'"
+    },
+    "stat_3_prefix": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Currency sign before the third number ($, £, €) when the brief writes one; empty for none"
+    },
+    "stat_3_unit": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Unit after the third number as the brief writes it: %, M (million), bn, k, +, x, km; empty for none"
+    },
+    "title": {
+      "type": "string",
+      "required": true,
+      "description": "Heading above the numbers, e.g. 'Our 2025 in numbers'; no figure the brief does not give"
+    },
+    "source": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Who published these numbers, copied from the brief (e.g. 'Riverside Food Bank annual report 2025'); shown as 'Source: ...'"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "night",
+        "paper",
+        "ocean",
+        "signal",
+        "citrus"
+      ],
+      "default": "night",
+      "description": "Visual look: night (near-black, mint), paper (cream, vermilion), ocean (deep blue, cyan), signal (black, acid lime), citrus (warm white, amber)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "keynote",
+        "product",
+        "calm-tech",
+        "upbeat"
+      ],
+      "default": "keynote",
+      "description": "Music energy for the procedural pulse bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The stat reveal animation; rendered from the numbers unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.stat-reveal",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{title}}",
+            "values": [
+              "{{stat_1}}",
+              "{{stat_2}}",
+              "{{stat_3}}"
+            ],
+            "labels": [
+              "{{stat_1_label}}",
+              "{{stat_2_label}}",
+              "{{stat_3_label}}"
+            ],
+            "prefixes": [
+              "{{stat_1_prefix}}",
+              "{{stat_2_prefix}}",
+              "{{stat_3_prefix}}"
+            ],
+            "suffixes": [
+              "{{stat_1_unit}}",
+              "{{stat_2_unit}}",
+              "{{stat_3_unit}}"
+            ],
+            "source": "Source: {{source}}"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "{{energy}}"
+        }
+      }
+    },
+    "riser": {
+      "type": "audio",
+      "required": false,
+      "description": "Riser under each count, peaking as the digits stop",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "riser"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft impact as each number lands",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh as each number slides out and into the recap",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Vertical impact video for Riverside Food Bank. Our 2025 numbers: 1.2 million meals served, 86% of donations handed out within a week, and 12,400 volunteer shifts worked. Source: Riverside Food Bank annual report 2025. Warm look.",
+      "inputs": {
+        "title": "Riverside Food Bank in 2025",
+        "stat_1": 1.2,
+        "stat_1_unit": "M",
+        "stat_1_label": "meals served",
+        "stat_2": 86,
+        "stat_2_unit": "%",
+        "stat_2_label": "of donations handed out within a week",
+        "stat_3": 12400,
+        "stat_3_label": "volunteer shifts worked",
+        "source": "Riverside Food Bank annual report 2025",
+        "look": "citrus",
+        "energy": "calm-tech"
+      },
+      "note": "Every number, unit and label is copied from the brief in its order; 1.2 million becomes 1.2 with the unit M and 12,400 becomes 12400; each label is the words right after its number. The heading names who and when without adding a claim, and the source is the brief's own wording."
+    }
+  ],
+  "style": {
+    "mood": "confident, factual, celebratory",
+    "palette": [
+      "#0B0F14",
+      "#F3F5F7",
+      "#3DDC97"
+    ],
+    "typography": "Inter ExtraBold numbers with small units, SemiBold labels",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 349,
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "stats",
+      "role": "proof",
+      "duration_frames": 390,
+      "shots": [
+        {
+          "id": "stat_reveal",
+          "kind": "animation",
+          "duration_frames": 390,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Heading, then three numbers one per beat (count, meter, label), then a recap of all three"
+          },
+          "input_refs": [
+            "scene",
+            "title",
+            "stat_1",
+            "stat_1_label",
+            "stat_2",
+            "stat_2_label",
+            "stat_3",
+            "stat_3_label",
+            "source"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 12,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 390,
+        "gain_db": -2,
+        "fade_in_frames": 6,
+        "fade_out_frames": 30
+      },
+      {
+        "id": "count_1",
+        "input_ref": "riser",
+        "start_frame": 30,
+        "duration_frames": 42,
+        "gain_db": -10,
+        "fade_in_frames": 8
+      },
+      {
+        "id": "land_1",
+        "input_ref": "impact",
+        "start_frame": 71,
+        "duration_frames": 45,
+        "gain_db": -9
+      },
+      {
+        "id": "out_1",
+        "input_ref": "whoosh",
+        "start_frame": 104,
+        "duration_frames": 24,
+        "gain_db": -11
+      },
+      {
+        "id": "count_2",
+        "input_ref": "riser",
+        "start_frame": 122,
+        "duration_frames": 42,
+        "gain_db": -10,
+        "fade_in_frames": 8
+      },
+      {
+        "id": "land_2",
+        "input_ref": "impact",
+        "start_frame": 163,
+        "duration_frames": 45,
+        "gain_db": -9
+      },
+      {
+        "id": "out_2",
+        "input_ref": "whoosh",
+        "start_frame": 197,
+        "duration_frames": 24,
+        "gain_db": -11
+      },
+      {
+        "id": "count_3",
+        "input_ref": "riser",
+        "start_frame": 215,
+        "duration_frames": 42,
+        "gain_db": -10,
+        "fade_in_frames": 8
+      },
+      {
+        "id": "land_3",
+        "input_ref": "impact",
+        "start_frame": 255,
+        "duration_frames": 45,
+        "gain_db": -9
+      },
+      {
+        "id": "out_3",
+        "input_ref": "whoosh",
+        "start_frame": 288,
+        "duration_frames": 24,
+        "gain_db": -11
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/stat-reveal) rendered frame-exactly on a virtual clock; the content model supplies the heading and copies numbers, units, labels and the source from the brief.",
+      "Every number, unit, label and the source are VERBATIM: a writer may only copy them from the brief. Numbers must be numbers the brief states.",
+      "The gauge ring fills only for a % unit (a share of 100); other numbers get a neutral ring, so the meter never implies a proportion the data does not have.",
+      "Copy is fitted with measured glyphs; labels are capped at 44 characters and the heading at 40 by the recipe schema, and the render fails rather than overflow.",
+      "Beats at 13 s: numbers enter at 0.90, 3.98, 7.06 s and land at 2.39, 5.47, 8.55 s; the recap starts at 10.14 s. Risers end and impacts hit on the landings; whooshes sit on the exits at 3.58, 6.66, 9.69 s."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "data_accuracy",
+      "mode": "human",
+      "description": "A reviewer checks every number, unit and label against the cited source, including that each label describes its own number."
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms the heading makes no claim beyond the numbers and the brand approves publication."
+    }
+  ]
+}

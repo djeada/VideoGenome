@@ -16,7 +16,7 @@ from typing import Iterable
 from jsonschema import Draft202012Validator
 
 from videogenome.plugins import (
-    Analyzer, Exporter, Plugin, PluginError, Provider, Renderer, instantiate,
+    Analyzer, Exporter, Plugin, PluginError, Provider, Renderer, Writer, instantiate,
 )
 from videogenome.providers.base import expand_env
 from videogenome.resources import DATA_ROOT, SCHEMAS
@@ -34,7 +34,7 @@ DEFAULT = {
     "routes": {"procedural": "procedural"},
     "renderer": {"type": "ffmpeg"},
     "analyzers": [{"type": "ffmpeg"}],
-    "exporters": [{"type": "subtitles"}, {"type": "poster"}, {"type": "contact_sheet"}],
+    "exporters": [{"type": "subtitles"}, {"type": "poster"}, {"type": "contact_sheet"}, {"type": "review"}],
 }
 
 
@@ -77,7 +77,8 @@ def discover_pipelines(extra: Iterable[Path] = ()) -> list[dict]:
             if isinstance(data, dict) and data.get("pipeline_schema"):
                 found.append({"id": data.get("id"), "description": data.get("description"),
                               "verification": data.get("verification"),
-                              "routes": sorted(data.get("routes", {})), "path": str(candidate)})
+                              "routes": sorted(data.get("routes", {})),
+                              "writer": (data.get("writer") or {}).get("type"), "path": str(candidate)})
     return found
 
 
@@ -129,6 +130,8 @@ class Profile:
             for key in ("renderer", "analyzers", "exporters"):
                 if key in data:
                     merged[key] = data[key]
+            if "writer" in data:  # Resolved relative to the profile that declares it.
+                merged["writer"] = {**data["writer"], "_base_dir": base_dir}
             for key in ("id", "description", "verification"):
                 merged[key] = data[key]
         return cls(merged, chain)
@@ -178,6 +181,15 @@ class Profile:
         return [self._plugin("analyzer", f"analyzer{i}", spec, self.base_dir)  # type: ignore[misc]
                 for i, spec in enumerate(self.data.get("analyzers", []))]
 
+    def writer(self) -> Writer:
+        spec = self.data.get("writer")
+        if spec is None:
+            raise PluginError(f"Pipeline {self.id!r} has no writer; choose a profile with one "
+                              "(see `videogenome pipelines`) or fill the job's text inputs yourself")
+        plugin = self._plugin("writer", "writer", spec, Path(spec.get("_base_dir", ".")))
+        assert isinstance(plugin, Writer)
+        return plugin
+
     def exporters(self) -> list[Exporter]:
         return [self._plugin("exporter", f"exporter{i}", spec, self.base_dir)  # type: ignore[misc]
                 for i, spec in enumerate(self.data.get("exporters", []))]
@@ -201,6 +213,7 @@ class Profile:
             "analyzers": [a["type"] for a in self.data.get("analyzers", [])],
             "exporters": [e["type"] for e in self.data.get("exporters", [])],
             "routes": self.data.get("routes", {}),
+            **({"writer": self.data["writer"]["type"]} if "writer" in self.data else {}),
         }
 
     def check(self) -> list[tuple[str, str, str]]:
@@ -222,6 +235,13 @@ class Profile:
                 for provider_name, step_capability in chain:
                     if provider_name not in self.data.get("providers", {}):
                         rows.append(("FAIL", f"route {capability}", f"unknown provider {provider_name!r}"))
+        if "writer" in self.data:
+            try:
+                writer = self.writer()
+                rows += [(status, "writer", detail)
+                         for status, detail in (writer.check() or [("OK", f"{type(writer).__name__} loaded")])]
+            except PluginError as exc:
+                rows.append(("FAIL", "writer", str(exc)))
         for kind, plugins in (("renderer", [self.data["renderer"]]),
                               ("analyzer", self.data.get("analyzers", [])),
                               ("exporter", self.data.get("exporters", []))):

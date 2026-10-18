@@ -2,195 +2,165 @@
 
 **Encode creativity. Generate anything.**
 
-VideoGenome is an open framework for **model-independent, reusable video production intelligence**. Expert directors and frontier models can package their creative decisions into controlled, composable blueprints; smaller models supply the content, approved footage and assets required to execute them. The goal covers every kind of video, not just motion graphics: live action, social/UGC, commercials, explainers, documentaries, tutorials, generated video, animation, 3D and hybrids.
+Frontier models can write striking videos as code: kinetic type, data stories,
+product launches, explainers, 3D scenes. Galleries such as
+[awesome-opus5-5-videos](https://github.com/yihui-dev/awesome-opus5-5-videos)
+collect hundreds of them, each a one-off prompt and a screen recording.
+VideoGenome is the system behind that kind of result. A class of video is
+written once as deterministic, parameterised code, locked into a template with
+its timing, sound and quality gates, and then produced from a plain-language
+brief by anyone: a person in a web UI, an agent over MCP, a script, or a small
+local model.
 
-> **Status: v0.4, a composable production tool.** Pick a template, fill the text, and let *your* pipeline produce
-> the rest: any TTS, image, video, music, typing or 3D tool plugs in through a general provider interface. That
-> covers CLI tools, OpenAI-compatible servers, ComfyUI workflows, MCP servers and Python entry points. The
-> FFmpeg renderer then assembles designed cards, transitions, mix, captions and loudness, with measured QA gates
-> and a provenance receipt. See [plugins and pipelines](docs/plugins-and-pipelines.md) and the
-> [open-source stack](docs/open-source-stack.md).
+~~~bash
+videogenome create social.kinetic-promo --pipeline procedural-writer -o out/harbourline.mp4 \
+  --brief "Promo for Harbourline, a ferry app: buy tickets in ten seconds, see live departures, board by scanning your phone."
+~~~
+
+The output is a frame-exact MP4 with measured loudness and gates, a provenance
+receipt and a review page. Names, quotes and numbers are copied from the brief,
+never invented.
+
+## The library: prompt, code or ready to fill
+
+Every class of video is a **genome** with a level derived from what actually
+exists, so it is always clear what you are getting:
+
+| Level | What exists | What you do |
+|---|---|---|
+| **TEMPLATE** | Code plus a locked template with typed slots, copy examples and gates | Give a brief or fill the slots, get a finished video |
+| **CODE** | A recipe: deterministic code with bounded parameters and presets | Pick a preset, tune parameters, preview |
+| **PROMPT** | An authoring prompt only | Hand it to your agent, which writes the code; preview with `capture`; promote it |
+
+~~~bash
+videogenome library            # every class by level
+videogenome genome route-map   # one class: templates, recipes, what you bring, limits
+videogenome genome physics-sim --prompt   # the authoring prompt for an agent
+~~~
+
+| Family | Ready to fill (template level) |
+|---|---|
+| Typography | Kinetic type promo · title-card explainer |
+| Data | Headline stat reveal · animated chart with one takeaway |
+| Explainer | How-it-works system diagram · history timeline · step-by-step · narrated slides · captioned still · software walkthrough (your recording) |
+| Brand | Title sting · motion-design showreel (16:9 and 9:16) |
+| Product | 3D product hero (three.js stand-in: bottle, can, jar, box, device) · app launch with stylised UI · product turntable (your .glb) · cinematic reveal (your footage) |
+| 3D | Cinematic title over a generated valley flyover or orbital sunrise |
+| Social | Event teaser (3-2-1 and days-to-go) · vertical tips listicle · UGC testimonial (your footage) |
+| Story / maps | Route map on Natural Earth coastlines |
+| Generative / music | Quote or lyric loop over generative art (9:16, 1:1) · tempo-locked beat visualizer |
+| Code | Browser code reveal with syntax highlighting (16:9, 9:16) · typing reel (Type-Simulator) |
+| Documentary | Mini documentary from CC0 footage |
+
+Ready code: generative backdrops (aurora, bokeh, dot wave, mesh-gradient shader,
+flow lines) and procedural music and sound (pads, lo-fi, pulse, transitions).
+Prompt only, for now: physics simulations, character micro-stories, games in
+attract mode, infinite zooms.
+
+## Four ways in
+
+| Who | Cockpit | Start |
+|---|---|---|
+| Anyone | **Studio**: a local web UI to browse the library, fill a template from a brief or a form with live checks, render, tune recipes, run your own HTML | `videogenome studio --pipeline procedural-writer --open` |
+| Agents | **MCP server**: the agent reads slot contracts, writes the copy, checks it, renders and sees a contact sheet; it can also render HTML it wrote | `claude mcp add videogenome -- videogenome mcp --pipeline procedural --workspace ~/vg-runs` |
+| Power users | **CLI** | `videogenome --help` |
+| Your own code | **Capture**: any self-contained HTML animation renders unmodified and frame-exactly, with its Web Audio | `videogenome capture page.html -o page.mp4 --size 1080x1920 --duration 12` |
+
+All four share one service layer, so they apply the same checks, pipelines,
+gates and receipts. See [cockpits](docs/cockpits.md).
 
 ## Install
 
-Requires Python 3.10+, and FFmpeg 6.1+ with ffprobe and fontconfig. Install [Inter](https://rsms.me/inter/) for on-brand typography
-(`apt install fonts-inter`). Without it, the receipt records which font was used instead.
+Requires Python 3.10+, FFmpeg 6.1+ with ffprobe and fontconfig, and the Inter
+font for on-brand type (`apt install fonts-inter`).
 
 ~~~bash
-pip install .            # or: pip install -e .  (for development)
-videogenome doctor       # checks FFmpeg, required filters, encoders and template fonts
+pip install '.[procedural,browser]'         # core, Python recipes, browser scenes
+playwright install chromium-headless-shell  # once: scenes, capture, Studio previews
+videogenome doctor
+ollama pull qwen2.5:3b                      # optional: the local writer in `procedural-writer`
 ~~~
 
-## Make a video in four commands
+## How a video is made
+
+1. **Recipe (code).** A scene is an HTML page that animates with ordinary code
+   (`requestAnimationFrame`, timers, CSS animations, three.js). A virtual clock
+   advances it exactly one frame per screenshot, so the same parameters give the
+   same bytes at any size. Copy is a bounded parameter, fitted with measured
+   glyphs; a page throws rather than overflow.
+2. **Blueprint (template).** It locks the recipe's look, the shot timing, sound
+   cues on the scene's beats, loudness targets and gates, and opens typed slots.
+   Each slot says what it is used for and how much it can hold. Facts are
+   `verbatim` and must appear in the brief; numbers must sit next to their labels.
+3. **Copy.** A writer model (`fill`, `create`), an agent (MCP), a person (Studio)
+   or a script fills the slots. Every value is checked by the compiler, the
+   renderer's glyph measurement and the narration budget. A brief that lacks a
+   required fact ends `incomplete` (exit 4), with nothing invented.
+4. **Pipeline.** The operator's profile decides which tools produce media:
+   procedural recipes, CC0 search, TTS, Blender, ComfyUI, MCP servers, your own
+   commands. Jobs and agents never choose providers.
+5. **Render and review.** FFmpeg assembles, masters loudness and measures; the
+   receipt records hashes, provenance and gate results, and the review page lists
+   what still needs a human decision.
+
+## Measured, not assumed
+
+* `videogenome bench SUITE.json` runs a suite of briefs for a writer and
+  reports fill rate, first-attempt rate and honest-refusal rate.
+  `examples/briefs/` holds suites for every class. Each suite includes briefs
+  that lack required facts.
+* On 2026-10-18 a local Qwen2.5-3B met expectations on 52 of 59 briefs across
+  12 suites, including 12 of 12 general briefs and every brief in the chart,
+  timeline, quote, beat and showreel suites. The misses are listed in
+  [briefs and writers](docs/briefs-and-writers.md). Slots a writer composes
+  (code, system diagrams) can still be invented, and a stated number can be
+  reused for the wrong slot, which is why templates keep human review gates.
+* Automated gates measure loudness, true peak, blank picture and silence. Every
+  aesthetic and factual judgement stays `not_evaluated` until a person approves
+  it. Rights are self-attested. A successful render is not publication approval.
+
+## Status and limits
+
+**v0.7.0.**
+
+* Templates driven by text and code render end to end with no API keys.
+* Media-heavy templates render when you supply media or choose a pipeline that
+  produces it.
+* Scene renders use software WebGL in headless Chromium, at roughly 2–6 s of
+  compute per output second at 1080×1920.
+* Web Audio inside captured pages is recorded; `<audio>`/`<video>` element
+  playback and Workers' own timers are not.
+* Several pipeline profiles are verified only against fake servers;
+  `videogenome pipelines` says which.
+
+## Develop
 
 ~~~bash
-videogenome catalog --self-contained --table           # templates that need only text
-videogenome scaffold social.vertical-tips -o job.json   # skeleton with the required slots
-$EDITOR job.json                                        # fill hook, tip_1..3, cta
-videogenome render job.json -o out/tips.mp4 --receipt out/receipt.json
-~~~
-
-`render` writes these files:
-
-| File | Contents |
-|---|---|
-| `tips.mp4` | H.264/AAC, frame count, resolution and duration verified |
-| `tips.poster.jpg`, `tips.contact.jpg` | Poster frame and one tile per shot, for review |
-| `tips.srt`, `tips.vtt` | Caption sidecars (when the template has captions) |
-| `receipt.json` | Source/output hashes, pinned font, measured layout, loudness, gate results and caveats |
-
-The command prints the measured loudness and each gate's status. It exits **3**
-if an automated gate fails (the output is kept), and **1** if the job is
-invalid. A job names its template by catalog id, so it works from any
-directory. Studios can keep their own reviewed templates outside this
-repository with `--templates DIR` or `VIDEOGENOME_TEMPLATE_PATH`.
-
-| Template | Format | Needs |
-|---|---|---|
-| `educational.title-card-sequence` | 16:9, 9 s | Text only |
-| `educational.narrated-slides` | 16:9, 22 s, captions, -16 LUFS | Text; images, narration and music are producible |
-| `educational.code-typing-reel` | 9:16, 16 s | Text and code; typing clip is producible |
-| `commercial.product-turntable` | 1:1, 9 s | Text and a `.glb` model; the turntable is producible |
-| `educational.cc0-documentary` | 16:9, 21.5 s, captions | Text and topics; footage (CC0), narration and music are producible |
-| `social.vertical-tips` | 9:16, 13.5 s, -14 LUFS | Text, optional music bed |
-| `educational.captioned-explainer` | 16:9, 8 s, captions | Image, music, narration |
-| `reference.hybrid-assembly-smoke` | 1:1, 3 s | Video clip, image |
-| `commercial.cinematic-product-reveal`, `social.ugc-testimonial`, `educational.software-explainer` | Blueprints | Pre-produced footage (see each template) |
-
-## Procedural visuals and audio that models tweak
-
-Backgrounds, music beds and sound effects are **code-generated recipes**: Python/numpy or JS/WebGL
-programs with typed, bounded parameters and named presets. They are deterministic, need no models,
-and are MIT, so there are no rights questions. Template authors lock the art direction; content
-models choose among the safe options a template exposes, or tweak parameters within their schema.
-Nobody edits code at job time.
-
-~~~bash
-videogenome recipes                                   # 9 recipes: aurora, bokeh, dot-wave, shader, flow-lines, pads, lo-fi, pulse, SFX
-videogenome recipe visual.flow-lines --preset ink -o preview.mp4
-videogenome recipe audio.lofi-beat --preset focus --set bpm=78 --duration 20 -o bed.wav
-videogenome make examples/vertical-tips/job.json --pipeline procedural -o out/tips.mp4
-~~~
-
-See [procedural recipes](docs/procedural-recipes.md) for the format and authoring rules.
-
-## Compose your own pipeline
-
-A blueprint says *what* is needed: "this narration can be produced by the `speech` capability from
-`{{script}}` with the *narrator* voice". A pipeline profile, owned by you and never by the job, says *who*
-produces it:
-
-~~~bash
-videogenome pipelines                     # animatic, open-source-local, blender-mcp, kokoro-fastapi, comfyui, ...
-videogenome plugins                       # provider/renderer/analyzer/exporter types and capabilities
-videogenome make examples/narrated-slides/job.json --pipeline animatic -o out/slides.mp4
-videogenome make examples/code-typing-reel/job.json --pipeline open-source-local -o out/reel.mp4
-~~~
-
-| Capability | Verified open-source route | Also plugs in |
-|---|---|---|
-| `speech` | Kokoro-82M or Piper (`command`) | Kokoro-FastAPI, LocalAI (`openai-compatible`), espeak-ng, Qwen3-TTS → Chatterbox chains |
-| `video`, `image`, `sound` | CC0 / public-domain search: Wikimedia Commons, Openverse (`cc0-stock`) | ComfyUI (Wan, LTX-Video, FLUX…), stable-diffusion.cpp |
-| `music`, backgrounds, SFX | Procedural recipes (`procedural`) | Stable Audio / ACE-Step via ComfyUI, your own library |
-| `typing` | [Type-Simulator](https://github.com/djeada/Type-Simulator) reels (`command`) | VHS, asciinema |
-| `render_3d` | Blender `turntable.py` (`command`) or [blender-mcp-server](https://github.com/djeada/blender-mcp-server) (`mcp`) | ParaView MCP, any MCP server |
-
-Routes can be a single provider, a `fallback` list or a `chain` (for example expressive TTS → voice
-conversion). The `animatic` profile renders *any* template with labelled placeholders, so you can review
-timing and layout before running a model. A supplied recording or footage always wins over generation;
-every generated asset records provider, model, request hash and the operator's rights attestation.
-Third-party packages add providers, renderers, analyzers or exporters through Python entry points.
-
-## Discover templates and prepare small-model jobs
-
-The catalog is machine-readable and can be searched without generating code:
-
-~~~bash
-videogenome catalog --category social
-videogenome catalog --orientation landscape --shot-kind motion_graphics
-videogenome inspect commercial.cinematic-product-reveal
-videogenome scaffold educational.title-card-sequence -o /tmp/my-job.json
-~~~
-
-A scaffold is **intentionally incomplete**: media inputs and rights records must be supplied by an authorized user or asset pipeline, and no quality gate is automatically approved. The catalog describes template expectations, not proof that any media provider can generate every shot. `python -m videogenome` works identically from a source checkout.
-
-## Development
-
-~~~bash
-python -m pip install -r requirements-dev.txt
-python -m tools.validate
+python -m pip install -r requirements-dev.txt && python -m playwright install chromium-headless-shell
+python -m tools.validate                      # blueprints, copy examples, recipes, genomes
 python -m unittest discover -s tests -v
-
-# Compile a locked blueprint + small-model content to ordered shot IR
-python -m videogenome compile examples/three-card-explainer/job.json -o /tmp/plan.json
-
-# Render a real H.264/AAC MP4 and a QA/provenance receipt
-python -m videogenome render examples/three-card-explainer/job.json \
-  -o /tmp/videogenome.mp4 --receipt /tmp/videogenome-receipt.json
+videogenome recipe-new scene.my-scene -o recipes/scene/my-scene [--three]
 ~~~
 
-The three-card and vertical-tips examples require **no external footage or API keys**. Integration tests also generate and assemble actual video (with sound), still images, graphics, crossfades and a loudness-mastered music bed. A production job using generated footage must supply an already-rendered, approved media asset; the system does not call generative-video models yet.
+CI validates everything, renders the reference examples, and renders every
+code-animated sample job for visual review.
 
-## Design, transitions, mastering and QA
+## Documentation
 
-Schema 0.3.0 adds a locked [title-card typography system](docs/motion-design-and-delivery.md#title-cards) with measured copy fitting. It also adds
-[crossfades and dips](docs/motion-design-and-delivery.md#transitions-and-programme-fades) that preserve frame timing,
-[two-pass loudness mastering](docs/motion-design-and-delivery.md#loudness-mastering) and
-[machine-checked quality gates](docs/motion-design-and-delivery.md#executed-measurements-and-machine-checked-gates).
-Gates without a declared machine check stay `not_evaluated`; nothing aesthetic is claimed as measured.
+- [Cockpits: Studio, MCP, CLI, capture](docs/cockpits.md)
+- [Authoring a video class (genome, recipe, template)](docs/scene-authoring.md)
+- [Briefs and writers](docs/briefs-and-writers.md)
+- [Procedural recipes, scenes and capture](docs/procedural-recipes.md)
+- [Blueprint authoring](docs/template-authoring.md) · [Video ontology](docs/video-ontology.md) · [Production pipeline](docs/production-pipeline.md)
+- [Motion design, transitions, mastering and QA](docs/motion-design-and-delivery.md) · [Editorial timeline](docs/editorial-timeline.md)
+- [Plugins and pipelines](docs/plugins-and-pipelines.md) · [Open-source stack](docs/open-source-stack.md)
+- [Security, trust and media rights](docs/security-and-rights.md) · [Architecture](docs/architecture.md)
+- [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md) · Agent roles: [AGENTS.md](AGENTS.md)
 
-## Layer audio and captions
+## Contributing and license
 
-The new [captioned explainer](templates/educational/captioned-explainer/blueprint.json) demonstrates a locked music bed, a second audio track, frame-timed captions and a picture cut:
-
-~~~bash
-python -m tools.create_editorial_demo -o /tmp/vg-editorial
-python -m videogenome render /tmp/vg-editorial/job.json \
-  -o /tmp/vg-editorial/demo.mp4 --receipt /tmp/vg-editorial/receipt.json
-~~~
-
-This reproducible example uses an original illustration and calibration tones, not human speech or finished music. Supply cleared recordings to the same typed audio slots for real work. Audio tracks support trim, start time, gain and fades; captions enforce locked line and reading-speed limits. Existing v0.1 templates remain supported. See the [editorial timeline contract](docs/editorial-timeline.md) for a second brief, source-audio policies, versioning and limitations. CI uploads both rendered briefs for review.
-
-## Design layers
-
-| Layer | Responsibility | Status |
-|---|---|---|
-| Blueprint | Versioned creative intent, style, timings, shots and quality declarations | v0.1–v0.3 supported |
-| Job | Typed content slots, licensed assets, explicit per-shot source bindings; template by catalog id | Available |
-| Compiler | Schema + semantic validation, rights attestations, path controls, copy fitting, deterministic shot IR | Available |
-| Media adapter | Designed title cards, stills, pre-rendered clips, transitions, layered audio, timed captions, loudness | FFmpeg reference available |
-| QA and provenance | Hashes, frame/duration/resolution checks, pinned fonts, measured layout, loudness/blank/silence metrics, machine-checked gates | Available for technical checks |
-| Delivery | MP4, SRT/WebVTT sidecars, poster, contact sheet | Available |
-| Packaging | `pip install`, `videogenome` CLI, bundled templates, external template directories, `doctor` | Available |
-| Plugins | Providers (command, OpenAI-compatible, ComfyUI, MCP, placeholder, entry points), renderers, analyzers, exporters, pipeline profiles | Available |
-| Production | Producible inputs, routes with fallback and chains, caching, timing conformance, provenance | Available |
-| Take selection and re-timing | N takes judged by analyzers (WER, speaker similarity); audio-driven timing | Planned |
-| Advanced picture timeline | Multi-track compositing, wipes/pushes, reframing to multiple aspect ratios, beat sync | Planned |
-| Perceptual evaluation | Visual identity, storytelling quality, subjective design, continuity | Planned |
-
-**Important:** Rights are self-attested by the job submitter. Human quality gates remain *not evaluated* unless explicitly approved, and automated gates execute **only** when they declare a supported machine `check`; naming a gate does not run it. Do not treat a successful FFmpeg render as publication approval.
-
-## The key abstraction
-
-A video is described along independent axes—**intent, narrative, visual grammar, production method and delivery**. A documentary can contain cinematic footage and motion graphics; a social ad can combine filmed testimony, generated b-roll, animation and software screen recording. Those are components and capabilities, not mutually exclusive genres.
-
-The **frontier model** contributes the blueprint; the **smaller model** is restricted to its named input slots and approved assets. The reference compiler rejects undeclared inputs and unauthorized top-level overrides. Style and locked sequencing live only in the versioned template.
-
-Explore:
-
-- [Video ontology and capabilities](docs/video-ontology.md)
-- [Production pipeline and concrete contract](docs/production-pipeline.md)
-- [Security, trust and media rights](docs/security-and-rights.md)
-- [Milestone-based roadmap and acceptance criteria](docs/roadmap.md)
-- [Blueprint authoring](docs/template-authoring.md)
-- [Motion design, transitions, mastering and QA](docs/motion-design-and-delivery.md)
-- [Plugins and pipelines](docs/plugins-and-pipelines.md)
-- [Procedural recipes](docs/procedural-recipes.md)
-- [Open-source stack](docs/open-source-stack.md)
-- [Changelog](CHANGELOG.md)
-- [Cinematic product commercial](templates/commercial/product-reveal/blueprint.json)
-- [UGC testimonial](templates/social/ugc-testimonial/blueprint.json)
-- [Screen-capture explainer](templates/educational/software-explainer/blueprint.json)
-- [Executable hybrid reference](templates/reference/hybrid-assembly-smoke/blueprint.json)
-
-MIT licensed. New template contributions should include input contracts, examples, provenance, validation tests and (when renderable) representative output evidence.
+MIT licensed (three.js is vendored under its MIT licence; map data is Natural
+Earth, public domain). See [CONTRIBUTING.md](CONTRIBUTING.md) and
+[scene authoring](docs/scene-authoring.md). New classes need a genome with an
+authoring prompt, recipes with presets, a template with fill policies and copy
+examples, a sample job, bench briefs, and reviewed renders.

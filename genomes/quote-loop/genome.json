@@ -1,0 +1,46 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "quote-loop",
+  "title": "Quote or lyric loop over generative art",
+  "summary": "A quote or lyric arrives phrase by phrase in refined serif type over a slow generative backdrop (flow-field silk, bokeh dust or a soft mesh gradient), then the attribution; the backdrop is periodic so the clip loops.",
+  "family": "generative",
+  "formats": [
+    "9:16",
+    "1:1",
+    "16:9"
+  ],
+  "duration_seconds": [
+    10,
+    20
+  ],
+  "recipes": [
+    "scene.quote-loop"
+  ],
+  "templates": [
+    "social.quote-loop",
+    "social.quote-square"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "The exact quote and who said it, in the brief",
+    "Permission to publish the words (public domain, licence, or the speaker's approval)"
+  ],
+  "techniques": [
+    "Canvas 2D",
+    "seeded Perlin flow field",
+    "streamline ribbons",
+    "mesh gradient",
+    "bokeh sprites",
+    "phrase-aware line breaking",
+    "reading-speed pacing",
+    "seamless loop",
+    "film grain"
+  ],
+  "gallery_share": "Quote and lyric cards over ambient generative visuals are a staple of social feeds and of model-made short videos.",
+  "limits": [
+    "Typeface is whatever system serif is installed (EB Garamond, Noto Serif, Georgia...), so line breaks can differ between machines",
+    "Latin scripts; very long words shrink the setting",
+    "At most 140 characters in a 15-second loop",
+    "The verbatim check accepts any exact span of the brief, so a reviewer must still confirm the quote is complete and correctly attributed"
+  ]
+}

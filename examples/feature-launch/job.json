@@ -1,0 +1,21 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.feature-launch",
+  "template": "commercial.feature-launch",
+  "template_version": "0.1.0",
+  "inputs": {
+    "product": "VideoGenome",
+    "feature_1": "Gates you can read",
+    "detail_1": "Every render reports loudness, peaks and dead picture",
+    "feature_2": "Swap any provider",
+    "detail_2": "Change the pipeline profile and keep the template",
+    "feature_3": "Know what needs a person",
+    "detail_3": "Human review gates stay open until someone approves",
+    "cta": "Read the docs",
+    "look": "midnight",
+    "energy": "product"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

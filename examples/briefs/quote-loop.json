@@ -1,0 +1,28 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Quote and lyric loops: public-domain quotes with and without a source, a lyric card, and one brief with no quote at all.",
+  "briefs": [
+    {
+      "id": "thoreau-card",
+      "template": "social.quote-loop",
+      "brief": "Vertical quote card for Fernhill Library's nature-writing month. Quote Henry David Thoreau: \"Heaven is under our feet as well as over our heads.\" Calm, dreamy, dark look."
+    },
+    {
+      "id": "douglass-square",
+      "template": "social.quote-square",
+      "brief": "Square post for the Riverside History Society lecture series. Quote: \"If there is no struggle there is no progress.\" by Frederick Douglass, from his 1857 West India Emancipation speech. Serious."
+    },
+    {
+      "id": "hymn-lyric",
+      "template": "social.quote-loop",
+      "brief": "Lyric card for the Elm Street folk choir's spring concert, from the 1864 hymn by Robert Lowry: \"Shall we gather at the river, where bright angel feet have trod\". Hopeful, light paper look."
+    },
+    {
+      "id": "quote-missing",
+      "template": "social.quote-loop",
+      "expect": "incomplete",
+      "brief": "Make an inspiring quote video about perseverance for our gym's Instagram. Something motivational from a famous athlete.",
+      "note": "No quote and no speaker are given; both are verbatim, so the writer must report them missing rather than invent or misattribute a quote."
+    }
+  ]
+}

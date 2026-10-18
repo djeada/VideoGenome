@@ -1,0 +1,17 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.kinetic-promo",
+  "template": "social.kinetic-promo",
+  "template_version": "0.1.0",
+  "inputs": {
+    "hook": "Write the brief once.",
+    "point_1": "Experts lock the craft",
+    "point_2": "Any model fills the words",
+    "payoff": "Made with VideoGenome",
+    "look": "swiss",
+    "energy": "upbeat"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

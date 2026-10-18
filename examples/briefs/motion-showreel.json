@@ -1,0 +1,28 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Showreel briefs: three studios in different looks and aspects, and the common gallery prompt with no name.",
+  "briefs": [
+    {
+      "id": "lantern-works",
+      "template": "social.motion-showreel",
+      "brief": "Showreel opener for Lantern Works, a stop-motion and collage studio. Their work is handmade, surprising and warm. Paper look."
+    },
+    {
+      "id": "kiln-vertical",
+      "template": "social.motion-showreel-vertical",
+      "brief": "15-second vertical reel for Kiln Motion, a two-person studio doing title design and brand animation. Words: bold, warm, exact. Studio look, upbeat."
+    },
+    {
+      "id": "solo-designer",
+      "template": "social.motion-showreel",
+      "brief": "Personal showreel for Mara Quint, a freelance motion designer. She wants it to feel fast, graphic and confident. Acid look, night energy."
+    },
+    {
+      "id": "no-name",
+      "template": "social.motion-showreel",
+      "expect": "incomplete",
+      "brief": "Make a 15 s showreel that shows what an incredible motion designer you are.",
+      "note": "The most common gallery prompt: no studio or designer name is given, and the name slot is verbatim, so it must be reported missing."
+    }
+  ]
+}

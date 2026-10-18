@@ -58,7 +58,7 @@ class TemplateResolutionTests(unittest.TestCase):
     def test_job_can_name_a_template_by_catalog_id_anywhere(self) -> None:
         plan = compile_job(write(self.root / "job.json", load(CARDS_JOB)))
         self.assertEqual(plan["template_id"], "educational.title-card-sequence")
-        self.assertEqual(plan["ir_version"], "0.4.0")
+        self.assertEqual(plan["ir_version"], "0.5.0")
 
     def test_unknown_template_id_is_reported(self) -> None:
         job = load(CARDS_JOB)

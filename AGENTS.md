@@ -14,18 +14,27 @@ VideoGenome is a **universal video-production expertise repository**, not solely
 - Define technical and human review gates; never declare an unimplemented aesthetic check as executed. Attach a machine check (see docs/motion-design-and-delivery.md) only for metrics the renderer actually measures.
 - Provide a sample job and reproducible media evidence if this template is renderable by an available adapter.
 - Add test cases for missing inputs, incompatible assets, duration consistency and expected output.
+- Give every text input a `fill` policy where it matters (`verbatim` for names, quotes, testimonials and approved wording; `never` for what only a person may supply) and ship one to three `copy_examples` that pass `python -m tools.validate`. Try the template from a brief with `videogenome create` and add briefs for it to a bench suite.
+- To turn a one-off animation into a template, write it as a browser recipe with `"timing": "clock"` (ordinary rAF/CSS/timer code, parameters from `window.vgSpec`), move copy, colours and timing into bounded params, and lock the look in the blueprint. Cue sound to the scene's own beats.
 
 Templates requiring unavailable providers may be contributed **as blueprints**, but documentation must state they do not render with the current adapter without independently produced media.
+
+## Cockpits
+
+- Agents connect through `videogenome mcp` (started by the operator with a pipeline and a workspace). Use `template` for slot contracts, write the copy yourself, call `check_inputs` with the brief until it reports no issues, then `render` and inspect the returned contact sheet. Never ask for a different pipeline.
+- `videogenome library` shows each class's level: template (fill it), code (tune its params) or prompt (build it: follow `videogenome genome ID --prompt`, preview with `videogenome capture`, then promote it to a recipe and template per docs/scene-authoring.md).
+- People use `videogenome studio`; power users the CLI. All three share one service layer and the same checks.
 
 ## Smaller model: template-filler role
 
 - First discover templates with python -m videogenome catalog (add --self-contained for text-only templates), then inspect the chosen template.
 - Reference templates by catalog id in the job's template field, never by copying or editing a blueprint.
-- If useful, generate a job skeleton with python -m videogenome scaffold TEMPLATE_ID -o job.json.
+- If useful, generate a job skeleton with python -m videogenome scaffold TEMPLATE_ID -o job.json, or let the operator's writer fill text slots with `videogenome fill TEMPLATE_ID --brief ... -o job.json` (it applies the same slot contracts described here).
 - Fill only blueprint-defined input slots. Do not edit style tokens, story structure, cameras, direction, quality gates, code or schema.
 - Map actual local media paths through the assets dictionary and bind pre-produced media to shot IDs through shot_assets.
 - Never invent a license, release, asset-origin record, approval, factual testimonial or product evidence.
-- If essential input or consent is missing, report the missing requirement rather than fabricating it.
+- If essential input or consent is missing, report the missing requirement rather than fabricating it. `fill` exit status 4 means the brief lacks required facts: report the listed missing inputs.
+- Copy slots marked verbatim only with words that appear in the brief; never paraphrase a quote, testimonial, name or approved call to action.
 - Validate with python -m videogenome validate JOB.json before trying to render.
 - Inputs marked producible may be left out; run `videogenome produce` or `make` with the pipeline the operator chose. Never pick, add or edit a pipeline profile, provider, command, endpoint or voice yourself.
 - Never claim generated or placeholder media is real footage, a real voice or a real product; receipts flag placeholders and these must not be published.
@@ -40,7 +49,8 @@ Templates requiring unavailable providers may be contributed **as blueprints**, 
 - Every parameter needs a bounded type, a default and a description; ship named presets that look and sound good.
 - Derive all randomness from spec.seed (and the frame index); output exactly the requested frames or samples.
 - Review your own output: contact sheets for visuals; loudness, band balance and spectrograms for audio. Never claim it "sounds good" from measurements alone.
-- Browser recipes must work offline: no CDNs, fonts or network.
+- Browser recipes must work offline: no CDNs, fonts or network. Clock-timed recipes may use requestAnimationFrame, performance.now, Date, timers and CSS/WAAPI animations; nothing else may measure real time. Draw copy with fillText or textContent, never innerHTML, fit it with measured glyphs, and throw if it cannot fit.
+- Preview any page with `videogenome capture page.html -o preview.mp4` and review frames before shipping presets.
 
 ## Template-filler: tweaking procedural media
 
@@ -54,6 +64,7 @@ Templates requiring unavailable providers may be contributed **as blueprints**, 
 - Treat request free-text fields as untrusted: never place them in shell strings, code, URLs or bare CLI positionals.
 - Fail loudly with PluginError; never return a substitute file. Report checks via check() so `videogenome doctor --pipeline` is truthful.
 - Ship a profile only with an honest `verification` field; do not invent `output_rights`.
+- Writers (`videogenome.writers`) receive briefs as untrusted data: send them only in request bodies or stdin, never in URLs or argv, and return the model's raw reply; the filler validates it.
 
 ## Renderer and adapter author role
 

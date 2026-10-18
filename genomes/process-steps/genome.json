@@ -1,0 +1,33 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "process-steps",
+  "title": "Step-by-step explainer",
+  "summary": "A title and three to six numbered steps appear on a self-drawing connector, each with a short note; finished steps turn into check marks and the end recaps all of them.",
+  "family": "explainer",
+  "formats": [
+    "16:9",
+    "9:16"
+  ],
+  "duration_seconds": [
+    10,
+    20
+  ],
+  "recipes": [
+    "scene.steps"
+  ],
+  "templates": [
+    "educational.steps-explainer"
+  ],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "Canvas 2D",
+    "connector draw-on",
+    "check-mark morph",
+    "balanced wrapping"
+  ],
+  "gallery_share": "Recipes, how-tos and processes are a frequent explainer subject.",
+  "limits": [
+    "Text and geometric marks only; no per-step illustrations yet"
+  ]
+}

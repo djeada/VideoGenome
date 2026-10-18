@@ -38,6 +38,8 @@ def main() -> int:
         print("No blueprints found")
         return 1
     failures = 0
+    if not args.paths:  # The whole library: recipes and genomes too.
+        failures += _validate_library()
     for path in paths:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -52,6 +54,30 @@ def main() -> int:
         else:
             print(f"PASS {path}")
     return 1 if failures else 0
+
+
+def _validate_library() -> int:
+    from videogenome.compiler import ProductionError
+    from videogenome.genomes import genome_errors, genome_roots
+    from videogenome.procedural import catalog
+    failures = 0
+    try:
+        recipes = catalog.discover()
+        print(f"PASS {len(recipes)} recipes")
+    except ProductionError as exc:
+        print(f"FAIL recipes\n  - {exc}")
+        failures += 1
+    for root in genome_roots():
+        for manifest in sorted(root.glob("*/genome.json")):
+            try:
+                errors = genome_errors(json.loads(manifest.read_text(encoding="utf-8")), manifest.parent)
+            except (OSError, json.JSONDecodeError) as exc:
+                errors = [str(exc)]
+            print(f"{'FAIL' if errors else 'PASS'} {manifest}")
+            for error in errors:
+                print(f"  - {error}")
+            failures += bool(errors)
+    return failures
 
 
 if __name__ == "__main__":

@@ -1,0 +1,191 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.history-timeline",
+  "version": "0.1.0",
+  "title": "History timeline: camera travels along the axis (Canvas)",
+  "description": "A timeline/history explainer: a kicker and title rise in and slide into the header while the axis draws itself; the camera then glides along the axis from event to event as year ticks and a large ghost year counter roll by; at each event a pin drops onto the axis with a ripple, a stem grows and a card lands with the date, a label and an optional note; the travelled axis turns to the accent colour and a progress track fills. The camera finally zooms out to the whole axis, every pin lights with its date and a summary line lands. Dates are drawn exactly as given; ticks and the counter use their years when every date contains one.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 48,
+        "default": "Five moments that made the web",
+        "description": "What the timeline is about; becomes the header after the intro"
+      },
+      "kicker": {
+        "type": "string",
+        "maxLength": 28,
+        "default": "A short history",
+        "description": "Small tracked label above the title (empty for none)"
+      },
+      "dates": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 7,
+        "items": {
+          "type": [
+            "string",
+            "integer"
+          ],
+          "minLength": 1,
+          "maxLength": 18,
+          "minimum": -99999,
+          "maximum": 99999
+        },
+        "default": [
+          "1969",
+          "1983",
+          "1989",
+          "1993",
+          "2004"
+        ],
+        "description": "Event dates in chronological order, drawn exactly as given: a string ('1969', 'July 1969', 'c. 3000 BCE') or a whole year as a number (negative numbers are shown as BC)"
+      },
+      "labels": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 7,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 34
+        },
+        "default": [
+          "ARPANET sends its first message",
+          "TCP/IP becomes the standard",
+          "Tim Berners-Lee proposes the web",
+          "Mosaic brings pictures to pages",
+          "Web 2.0 makes everyone a publisher"
+        ],
+        "description": "What happened at each date (same order as dates), a short headline each"
+      },
+      "notes": {
+        "type": "array",
+        "maxItems": 7,
+        "items": {
+          "type": "string",
+          "maxLength": 52
+        },
+        "default": [
+          "Two computers, one crash, the letters L and O",
+          "Every network can now talk to every other",
+          "A memo his boss called vague but exciting",
+          "The first browser most people ever used",
+          "Blogs, wikis and comments take over"
+        ],
+        "description": "Optional one-line detail under each label (same order; empty string for none)"
+      },
+      "summary": {
+        "type": "string",
+        "maxLength": 72,
+        "default": "Fifty years from two letters to billions of pages",
+        "description": "Closing line shown over the zoomed-out timeline (empty for none)"
+      },
+      "spacing": {
+        "enum": [
+          "even",
+          "proportional"
+        ],
+        "default": "even",
+        "description": "even: one camera move per event; proportional: positions follow the years (with a minimum gap) when every date has one"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 5,
+        "maxItems": 5,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#14110F",
+          "#F3EEE6",
+          "#F2A541",
+          "#E8D5B7",
+          "#857B6F"
+        ],
+        "description": "Ground, ink, accent (pins, travelled axis, dates), paper (card tint) and muted (ticks, notes)"
+      },
+      "grid": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5,
+        "description": "Opacity of the far parallax rules"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.12,
+        "default": 0.035,
+        "description": "Film grain amount"
+      }
+    }
+  },
+  "presets": {
+    "archive": {},
+    "museum": {
+      "palette": [
+        "#F4EFE6",
+        "#1B1A17",
+        "#B23A48",
+        "#FFFFFF",
+        "#8A8174"
+      ],
+      "grain": 0.025
+    },
+    "space": {
+      "palette": [
+        "#060B19",
+        "#EAF0FF",
+        "#7AA2FF",
+        "#9DB4FF",
+        "#5D6B8A"
+      ],
+      "grid": 0.7
+    },
+    "civic": {
+      "palette": [
+        "#0E3B43",
+        "#F2F7F5",
+        "#F6C453",
+        "#CFE8E1",
+        "#7FA6A0"
+      ]
+    }
+  },
+  "tags": [
+    "scene",
+    "explainer",
+    "timeline",
+    "history",
+    "chronology",
+    "canvas"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+    "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial.",
+    "Beats: intro = clamp(0.12 D, 1.6, 2.4); outro = clamp(0.18 D, 2.4, 3.6); beat = (D - intro - outro) / N; travel = min(1.0, 0.3 beat); the camera moves into event k from intro + k beat - travel and the card lands at intro + k beat (pin 0.1 s earlier); the zoom-out starts at D - outro and the summary lands 0.6 s later.",
+    "Render cost measured side by side with scene.steps under identical load: within 5% of it at 1080x1920; vg.grain is about 12% of the total."
+  ],
+  "cost": {
+    "seconds_per_output_second": 2.0
+  }
+}

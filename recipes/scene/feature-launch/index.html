@@ -1,0 +1,701 @@
+<!doctype html>
+<!--
+  Feature launch: the "SaaS / app launch" look. A stylised app window built
+  in code (title bar, sidebar, KPI cards, a chart widget, a toggle list, an
+  activity list) rises into a gently tilted 3D view. A camera with real
+  perspective glides between three regions; at each one a numbered callout
+  (headline + one line) appears beside the element it describes, joined by a
+  curved leader, while a cursor hovers the chart, clicks a toggle (ripple) and
+  clicks a notification toast. The camera pulls back, the window sinks away,
+  and the product name and a call-to-action button land; the cursor clicks it.
+
+  The interface is an abstract mock (skeleton bars, no real screens or data);
+  an optional disclaimer line says so on the end card.
+
+  Beats (D = duration, N = number of features, 1-3):
+    I  = clamp(0.11 D, 1.4, 2.4)   window rises, components pop in staggered
+    O  = clamp(0.18 D, 2.8, 4.0)   outro length
+    beat = (D - I - O) / N, s = clamp(beat / 4.5, 0.55, 1)
+    feature k starts at b_k = I + k * beat: camera move (0.95 s * s), callout
+      at b_k + 0.55 s, leaves at b_{k+1} - 0.25 s
+    feature 2 (toggle) click at b_1 + 1.05 s; feature 3 toast slides in at
+      b_2 + 0.25 s and is clicked at b_2 + 1.15 s (offsets scaled by s)
+    outro starts at D - O: pull-back; name at +0.7 s; CTA at +1.1 s;
+      CTA click at +1.85 s (offsets scaled by min(1, O / 3.6))
+  At D = 20 and N = 3: moves at 2.2, 6.93, 11.67, 16.4 s; clicks at 7.98,
+  12.82, 18.15 s; toast in at 11.92 s; name at 16.9 s.
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Parameters arrive in window.vgSpec.params; copy is drawn with fillText and
+  fitted with vg.fit, which throws when it cannot fit.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; overflow: hidden; background: #000; }
+  canvas { display: block; position: absolute; left: 0; top: 0; }
+  #ui { transform-origin: 0 0; }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="ui"></canvas>
+<canvas id="fx"></canvas>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, seed } = vg.setup({
+  product: "Lumen", headlines: ["See every trend", "Automate the busywork", "Never miss a change"],
+  details: ["Live charts update the moment your data does", "Flip a switch and the routine runs itself",
+            "Smart alerts surface what needs you now"],
+  cta: "Try it free", disclaimer: "Illustrative interface", palette: ["#0B0D12", "#151922", "#EEF1F6", "#4C7DFF"],
+  tilt: 0.6, glow: 0.5, grain: 0.02, cursor: true, mark: "initial",
+});
+const [GROUND, SURF, INK0, ACC] = P.palette;
+const { clamp, lerp, ease, tween, mix, rgba } = vg;
+
+// ---- canvases ------------------------------------------------------------------------
+const bgCanvas = document.getElementById("bg"), fxCanvas = document.getElementById("fx"), uiCanvas = document.getElementById("ui");
+for (const c of [bgCanvas, fxCanvas]) { c.width = W; c.height = H; }
+document.documentElement.style.background = GROUND;
+const bg = bgCanvas.getContext("2d"), fx = fxCanvas.getContext("2d"), ui = uiCanvas.getContext("2d");
+
+// ---- copy --------------------------------------------------------------------------------
+const product = String(P.product).trim();
+if (!product) throw new Error("feature-launch: product is empty");
+const heads = P.headlines.map((h) => String(h).trim()).filter(Boolean).slice(0, 3);
+const N = heads.length;
+if (!N) throw new Error("feature-launch: give at least one headline");
+const details = heads.map((_, i) => String((P.details || [])[i] || "").trim());
+const cta = String(P.cta).trim();
+const disclaimer = String(P.disclaimer || "").trim();
+
+// ---- colour ----------------------------------------------------------------------------
+const INK = vg.readable(GROUND, [INK0, "#FFFFFF", "#0B0B0C"]);
+const SOFT = vg.contrast(mix(INK, GROUND, 0.32), GROUND) >= 4.5 ? mix(INK, GROUND, 0.32) : INK;
+const UINK = vg.readable(SURF, [INK0, "#FFFFFF", "#0B0B0C"], 4.5);
+const SURF2 = mix(SURF, UINK, 0.035), LINE = mix(SURF, UINK, 0.1), SKEL = mix(SURF, UINK, 0.12);
+const SKEL2 = mix(SURF, UINK, 0.24), MUTE = mix(SURF, UINK, 0.45);
+const ON_ACC = vg.readable(ACC, ["#FFFFFF", GROUND, "#0B0B0C"], 3);
+const KNOB = vg.luminance(SURF) > 0.5 ? "#FFFFFF" : mix(SURF, "#FFFFFF", 0.85);
+const light = vg.luminance(GROUND) > 0.4;
+
+// ---- UI layout (design units; the window spans 0..DW x 0..DH) ------------------------------
+const wide = W / H >= 1.25;
+const DW = wide ? 1600 : 900, DH = wide ? 1000 : 1300, PAD = 90, TB = 64;
+const L = wide ? {
+  side: { x: 0, y: TB, w: 260, h: DH - TB }, mx: 300, mw: 1260,
+  btn: { x: 1400, y: 98, w: 160, h: 46 }, btn2: { x: 1264, y: 98, w: 120, h: 46 },
+  kpis: [0, 1, 2].map((i) => ({ x: 300 + i * 428, y: 190, w: 404, h: 140 })),
+  chart: { x: 300, y: 354, w: 760, h: 606 }, toggles: { x: 1084, y: 354, w: 476, h: 300 },
+  activity: { x: 1084, y: 678, w: 476, h: 282 }, toast: { x: 1120, y: 84, w: 440, h: 96 },
+} : {
+  side: { x: 0, y: TB, w: 84, h: DH - TB }, mx: 116, mw: 752,
+  btn: { x: 738, y: 98, w: 130, h: 44 }, btn2: null,
+  kpis: [0, 1].map((i) => ({ x: 116 + i * 386, y: 176, w: 366, h: 130 })),
+  chart: { x: 116, y: 330, w: 752, h: 400 }, toggles: { x: 116, y: 754, w: 752, h: 260 },
+  activity: { x: 116, y: 1038, w: 752, h: 230 }, toast: { x: 428, y: 84, w: 440, h: 96 },
+};
+
+// Chart data: a seeded rising series and a quieter comparison.
+const rnd = vg.rng(seed * 7919 + 13);
+const NP = 24;
+const series = [], compare = [];
+for (let i = 0; i < NP; i++) {
+  const x = i / (NP - 1);
+  series.push(clamp(0.18 + 0.6 * Math.pow(x, 1.25) + 0.05 * Math.sin(i * 0.9 + seed) + (rnd() - 0.5) * 0.04, 0.05, 0.9));
+  compare.push(clamp(0.22 + 0.25 * x + 0.05 * Math.sin(i * 0.8 + 2) + (rnd() - 0.5) * 0.05, 0.05, 0.95));
+}
+let HI = 15;
+for (let i = 15; i <= 19; i++) if (series[i] > series[HI]) HI = i;
+const sparks = [0, 1, 2].map(() => Array.from({ length: 10 }, (_, i) => 0.3 + 0.4 * (i / 9) + (rnd() - 0.5) * 0.35));
+const plot = (() => {
+  const c = L.chart;
+  return { x: c.x + 72, y: c.y + 104, w: c.w - 72 - 32, h: c.h - 104 - 64 };
+})();
+const chartPt = (arr, i) => ({ x: plot.x + plot.w * i / (NP - 1), y: plot.y + plot.h * (1 - arr[i]) });
+const hiPt = chartPt(series, HI);
+const toggleRowH = (L.toggles.h - 84) / 4;
+const knobAt = (i) => ({ x: L.toggles.x + L.toggles.w - 32 - 28, y: L.toggles.y + 72 + toggleRowH * (i + 0.5) });
+const toastAction = { x: L.toast.x + L.toast.w - 24 - 46, y: L.toast.y + L.toast.h / 2 };
+
+// Features map to regions in order: chart, toggle, toast.
+const regions = [
+  { rect: L.chart, target: hiPt, side: wide ? 1 : 0 },
+  { rect: L.toggles, target: knobAt(1), side: wide ? -1 : 0 },
+  { rect: L.toast, target: { x: L.toast.x + 52, y: L.toast.y + L.toast.h / 2 }, side: wide ? -1 : 0 },
+].slice(0, N);
+
+// ---- timeline ----------------------------------------------------------------------------
+const I = clamp(D * 0.11, 1.4, 2.4), O = clamp(D * 0.18, 2.8, 4.0);
+const beat = (D - I - O) / N, s = clamp(beat / 4.5, 0.55, 1), so = Math.min(1, O / 3.6);
+const bStart = (k) => I + k * beat, OUT = D - O, MOVE = 0.95 * s;
+const CLICK2 = bStart(1) + 1.05 * s, TOAST_IN = bStart(2) + 0.25 * s, CLICK3 = bStart(2) + 1.15 * s;
+const NAME_AT = OUT + 0.7 * so, CTA_AT = OUT + 1.1 * so, CLICK_CTA = OUT + 1.85 * so;
+if (beat < 1.8) throw new Error("feature-launch: too many features for this duration; each needs at least 1.8 s");
+
+// ---- camera ------------------------------------------------------------------------------
+const tilt = P.tilt;
+const zWide = wide ? Math.min(W * 0.8 / DW, H * 0.76 / DH) : Math.min(W * 0.86 / DW, H * 0.6 / DH);
+const zMax = zWide * (wide ? 1.85 : 1.75);
+const stage = wide ? { w: W * 0.5, h: H * 0.66 } : { w: W * 0.92, h: H * 0.34 };
+const wideShot = { fx: DW / 2, fy: DH / 2, z: zWide, rx: 14 * tilt, ry: -12 * tilt, ax: W / 2, ay: H * (wide ? 0.5 : 0.45) };
+const introShot = { ...wideShot, z: zWide * 0.82, rx: 16 + 40 * tilt, ry: -18 * tilt, ay: wideShot.ay + H * 0.22 };
+const shots = regions.map((r) => {
+  const z = clamp(Math.min(stage.w / r.rect.w, stage.h / r.rect.h), zWide * 1.3, zMax);
+  const fxp = lerp(r.rect.x + r.rect.w / 2, r.target.x, wide ? 0.25 : 0.4);
+  const fyp = lerp(r.rect.y + r.rect.h / 2, r.target.y, 0.3);
+  return { fx: fxp, fy: fyp, z, rx: 9 * tilt, ry: (wide ? 11 * r.side : -8) * tilt,
+           ax: wide ? W * (r.side > 0 ? 0.31 : 0.69) : W / 2, ay: wide ? H * 0.5 : H * 0.33 };
+});
+const outroShot = { fx: DW / 2, fy: DH * 0.3, z: zWide * (wide ? 0.95 : 1.0), rx: 38 + 20 * tilt, ry: 0, ax: W / 2, ay: H * (wide ? 0.84 : 0.8) };
+const mixShot = (a, b, p) => {
+  const o = {};
+  for (const k in a) o[k] = k === "z" ? a.z * Math.pow(b.z / a.z, p) : lerp(a[k], b[k], p);
+  return o;
+};
+function camera(t) {
+  let c;
+  if (t < I) c = mixShot(introShot, wideShot, ease.outExpo(clamp(t / (I * 0.85))));
+  else if (t < OUT) {
+    const k = Math.min(N - 1, Math.floor((t - I) / beat));
+    const from = k === 0 ? wideShot : shots[k - 1];
+    c = mixShot(from, shots[k], ease.inOutCubic(clamp((t - bStart(k)) / MOVE)));
+    c.z *= 1 + 0.035 * clamp((t - bStart(k) - MOVE) / (beat - MOVE));       // slow push while holding
+  } else c = mixShot(shots[N - 1], outroShot, ease.inOutCubic(clamp((t - OUT) / (1.3 * so))));
+  c.ry += 0.9 * Math.sin(t * 0.45) * tilt;                                    // a breath of float
+  c.rx += 0.5 * Math.sin(t * 0.33 + 1) * tilt;
+  return c;
+}
+const persp = new DOMMatrix([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -1 / (unit * 2.4), 0, 0, 0, 1]);
+const matrixFor = (c) => new DOMMatrix().translate(c.ax, c.ay).multiply(persp).rotate(c.rx, c.ry, 0)
+  .scale(c.z, c.z, 1).translate(-(c.fx + PAD), -(c.fy + PAD));
+const project = (M, p) => { const q = M.transformPoint(new DOMPoint(p.x + PAD, p.y + PAD, 0, 1)); return { x: q.x / q.w, y: q.y / q.w }; };
+
+// UI plane resolution: enough pixels for the closest shot (plus perspective magnification).
+const R = Math.min(2.4, zMax * 1.08);
+uiCanvas.width = Math.round((DW + 2 * PAD) * R); uiCanvas.height = Math.round((DH + 2 * PAD) * R);
+uiCanvas.style.width = `${DW + 2 * PAD}px`; uiCanvas.style.height = `${DH + 2 * PAD}px`;
+
+// Cached soft shadow under the window.
+const shadow = document.createElement("canvas");
+shadow.width = uiCanvas.width; shadow.height = uiCanvas.height;
+{
+  const g = shadow.getContext("2d");
+  g.setTransform(R, 0, 0, R, R * PAD, R * PAD);
+  g.shadowColor = light ? "rgba(20,30,60,0.22)" : "rgba(0,0,0,0.6)"; g.shadowBlur = 60 * R; g.shadowOffsetY = 28 * R;
+  g.fillStyle = SURF; vg.roundRect(g, 0, 0, DW, DH, 20); g.fill();
+}
+
+// ---- copy layout -------------------------------------------------------------------------
+const colW = wide ? W * 0.34 : W * 0.84;
+const hMax = unit * (wide ? 0.062 : 0.084), hMin = unit * (wide ? 0.034 : 0.046);
+const dMax = unit * (wide ? 0.035 : 0.044), dMin = unit * 0.03;
+let hSize = hMax, dSize = dMax;
+heads.forEach((h, i) => {
+  hSize = Math.min(hSize, vg.fit(fx, h, { maxSize: hMax, minSize: hMin, weight: 700, maxWidth: colW, maxLines: 2, label: `headline ${i + 1}` }).size);
+  if (details[i]) dSize = Math.min(dSize, vg.fit(fx, details[i], { maxSize: dMax, minSize: dMin, weight: 500, maxWidth: colW, maxLines: 3, leading: 1.3, label: `detail ${i + 1}` }).size);
+});
+const callouts = heads.map((h, i) => {
+  const head = vg.fit(fx, h, { maxSize: hSize, minSize: hMin, weight: 700, maxWidth: colW, maxLines: 2, leading: 1.08 });
+  const det = details[i] ? vg.fit(fx, details[i], { maxSize: dSize, minSize: dMin, weight: 500, maxWidth: colW, maxLines: 3, leading: 1.3 }) : null;
+  const label = unit * (wide ? 0.022 : 0.026), gap1 = label * 1.4, gap2 = hSize * 0.42;
+  const height = label + gap1 + head.height + (det ? gap2 + det.height : 0);
+  const width = Math.max(head.width, det ? det.width : 0, label * 4);
+  const r = regions[i];
+  let x, y;
+  if (wide) { x = r.side > 0 ? W * 0.59 : W * 0.41 - width; y = H / 2 - height / 2; }
+  else { x = W / 2; y = H * 0.775 - height; }
+  return { head, det, label, gap1, gap2, height, width, x, y };
+});
+const nameBlock = vg.fit(fx, product, { maxSize: unit * (wide ? 0.15 : 0.14), minSize: unit * 0.05, weight: 800,
+  maxWidth: W * 0.8, maxLines: 2, leading: 1.0, label: "product" });
+const ctaBlock = cta ? vg.fit(fx, cta, { maxSize: unit * 0.042, minSize: unit * 0.03, weight: 700, maxWidth: W * 0.6, maxLines: 1, label: "cta" }) : null;
+const discBlock = disclaimer ? vg.fit(fx, disclaimer, { maxSize: unit * 0.032, minSize: Math.floor(unit * 0.03), weight: 500, maxWidth: W * 0.8, maxLines: 1, label: "disclaimer" }) : null;
+const markSize = unit * (wide ? 0.11 : 0.12);
+const ctaH = ctaBlock ? ctaBlock.size * 2.4 : 0, ctaW = ctaBlock ? ctaBlock.width + ctaBlock.size * 2.4 : 0;
+const endGap = unit * 0.045;
+const endH = markSize + endGap + nameBlock.height + (ctaBlock ? endGap * 1.2 + ctaH : 0);
+const endTop = (wide ? H * 0.42 : H * 0.4) - endH / 2;
+const nameTop = endTop + markSize + endGap, ctaY = nameTop + nameBlock.height + endGap * 1.2;
+const ctaCenter = { x: W / 2, y: ctaY + ctaH / 2 };
+const initial = Array.from(product)[0].toUpperCase();
+
+// ---- background (drawn once) ----------------------------------------------------------------------------
+const glowA = ACC, glowB = mix(ACC, INK, 0.45);
+const soft = document.createElement("canvas");
+soft.width = Math.ceil(W / 4); soft.height = Math.ceil(H / 4);
+const sg = soft.getContext("2d");
+function drawBackground(t) {
+  sg.setTransform(0.25, 0, 0, 0.25, 0, 0);
+  sg.fillStyle = GROUND; sg.fillRect(0, 0, W, H);
+  const blobs = [[0.22, 0.3, glowA, 0.18], [0.82, 0.78, glowB, 0.12]];
+  for (const [bx, by, col, a] of blobs) {
+    const g = sg.createRadialGradient(W * bx, H * by, 0, W * bx, H * by, unit * 0.9);
+    g.addColorStop(0, rgba(col, a * P.glow * (light ? 0.8 : 1.4))); g.addColorStop(1, rgba(col, 0));
+    sg.fillStyle = g; sg.fillRect(0, 0, W, H);
+  }
+  if (!light) vg.vignette(sg, 0.35);
+  bg.imageSmoothingQuality = "high";
+  bg.drawImage(soft, 0, 0, W, H);
+  vg.dotGrid(bg, t, INK, { spacing: 0.045, size: 0.0025, alpha: light ? 0.12 : 0.09, drift: 0.08 });
+  vg.grain(bg, t, P.grain);
+}
+
+// ---- UI drawing ------------------------------------------------------------------------------
+const rr = (x, y, w, h, r, fill) => { ui.fillStyle = fill; vg.roundRect(ui, x, y, w, h, r); ui.fill(); };
+const bar = (x, y, w, h, fill) => rr(x, y, w, h, h / 2, fill);
+const card = (c) => {
+  rr(c.x, c.y, c.w, c.h, 16, SURF);
+  ui.strokeStyle = LINE; ui.lineWidth = 1.5; vg.roundRect(ui, c.x, c.y, c.w, c.h, 16); ui.stroke();
+};
+const reveal = (t, delay) => {
+  const p = ease.outCubic(clamp((t - delay * Math.min(1, I / 2.2)) / 0.55));
+  return { a: p, dy: (1 - p) * 26 };
+};
+function withReveal(t, delay, fn) {
+  const r = reveal(t, delay);
+  if (r.a <= 0) return;
+  ui.save(); ui.globalAlpha *= r.a; ui.translate(0, r.dy); fn(); ui.restore();
+}
+function ripple(p, x, y, maxR) {
+  if (p <= 0 || p >= 1) return;
+  ui.strokeStyle = rgba(ACC, (1 - p) * 0.8); ui.lineWidth = 3 * (1 - p) + 1;
+  ui.beginPath(); ui.arc(x, y, maxR * ease.outCubic(p), 0, Math.PI * 2); ui.stroke();
+  ui.fillStyle = rgba(ACC, (1 - p) * 0.18);
+  ui.beginPath(); ui.arc(x, y, maxR * 0.7 * ease.outCubic(p), 0, Math.PI * 2); ui.fill();
+}
+function markGlyph(g, x, y, size, alpha = 1) {
+  g.save(); g.globalAlpha *= alpha;
+  g.fillStyle = ACC; vg.roundRect(g, x, y, size, size, size * 0.28); g.fill();
+  if (P.mark === "initial") {
+    vg.font(g, size * 0.56, 800); g.fillStyle = ON_ACC; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(initial, x + size / 2, y + size * 0.53); g.textAlign = "left"; g.textBaseline = "alphabetic";
+  } else {
+    g.fillStyle = ON_ACC; g.beginPath(); g.arc(x + size / 2, y + size / 2, size * 0.18, 0, Math.PI * 2); g.fill();
+  }
+  g.restore();
+}
+
+function drawChrome() {
+  rr(0, 0, DW, DH, 20, SURF);
+  ui.save(); vg.roundRect(ui, 0, 0, DW, DH, 20); ui.clip();
+  const sheen = ui.createLinearGradient(0, 0, DW * 0.6, DH);
+  sheen.addColorStop(0, rgba(UINK, light ? 0 : 0.035)); sheen.addColorStop(1, rgba(UINK, 0));
+  ui.fillStyle = sheen; ui.fillRect(0, 0, DW, DH);
+  ui.fillStyle = SURF2; ui.fillRect(0, 0, DW, TB);
+  ui.fillStyle = LINE; ui.fillRect(0, TB - 1.5, DW, 1.5);
+  ["#FF5F57", "#FEBC2E", "#28C840"].forEach((c, i) => { ui.fillStyle = mix(c, SURF, 0.15); ui.beginPath(); ui.arc(30 + i * 24, TB / 2, 7, 0, Math.PI * 2); ui.fill(); });
+  const sw = wide ? 420 : 300;
+  rr(DW / 2 - sw / 2, TB / 2 - 17, sw, 34, 17, mix(SURF, UINK, 0.06));
+  ui.strokeStyle = MUTE; ui.lineWidth = 2; ui.beginPath(); ui.arc(DW / 2 - sw / 2 + 22, TB / 2 - 1, 6, 0, Math.PI * 2); ui.stroke();
+  bar(DW / 2 - sw / 2 + 40, TB / 2 - 4, sw * 0.32, 8, SKEL);
+  ui.fillStyle = mix(ACC, SURF, 0.35); ui.beginPath(); ui.arc(DW - 34, TB / 2, 14, 0, Math.PI * 2); ui.fill();
+  ui.restore();
+  ui.strokeStyle = LINE; ui.lineWidth = 1.5; vg.roundRect(ui, 0.75, 0.75, DW - 1.5, DH - 1.5, 20); ui.stroke();
+}
+
+function drawSidebar() {
+  const sd = L.side;
+  ui.save(); vg.roundRect(ui, 0, 0, DW, DH, 20); ui.clip();
+  ui.fillStyle = SURF2; ui.fillRect(sd.x, sd.y, sd.w, sd.h);
+  ui.fillStyle = LINE; ui.fillRect(sd.x + sd.w - 1.5, sd.y, 1.5, sd.h);
+  ui.restore();
+  markGlyph(ui, wide ? 28 : 20, TB + 26, 44);
+  if (wide) {
+    ui.fillStyle = UINK; vg.font(ui, 22, 700);
+    let size = 22; while (ui.measureText(product).width > 170 && size > 14) vg.font(ui, --size, 700);
+    if (ui.measureText(product).width <= 170) ui.fillText(product, 86, TB + 26 + 22 + size * 0.36);
+  }
+  const widths = [0.62, 0.48, 0.7, 0.4, 0.55, 0.5];
+  for (let i = 0; i < 6; i++) {
+    const y = TB + 110 + i * 54;
+    if (i === 0) rr(wide ? 16 : 14, y - 8, wide ? 228 : 56, 44, 12, rgba(ACC, 0.14));
+    const ix = wide ? 34 : 32;
+    rr(ix, y + 5, 18, 18, 5, i === 0 ? ACC : SKEL2);
+    if (wide) bar(ix + 34, y + 9, 150 * widths[i], 10, i === 0 ? mix(ACC, UINK, 0.25) : SKEL);
+  }
+  if (wide) {
+    const y = DH - 150;
+    rr(16, y, 228, 120, 14, rgba(ACC, 0.1));
+    bar(36, y + 26, 120, 10, SKEL2); bar(36, y + 48, 160, 8, SKEL); bar(36, y + 64, 110, 8, SKEL);
+    rr(36, y + 84, 90, 22, 11, ACC);
+  }
+}
+
+function drawHeader() {
+  bar(L.mx, 102, wide ? 280 : 220, 22, SKEL2);
+  bar(L.mx, 138, wide ? 200 : 150, 11, SKEL);
+  rr(L.btn.x, L.btn.y, L.btn.w, L.btn.h, 12, ACC);
+  ui.strokeStyle = ON_ACC; ui.lineWidth = 3; ui.lineCap = "round";
+  const px = L.btn.x + 26, py = L.btn.y + L.btn.h / 2;
+  ui.beginPath(); ui.moveTo(px - 7, py); ui.lineTo(px + 7, py); ui.moveTo(px, py - 7); ui.lineTo(px, py + 7); ui.stroke();
+  bar(L.btn.x + 46, py - 4, L.btn.w - 70, 8, rgba(ON_ACC, 0.85));
+  if (L.btn2) {
+    ui.strokeStyle = LINE; ui.lineWidth = 2; vg.roundRect(ui, L.btn2.x, L.btn2.y, L.btn2.w, L.btn2.h, 12); ui.stroke();
+    bar(L.btn2.x + 24, L.btn2.y + L.btn2.h / 2 - 4, L.btn2.w - 48, 8, SKEL2);
+  }
+}
+
+function drawKpi(c, i, t) {
+  card(c);
+  bar(c.x + 24, c.y + 24, 92, 10, SKEL);
+  const grow = ease.outCubic(clamp((t - 0.6 - i * 0.12) / 0.8));
+  bar(c.x + 24, c.y + 50, (wide ? 150 : 130) * (0.35 + 0.65 * grow), 26, SKEL2);
+  rr(c.x + 24, c.y + 94, 64, 24, 12, rgba(ACC, 0.15));
+  ui.fillStyle = ACC; ui.beginPath(); ui.moveTo(c.x + 36, c.y + 112); ui.lineTo(c.x + 43, c.y + 101); ui.lineTo(c.x + 50, c.y + 112); ui.fill();
+  bar(c.x + 56, c.y + 102, 22, 8, ACC);
+  const sx = c.x + c.w - 24 - (wide ? 150 : 120), sw = wide ? 150 : 120, sy = c.y + 40, sh = c.h - 70;
+  ui.strokeStyle = i === 0 ? ACC : MUTE; ui.lineWidth = 3; ui.lineJoin = "round"; ui.lineCap = "round";
+  ui.beginPath();
+  sparks[i].forEach((v, j) => { const x = sx + sw * j / 9, y = sy + sh * (1 - v * grow); j ? ui.lineTo(x, y) : ui.moveTo(x, y); });
+  ui.stroke();
+}
+
+function drawChart(t) {
+  const c = L.chart;
+  card(c);
+  bar(c.x + 32, c.y + 32, 180, 16, SKEL2);
+  bar(c.x + 32, c.y + 60, 120, 10, SKEL);
+  const segW = 64, sx = c.x + c.w - 32 - segW * 3;
+  rr(sx, c.y + 28, segW * 3, 36, 10, mix(SURF, UINK, 0.06));
+  rr(sx + segW * 2 + 3, c.y + 31, segW - 6, 30, 8, SURF);
+  for (let i = 0; i < 3; i++) bar(sx + segW * i + 18, c.y + 42, segW - 36, 8, i === 2 ? SKEL2 : SKEL);
+  ui.fillStyle = LINE;
+  for (let g = 0; g <= 4; g++) {
+    const y = plot.y + plot.h * g / 4;
+    ui.fillRect(plot.x, y, plot.w, 1.5);
+    bar(c.x + 28, y - 4, 26, 8, SKEL);
+  }
+  for (let i = 0; i < 6; i++) bar(plot.x + plot.w * i / 5 - 16, plot.y + plot.h + 26, 32, 8, SKEL);
+  // Comparison series (always there) and the main series that draws itself in beat 1.
+  const path = (arr, upto) => {
+    ui.beginPath();
+    for (let i = 0; i < NP; i++) {
+      const p = chartPt(arr, i);
+      if (i === 0) ui.moveTo(p.x, p.y);
+      else { const q = chartPt(arr, i - 1), mx = (p.x + q.x) / 2; ui.bezierCurveTo(mx, q.y, mx, p.y, p.x, p.y); }
+    }
+    return upto;
+  };
+  ui.strokeStyle = rgba(MUTE, 0.55); ui.lineWidth = 3; ui.setLineDash([8, 9]); path(compare); ui.stroke(); ui.setLineDash([]);
+  const drawP = N >= 1 ? ease.inOutCubic(clamp((t - bStart(0) - 0.2 * s) / (1.3 * s))) : 1;
+  const preview = 0.22 * ease.outCubic(clamp((t - 0.9) / 0.8));
+  const shown = Math.max(drawP, preview);
+  if (shown > 0) {
+    ui.save(); ui.beginPath(); ui.rect(plot.x - 10, plot.y - 60, (plot.w + 20) * shown, plot.h + 70); ui.clip();
+    path(series); ui.lineTo(plot.x + plot.w, plot.y + plot.h); ui.lineTo(plot.x, plot.y + plot.h); ui.closePath();
+    const g = ui.createLinearGradient(0, plot.y, 0, plot.y + plot.h);
+    g.addColorStop(0, rgba(ACC, 0.28)); g.addColorStop(1, rgba(ACC, 0));
+    ui.fillStyle = g; ui.fill();
+    ui.strokeStyle = ACC; ui.lineWidth = 4.5; ui.lineJoin = "round"; path(series); ui.stroke();
+    ui.restore();
+  }
+  // Highlight point and tooltip once the cursor hovers it.
+  const hov = ease.outBack(clamp((t - bStart(0) - 1.35 * s) / 0.45));
+  if (hov > 0 && N >= 1) {
+    ui.strokeStyle = rgba(ACC, 0.5); ui.lineWidth = 2; ui.setLineDash([6, 6]);
+    ui.beginPath(); ui.moveTo(hiPt.x, plot.y); ui.lineTo(hiPt.x, plot.y + plot.h); ui.stroke(); ui.setLineDash([]);
+    const ring = ((t - bStart(0)) % 1.4) / 1.4;
+    ui.strokeStyle = rgba(ACC, 0.6 * (1 - ring)); ui.lineWidth = 2;
+    ui.beginPath(); ui.arc(hiPt.x, hiPt.y, 10 + 22 * ring, 0, Math.PI * 2); ui.stroke();
+    ui.fillStyle = SURF; ui.strokeStyle = ACC; ui.lineWidth = 4;
+    ui.beginPath(); ui.arc(hiPt.x, hiPt.y, 9 * hov, 0, Math.PI * 2); ui.fill(); ui.stroke();
+    const tw = 168, th = 70, tx = clamp(hiPt.x - tw / 2, c.x + 16, c.x + c.w - tw - 16), ty = hiPt.y - th - 26;
+    ui.save(); ui.globalAlpha *= clamp(hov);
+    ui.translate(tx + tw / 2, ty + th); ui.scale(0.85 + 0.15 * hov, 0.85 + 0.15 * hov); ui.translate(-(tx + tw / 2), -(ty + th));
+    rr(tx + 2, ty + 6, tw, th, 12, rgba("#000000", light ? 0.08 : 0.3));
+    rr(tx, ty, tw, th, 12, mix(SURF, UINK, light ? 0.0 : 0.06));
+    ui.strokeStyle = LINE; ui.lineWidth = 1.5; vg.roundRect(ui, tx, ty, tw, th, 12); ui.stroke();
+    ui.fillStyle = ACC; ui.beginPath(); ui.arc(tx + 24, ty + 26, 6, 0, Math.PI * 2); ui.fill();
+    bar(tx + 40, ty + 21, 96, 11, SKEL2); bar(tx + 20, ty + 44, 70, 8, SKEL);
+    ui.restore();
+  }
+}
+
+function toggle(x, y, on) {
+  const w = 56, h = 32;
+  rr(x - w / 2, y - h / 2, w, h, h / 2, mix(SKEL2, ACC, on));
+  ui.fillStyle = KNOB; ui.beginPath(); ui.arc(x - w / 2 + h / 2 + (w - h) * on, y, h / 2 - 4, 0, Math.PI * 2); ui.fill();
+}
+function drawToggles(t) {
+  const c = L.toggles;
+  card(c);
+  bar(c.x + 28, c.y + 30, 150, 14, SKEL2);
+  bar(c.x + 28, c.y + 54, 96, 9, SKEL);
+  const widths = [[150, 210], [190, 150], [130, 200], [170, 120]];
+  const flip = N >= 2 ? ease.outBack(clamp((t - CLICK2 - 0.05) / 0.35), 1.2) : 0;
+  for (let i = 0; i < 4; i++) {
+    const y = c.y + 72 + toggleRowH * i;
+    if (i > 0) { ui.fillStyle = LINE; ui.fillRect(c.x + 28, y, c.w - 56, 1.2); }
+    const cy = y + toggleRowH / 2;
+    rr(c.x + 28, cy - 16, 32, 32, 9, i === 1 ? mix(SKEL, ACC, 0.25 * clamp(flip)) : SKEL);
+    bar(c.x + 76, cy - 11, Math.min(widths[i][0], c.w * 0.4), 10, SKEL2);
+    bar(c.x + 76, cy + 6, Math.min(widths[i][1], c.w * 0.5), 8, SKEL);
+    const k = knobAt(i);
+    toggle(k.x, k.y, i === 1 ? clamp(flip, 0, 1.08) : (i === 0 || i === 3 ? 1 : 0));
+  }
+  if (N >= 2) { const k = knobAt(1); ripple((t - CLICK2) / 0.7, k.x, k.y, 60); }
+}
+
+function drawActivity() {
+  const c = L.activity;
+  card(c);
+  bar(c.x + 28, c.y + 30, 130, 14, SKEL2);
+  const rows = wide ? 4 : 3, rh = (c.h - 70) / rows;
+  for (let i = 0; i < rows; i++) {
+    const cy = c.y + 70 + rh * (i + 0.5);
+    ui.fillStyle = mix(i % 2 ? UINK : ACC, SURF, 0.55 + 0.1 * i);
+    ui.beginPath(); ui.arc(c.x + 46, cy, 16, 0, Math.PI * 2); ui.fill();
+    bar(c.x + 76, cy - 10, 140 + ((i * 53) % 90), 9, SKEL2);
+    bar(c.x + 76, cy + 6, 90 + ((i * 37) % 70), 7, SKEL);
+    bar(c.x + c.w - 28 - 48, cy - 4, 48, 8, SKEL);
+  }
+}
+
+function drawToast(t) {
+  if (N < 3) return;
+  const c = L.toast;
+  const sl = vg.spring(t - TOAST_IN, { stiffness: 11, damping: 0.62 });
+  if (t < TOAST_IN) return;
+  const dx = (1 - sl) * (c.w + 60);
+  ui.save(); vg.roundRect(ui, 0, 0, DW, DH, 20); ui.clip();
+  ui.translate(dx, 0);
+  for (let k = 3; k >= 1; k--) rr(c.x - k * 2, c.y + k * 5, c.w + k * 4, c.h, 16, rgba("#000000", light ? 0.035 : 0.12));
+  rr(c.x, c.y, c.w, c.h, 16, mix(SURF, UINK, light ? 0 : 0.05));
+  ui.strokeStyle = rgba(ACC, 0.45); ui.lineWidth = 2; vg.roundRect(ui, c.x, c.y, c.w, c.h, 16); ui.stroke();
+  const ix = c.x + 52, iy = c.y + c.h / 2;
+  ui.fillStyle = ACC; ui.beginPath(); ui.arc(ix, iy, 24, 0, Math.PI * 2); ui.fill();
+  const tick = ease.outCubic(clamp((t - TOAST_IN - 0.35) / 0.4));
+  ui.strokeStyle = ON_ACC; ui.lineWidth = 4.5; ui.lineCap = "round"; ui.lineJoin = "round";
+  ui.beginPath(); ui.moveTo(ix - 10, iy + 1);
+  ui.lineTo(ix - 10 + 7 * clamp(tick * 2), iy + 1 + 7 * clamp(tick * 2));
+  if (tick > 0.5) ui.lineTo(ix - 3 + 14 * (tick - 0.5) * 2, iy + 8 - 16 * (tick - 0.5) * 2);
+  ui.stroke();
+  bar(c.x + 92, c.y + 30, 170, 13, SKEL2); bar(c.x + 92, c.y + 54, 220, 9, SKEL);
+  const press = 1 - 0.1 * Math.exp(-Math.pow((t - CLICK3) / 0.08, 2));
+  ui.save(); ui.translate(toastAction.x, toastAction.y); ui.scale(press, press);
+  rr(-46, -20, 92, 40, 20, rgba(ACC, 0.16)); bar(-24, -4, 48, 8, ACC); ui.restore();
+  const life = clamp((t - TOAST_IN - 0.4) / (beat * 0.9));
+  ui.fillStyle = rgba(ACC, 0.7); ui.fillRect(c.x + 16, c.y + c.h - 5, (c.w - 32) * (1 - life), 3);
+  ripple((t - CLICK3) / 0.7, toastAction.x, toastAction.y, 70);
+  ui.restore();
+}
+
+function drawUI(t) {
+  ui.setTransform(1, 0, 0, 1, 0, 0);
+  ui.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+  const w = reveal(t, 0);
+  ui.globalAlpha = 0.3 + 0.7 * w.a;
+  ui.drawImage(shadow, 0, 0);
+  ui.setTransform(R, 0, 0, R, R * PAD, R * PAD);
+  drawChrome();
+  withReveal(t, 0.2, drawSidebar);
+  withReveal(t, 0.3, drawHeader);
+  L.kpis.forEach((c, i) => withReveal(t, 0.4 + i * 0.07, () => drawKpi(c, i, t)));
+  withReveal(t, 0.62, () => drawChart(t));
+  withReveal(t, 0.72, () => drawToggles(t));
+  withReveal(t, 0.82, drawActivity);
+  drawToast(t);
+  ui.globalAlpha = 1;
+}
+
+// ---- overlay: scrims, callouts, leaders, cursor, end card -------------------------------------
+function scrim(side, a) {
+  if (a <= 0) return;
+  let g;
+  if (side > 0) { g = fx.createLinearGradient(W * 0.46, 0, W * 0.6, 0); }
+  else if (side < 0) { g = fx.createLinearGradient(W * 0.54, 0, W * 0.4, 0); }
+  else { g = fx.createLinearGradient(0, H * 0.5, 0, H * 0.6); }
+  g.addColorStop(0, rgba(GROUND, 0)); g.addColorStop(1, rgba(GROUND, 0.93 * a));
+  fx.fillStyle = g;
+  if (side > 0) fx.fillRect(W * 0.46, 0, W * 0.54, H);
+  else if (side < 0) fx.fillRect(0, 0, W * 0.54, H);
+  else fx.fillRect(0, H * 0.5, W, H * 0.5);
+}
+const calloutWindow = (k) => {
+  const on = bStart(k) + 0.55 * s, off = (k + 1 < N ? bStart(k + 1) : OUT) - 0.25 * s;
+  return { on, off };
+};
+function drawCallout(k, t, M) {
+  const C = callouts[k], { on, off } = calloutWindow(k);
+  if (t < on - 0.05 || t > off + 0.45) return;
+  const out = ease.inCubic(clamp((t - off) / 0.4));
+  const alpha = 1 - out, shift = -out * unit * 0.02;
+  const center = !wide;
+  const x0 = center ? W / 2 : C.x;
+  fx.save(); fx.globalAlpha = alpha; fx.translate(0, shift);
+  // Index label "01" and a short accent rule.
+  const lp = ease.outExpo(clamp((t - on) / 0.6));
+  vg.font(fx, C.label, 700); fx.fillStyle = ACC_TEXT; fx.textBaseline = "alphabetic";
+  const num = String(k + 1).padStart(2, "0");
+  const numW = fx.measureText(num).width, ruleW = C.label * 2.6 * lp;
+  const rowW = numW + C.label * 0.7 + C.label * 2.6;
+  const lx = center ? W / 2 - rowW / 2 : x0;
+  fx.globalAlpha = alpha * clamp(lp * 1.5);
+  fx.fillText(num, lx, C.y + C.label * 0.82);
+  fx.fillStyle = ACC; fx.fillRect(lx + numW + C.label * 0.7, C.y + C.label * 0.42, ruleW, Math.max(2, C.label * 0.12));
+  fx.globalAlpha = alpha;
+  // Headline rises line by line through masks.
+  const hy = C.y + C.label + C.gap1;
+  C.head.lines.forEach((line, i) => {
+    const p = ease.outExpo(clamp((t - on - 0.08 - i * 0.07) / 0.7));
+    const ly = hy + i * C.head.size * C.head.leading;
+    fx.save(); fx.beginPath(); fx.rect(0, ly - C.head.size * 0.1, W, C.head.size * 1.25); fx.clip();
+    vg.font(fx, C.head.size, 700); fx.fillStyle = INK;
+    const w = fx.measureText(line).width;
+    fx.fillText(line, center ? W / 2 - w / 2 : x0, ly + C.head.size * 0.8 + (1 - p) * C.head.size * 1.1);
+    fx.restore();
+  });
+  if (C.det) {
+    const p = ease.outCubic(clamp((t - on - 0.3) / 0.6));
+    const dy = hy + C.head.height + C.gap2;
+    vg.drawLines(fx, C.det, x0, dy + (1 - p) * C.det.size * 0.5, { color: SOFT, align: center ? "center" : "left", alpha: alpha * p });
+  }
+  fx.restore();
+  // Curved leader from the UI element to the callout.
+  const A = project(M, regions[k].target);
+  const lead = ease.inOutCubic(clamp((t - on - 0.15) / 0.55)) * (1 - out);
+  if (lead <= 0) return;
+  let B, c1, c2;
+  if (wide) {
+    const side = regions[k].side, cy = hy + C.head.size * 0.5;
+    B = { x: side > 0 ? C.x - unit * 0.03 : C.x + C.width + unit * 0.03, y: cy };
+    const k1 = Math.abs(B.x - A.x) * 0.5;
+    c1 = { x: A.x + side * k1, y: A.y }; c2 = { x: B.x - side * k1, y: B.y };
+  } else {
+    B = { x: W / 2, y: C.y - unit * 0.035 };
+    const k1 = Math.abs(B.y - A.y) * 0.5;
+    c1 = { x: A.x, y: A.y + k1 }; c2 = { x: B.x, y: B.y - k1 };
+  }
+  const len = Math.hypot(B.x - A.x, B.y - A.y) * 1.25 + 1;
+  fx.save();
+  fx.strokeStyle = rgba(ACC, 0.9); fx.lineWidth = Math.max(2, unit * 0.0028); fx.lineCap = "round";
+  fx.setLineDash([len * lead, len * 2]);
+  fx.beginPath(); fx.moveTo(A.x, A.y); fx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, B.x, B.y); fx.stroke();
+  fx.setLineDash([]);
+  fx.fillStyle = ACC;
+  fx.beginPath(); fx.arc(A.x, A.y, unit * 0.007 * clamp(lead * 3), 0, Math.PI * 2); fx.fill();
+  fx.strokeStyle = rgba(ACC, 0.5); fx.lineWidth = Math.max(1.5, unit * 0.002);
+  fx.beginPath(); fx.arc(A.x, A.y, unit * 0.016 * clamp(lead * 2), 0, Math.PI * 2); fx.stroke();
+  if (lead > 0.98) { fx.beginPath(); fx.arc(B.x, B.y, unit * 0.005, 0, Math.PI * 2); fx.fill(); }
+  fx.restore();
+}
+const ACC_TEXT = vg.contrast(ACC, GROUND) >= 3 ? ACC : INK;
+
+// Cursor: keyframes in UI space (projected each frame), then screen space to the CTA.
+const cursorKeys = [];
+if (N >= 1) {
+  const c = L.chart;
+  cursorKeys.push({ t: bStart(0) + 0.35 * s, p: { x: c.x + c.w * 0.3, y: c.y + c.h * 0.92 } });
+  cursorKeys.push({ t: bStart(0) + 1.3 * s, p: { x: hiPt.x + 4, y: hiPt.y + 6 } });
+}
+if (N >= 2) { cursorKeys.push({ t: bStart(1) + 0.15 * s, p: cursorKeys[cursorKeys.length - 1].p }); cursorKeys.push({ t: CLICK2 - 0.12, p: knobAt(1) }); }
+if (N >= 3) { cursorKeys.push({ t: TOAST_IN + 0.3 * s, p: knobAt(1) }); cursorKeys.push({ t: CLICK3 - 0.12, p: toastAction }); }
+const clicks = [N >= 2 ? CLICK2 : null, N >= 3 ? CLICK3 : null, ctaBlock ? CLICK_CTA : null].filter((x) => x !== null);
+function cursorAt(t, M) {
+  if (!P.cursor || !cursorKeys.length || t < cursorKeys[0].t - 0.3) return null;
+  const last = cursorKeys[cursorKeys.length - 1];
+  const moveStart = OUT + 1.0 * so, moveEnd = CLICK_CTA - 0.12;
+  let pos;
+  if (t <= last.t || !ctaBlock || t < moveStart) {
+    let i = 0; while (i < cursorKeys.length - 1 && t > cursorKeys[i + 1].t) i++;
+    const a = cursorKeys[i], b = cursorKeys[Math.min(i + 1, cursorKeys.length - 1)];
+    const p = b === a ? 1 : ease.inOutCubic(clamp((t - a.t) / (b.t - a.t)));
+    const arc = Math.sin(Math.PI * p) * 40;
+    pos = project(M, { x: lerp(a.p.x, b.p.x, p) + arc * 0.3, y: lerp(a.p.y, b.p.y, p) - arc });
+  } else {
+    const from = project(M, last.p);
+    const p = ease.inOutCubic(clamp((t - moveStart) / (moveEnd - moveStart)));
+    pos = { x: lerp(from.x, ctaCenter.x + ctaW * 0.18, p) - Math.sin(Math.PI * p) * unit * 0.05, y: lerp(from.y, ctaCenter.y + ctaH * 0.1, p) };
+  }
+  const appear = ease.outCubic(clamp((t - cursorKeys[0].t + 0.3) / 0.35));
+  let press = 1;
+  for (const c of clicks) press = Math.min(press, 1 - 0.14 * Math.exp(-Math.pow((t - c) / 0.07, 2)));
+  return { ...pos, a: appear, press };
+}
+function drawCursor(cur) {
+  if (!cur) return;
+  const sz = unit * 0.034 * cur.press;
+  fx.save(); fx.globalAlpha = cur.a; fx.translate(cur.x, cur.y); fx.scale(sz, sz);
+  const pts = [[0, 0], [0, 1.0], [0.25, 0.77], [0.42, 1.12], [0.56, 1.06], [0.4, 0.71], [0.72, 0.7]];
+  fx.beginPath(); pts.forEach(([x, y], i) => (i ? fx.lineTo(x + 0.05, y + 0.07) : fx.moveTo(x + 0.05, y + 0.07)));
+  fx.closePath(); fx.fillStyle = "rgba(0,0,0,0.28)"; fx.fill();
+  fx.beginPath(); pts.forEach(([x, y], i) => (i ? fx.lineTo(x, y) : fx.moveTo(x, y))); fx.closePath();
+  fx.fillStyle = "#FFFFFF"; fx.fill(); fx.lineWidth = 0.07; fx.lineJoin = "round"; fx.strokeStyle = "#111318"; fx.stroke();
+  fx.restore();
+}
+
+function drawEnd(t) {
+  if (t < OUT) return;
+  const dim = ease.inOutCubic(clamp((t - OUT) / (0.75 * so)));
+  const fl = fx.createLinearGradient(0, 0, 0, H);
+  fl.addColorStop(0, rgba(GROUND, 0.75 * dim)); fl.addColorStop(0.62, rgba(GROUND, 0.6 * dim)); fl.addColorStop(1, rgba(GROUND, 0.1 * dim));
+  fx.fillStyle = fl; fx.fillRect(0, 0, W, H);
+  const g = fx.createRadialGradient(W / 2, endTop + endH * 0.45, 0, W / 2, endTop + endH * 0.45, unit * 0.7);
+  g.addColorStop(0, rgba(GROUND, 0.9 * dim)); g.addColorStop(0.6, rgba(GROUND, 0.6 * dim)); g.addColorStop(1, rgba(GROUND, 0));
+  fx.fillStyle = g; fx.fillRect(0, 0, W, H);
+  const mk = ease.outBack(clamp((t - OUT - 0.45 * so) / 0.6), 1.9);
+  if (mk > 0) {
+    fx.save(); fx.translate(W / 2, endTop + markSize / 2); fx.scale(mk, mk); fx.rotate((1 - mk) * -0.4);
+    markGlyph(fx, -markSize / 2, -markSize / 2, markSize, clamp(mk));
+    fx.restore();
+  }
+  nameBlock.lines.forEach((line, i) => {
+    const p = ease.outExpo(clamp((t - NAME_AT - i * 0.08) / 0.8));
+    const ly = nameTop + i * nameBlock.size * nameBlock.leading;
+    fx.save(); fx.beginPath(); fx.rect(0, ly - nameBlock.size * 0.15, W, nameBlock.size * 1.3); fx.clip();
+    vg.font(fx, nameBlock.size, 800); fx.fillStyle = INK;
+    const w = fx.measureText(line).width;
+    fx.fillText(line, W / 2 - w / 2, ly + nameBlock.size * 0.8 + (1 - p) * nameBlock.size * 1.15);
+    fx.restore();
+  });
+  if (ctaBlock) {
+    const p = ease.outBack(clamp((t - CTA_AT) / 0.55), 1.4);
+    const press = 1 - 0.07 * Math.exp(-Math.pow((t - CLICK_CTA - 0.02) / 0.09, 2));
+    if (p > 0) {
+      fx.save(); fx.globalAlpha = clamp(p); fx.translate(ctaCenter.x, ctaCenter.y); fx.scale(press * (0.9 + 0.1 * p), press * (0.9 + 0.1 * p));
+      fx.fillStyle = ACC; vg.roundRect(fx, -ctaW / 2, -ctaH / 2, ctaW, ctaH, ctaH / 2); fx.fill();
+      vg.drawLines(fx, ctaBlock, 0, -ctaBlock.size * 0.56, { color: ON_ACC, align: "center", alpha: clamp(p) });
+      fx.restore();
+      const rp = (t - CLICK_CTA) / 0.8;
+      if (rp > 0 && rp < 1) {
+        fx.strokeStyle = rgba(ACC, 0.7 * (1 - rp)); fx.lineWidth = Math.max(2, unit * 0.004) * (1 - rp) + 1;
+        const e = ease.outCubic(rp) * unit * 0.05;
+        fx.beginPath(); vg.roundRect(fx, ctaCenter.x - ctaW / 2 - e, ctaCenter.y - ctaH / 2 - e, ctaW + 2 * e, ctaH + 2 * e, ctaH / 2 + e); fx.stroke();
+      }
+    }
+  }
+  if (discBlock) {
+    const p = ease.outCubic(clamp((t - CTA_AT - 0.3) / 0.6));
+    const dy = ctaBlock ? ctaY + ctaH + endGap * 0.8 : nameTop + nameBlock.height + endGap;
+    vg.drawLines(fx, discBlock, W / 2, dy, { color: SOFT, align: "center", alpha: p * 0.95 });
+  }
+}
+
+function drawOverlay(t, M) {
+  fx.clearRect(0, 0, W, H);
+  for (let k = 0; k < N; k++) {
+    const { on, off } = calloutWindow(k);
+    const a = ease.inOutCubic(clamp((t - bStart(k) - 0.1) / (MOVE * 0.8))) * (1 - ease.inOutCubic(clamp((t - off - 0.1) / 0.6)));
+    scrim(regions[k].side, a);
+  }
+  for (let k = 0; k < N; k++) drawCallout(k, t, M);
+  drawEnd(t);
+  drawCursor(cursorAt(t, M));
+}
+
+drawBackground(0);   // static: the camera carries the motion, and a still layer costs nothing per frame
+vg.loop((t) => {
+  const cam = camera(t);
+  const M = matrixFor(cam);
+  uiCanvas.style.transform = M.toString();
+  const fade = t > OUT ? 1 - 0.55 * ease.inOutCubic(clamp((t - OUT) / (0.75 * so))) : 1;
+  uiCanvas.style.opacity = String(fade);
+  drawUI(t);
+  drawOverlay(t, M);
+});
+</script>
+</body>
+</html>

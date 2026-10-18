@@ -1,0 +1,18 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.motion-showreel",
+  "template": "social.motion-showreel",
+  "template_version": "0.1.0",
+  "inputs": {
+    "name": "VideoGenome",
+    "word_1": "Shape",
+    "word_2": "Rhythm",
+    "word_3": "Story",
+    "kicker": "Procedural motion",
+    "look": "studio",
+    "energy": "upbeat"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

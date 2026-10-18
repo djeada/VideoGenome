@@ -44,7 +44,7 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue({"visual.aurora", "visual.shader-gradient", "audio.ambient-pad"} <= set(recipes))
         for recipe in recipes.values():
             with self.subTest(recipe=recipe.id):
-                self.assertEqual(recipe.data["license"], "MIT")
+                self.assertTrue(recipe.data["license"].startswith("MIT"), recipe.data["license"])
                 for name, spec in recipe.data["params"]["properties"].items():
                     self.assertIn("description", spec, name)
                 for preset in recipe.data.get("presets", {}):

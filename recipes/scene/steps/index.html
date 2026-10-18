@@ -1,0 +1,263 @@
+<!doctype html>
+<!--
+  Steps: an animated process explainer. A title rises in with an accent rule;
+  numbered nodes pop in one by one on a connector that draws itself; each
+  step's label slides in with an optional note; finished steps dim and their
+  numbers turn into check marks; the last beat brings every step back as a
+  recap. Portrait puts the title above the steps, landscape beside them.
+
+  Timing: clock (requestAnimationFrame + performance.now on VideoGenome's
+  virtual clock). Parameters arrive in window.vgSpec.params. Copy is drawn with
+  fillText (never parsed as HTML) and fitted with measured glyph widths.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="vg"></canvas>
+<script>
+"use strict";
+const spec = window.vgSpec || { params: {}, width: 1920, height: 1080, duration_seconds: 12, seed: 1 };
+const P = Object.assign({
+  title: "How a blueprint becomes a video",
+  steps: ["Pick a template", "Fill the text slots", "Produce the media", "Render and review"],
+  notes: [],
+  palette: ["#0E1116", "#F2F4F7", "#3DDC97", "#8B93A1"],
+  grid: 0.3, grain: 0.03, recap: true,
+}, spec.params || {});
+const W = spec.width, H = spec.height, D = spec.duration_seconds;
+const canvas = document.getElementById("vg");
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext("2d");
+const unit = Math.min(W, H);
+const FONT = '"Inter", "Helvetica Neue", Arial, sans-serif';
+const [BG, INK, ACCENT, MUTED] = P.palette;
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const outExpo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const outCubic = (x) => 1 - Math.pow(1 - x, 3);
+const inOutCubic = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const outBack = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function wrap(text, size, weight, maxW, maxLines) {
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  const words = String(text).trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    if (ctx.measureText(word).width > maxW) return null;
+    const next = line ? line + " " + word : word;
+    if (ctx.measureText(next).width > maxW && line) { lines.push(line); line = word; } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines.length <= maxLines ? lines : null;
+}
+
+function fit(text, maxSize, minSize, weight, maxW, maxLines) {
+  for (let size = Math.round(maxSize); size >= minSize; size -= 1) {
+    const lines = wrap(text, size, weight, maxW, maxLines);
+    if (lines) return { size, lines };
+  }
+  throw new Error(`steps: "${String(text).slice(0, 40)}" does not fit; shorten it`);
+}
+
+// ---- layout ---------------------------------------------------------------------
+const steps = P.steps.map(String).filter((s) => s.trim()).slice(0, 6);
+const notes = steps.map((_, i) => String(P.notes[i] || "").trim());
+const N = steps.length;
+if (!N) throw new Error("steps: give at least one step");
+const portrait = H >= W;
+const m = Math.round(W * (portrait ? 0.09 : 0.07));
+const titleBox = portrait
+  ? { x: m, y: H * 0.11, w: W - 2 * m, h: H * 0.2 }
+  : { x: m, y: H * 0.2, w: W * 0.38, h: H * 0.6 };
+const T = fit(P.title, unit * (portrait ? 0.1 : 0.115), unit * 0.035, 800, titleBox.w, 3);
+// Balance the title: the narrowest measure that keeps its line count (no orphans).
+for (let w = titleBox.w, lines = T.lines.length; w > titleBox.w * 0.4; w -= 4) {
+  const narrower = wrap(P.title, T.size, 800, w, lines);
+  if (!narrower || narrower.length > lines) break;
+  T.lines = narrower;
+}
+const titleLead = T.size * 1.06;
+const titleH = (T.lines.length - 1) * titleLead + T.size * 0.74;
+const titleTop = portrait ? titleBox.y + T.size * 0.74 : (H - titleH) / 2 + T.size * 0.74;
+const area = portrait
+  ? { x: m, y: titleBox.y + titleH + H * 0.07, w: W - 2 * m, h: H * 0.86 - (titleBox.y + titleH + H * 0.07) }
+  : { x: W * 0.46, y: H * 0.1, w: W * 0.54 - m, h: H * 0.8 };
+const nodeR = (rowH) => Math.min(rowH * 0.2, unit * 0.045);
+const textLeft = (r) => area.x + 2 * r + unit * 0.035;
+
+// One label size for the whole list: the largest at which every step's label
+// (2 lines max) and note (2 lines max) fit their row without touching the next.
+function measure(size, rowH) {
+  const r = nodeR(rowH), x = textLeft(r), w = area.x + area.w - x;
+  const out = [];
+  for (let i = 0; i < N; i++) {
+    const lines = wrap(steps[i], size, 700, w, 2);
+    if (!lines) return null;
+    const noteSize = Math.max(unit * 0.016, size * 0.6);
+    const noteLines = notes[i] ? wrap(notes[i], noteSize, 500, w, 2) : null;
+    if (notes[i] && !noteLines) return null;
+    const block = (lines.length - 1) * size * 1.1 + size * 0.74
+      + (noteLines ? size * 0.45 + (noteLines.length - 1) * noteSize * 1.2 + noteSize * 0.74 : 0);
+    out.push({ L: { size, lines }, note: noteLines ? { size: noteSize, lines: noteLines } : null, block });
+  }
+  return out;
+}
+const fullRow = area.h / N;
+let rows = null, rowH = fullRow;
+for (let size = Math.round(Math.min(fullRow * 0.34, unit * 0.075)); size >= unit * 0.02 && !rows; size -= 1) {
+  const candidate = measure(size, fullRow);
+  if (candidate && Math.max(...candidate.map((row) => row.block)) <= fullRow * 0.76) rows = candidate;
+}
+if (!rows) throw new Error("steps: the steps and notes do not fit; shorten them");
+// Short lists stay compact and centred instead of spreading over the whole area.
+const tallest = Math.max(...rows.map((row) => row.block));
+rowH = Math.min(fullRow, Math.max(unit * (portrait ? 0.2 : 0.22), tallest / 0.8));
+area.y += (area.h - rowH * N) / 2;
+const r = nodeR(rowH);
+const nodeX = area.x + r;
+const textX = textLeft(r);
+rows.forEach((row, i) => {
+  row.cy = area.y + rowH * (i + 0.5);
+  row.top = row.cy - row.block / 2;
+});
+
+// ---- timeline -------------------------------------------------------------------
+const intro = Math.min(1.1, D * 0.12);
+const recap = P.recap ? Math.min(1.6, D * 0.14) : 0;
+const beat = (D - intro - recap) / N;
+const stepStart = (i) => intro + i * beat;
+
+function background(t) {
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W * 0.8, H * 0.15, 0, W * 0.8, H * 0.15, unit * 0.9);
+  glow.addColorStop(0, ACCENT + "1F"); glow.addColorStop(1, ACCENT + "00");
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  if (P.grid > 0) {
+    const step = unit * 0.05, drift = (t * step * 0.12) % step;
+    ctx.fillStyle = INK; ctx.globalAlpha = P.grid * 0.18;
+    for (let y = -step; y < H + step; y += step)
+      for (let x = -step; x < W + step; x += step) { ctx.fillRect(x + drift, y, unit * 0.003, unit * 0.003); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawTitle(t) {
+  ctx.font = `800 ${T.size}px ${FONT}`;
+  T.lines.forEach((line, i) => {
+    const p = outExpo(clamp((t - 0.05 - i * 0.08) / 0.7));
+    const y = titleTop + i * titleLead;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, y - T.size * 0.98, W, T.size * 1.25); ctx.clip();
+    ctx.fillStyle = INK;
+    ctx.fillText(line, titleBox.x, y + (1 - p) * T.size);
+    ctx.restore();
+  });
+  const rule = outExpo(clamp((t - 0.35) / 0.8));
+  const ry = titleTop + (T.lines.length - 1) * titleLead + T.size * 0.5;
+  ctx.fillStyle = ACCENT;
+  ctx.fillRect(titleBox.x, ry, T.size * 1.6 * rule, Math.max(4, T.size * 0.08));
+}
+
+function check(x, y, size, progress, color) {
+  ctx.strokeStyle = color; ctx.lineWidth = size * 0.16; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const a = [x - size * 0.42, y + size * 0.02], b = [x - size * 0.12, y + size * 0.32], c = [x + size * 0.45, y - size * 0.3];
+  const first = clamp(progress / 0.4), second = clamp((progress - 0.4) / 0.6);
+  ctx.beginPath(); ctx.moveTo(...a);
+  ctx.lineTo(lerp(a[0], b[0], first), lerp(a[1], b[1], first));
+  if (second > 0) ctx.lineTo(lerp(b[0], c[0], second), lerp(b[1], c[1], second));
+  ctx.stroke();
+}
+
+function drawSteps(t) {
+  const recapOn = P.recap ? clamp((t - (D - recap)) / 0.5) : 0;
+  // Connector: grows towards the active node.
+  const first = rows[0].cy, last = rows[N - 1].cy;
+  let reach = first;
+  for (let i = 0; i < N; i++) {
+    const p = inOutCubic(clamp((t - stepStart(i) + 0.25) / 0.5));
+    if (p > 0) reach = i === 0 ? first : lerp(rows[i - 1].cy, rows[i].cy, p);
+  }
+  ctx.strokeStyle = MUTED; ctx.globalAlpha = 0.35; ctx.lineWidth = Math.max(2, r * 0.08);
+  ctx.beginPath(); ctx.moveTo(nodeX, first); ctx.lineTo(nodeX, last); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.strokeStyle = ACCENT;
+  ctx.beginPath(); ctx.moveTo(nodeX, first); ctx.lineTo(nodeX, reach); ctx.stroke();
+
+  rows.forEach((row, i) => {
+    const local = t - stepStart(i);
+    const pop = outBack(clamp(local / 0.45));
+    if (pop <= 0) return;
+    const done = clamp((t - stepStart(i + 1) + 0.1) / 0.45) * (i < N - 1 || recapOn > 0 ? 1 : 0);
+    const active = local >= 0 && done < 1;
+    const focus = Math.max(recapOn, active ? 1 : 0.42 + 0.58 * (1 - outCubic(done)));
+    // Node.
+    if (active && recapOn === 0) {
+      const ring = (local % 1.2) / 1.2;
+      ctx.strokeStyle = ACCENT; ctx.globalAlpha = (1 - ring) * 0.5; ctx.lineWidth = Math.max(2, r * 0.07);
+      ctx.beginPath(); ctx.arc(nodeX, row.cy, r * (1 + ring * 0.8), 0, 6.2832); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = done > 0 ? ACCENT : BG;
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = Math.max(2, r * 0.1);
+    ctx.beginPath(); ctx.arc(nodeX, row.cy, r * pop, 0, 6.2832); ctx.fill(); ctx.stroke();
+    if (done > 0) {
+      check(nodeX, row.cy, r * 0.9 * pop, outCubic(done), BG);
+    } else {
+      ctx.fillStyle = ACCENT; ctx.font = `800 ${Math.round(r * 0.95 * pop)}px ${FONT}`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(String(i + 1), nodeX, row.cy + r * 0.04);
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    }
+    // Label and note slide in from the right.
+    const slide = outExpo(clamp((local - 0.12) / 0.6));
+    const dx = (1 - slide) * unit * 0.06;
+    ctx.globalAlpha = slide * focus;
+    ctx.fillStyle = INK; ctx.font = `700 ${row.L.size}px ${FONT}`;
+    let y = row.top + row.L.size * 0.74;
+    row.L.lines.forEach((line, k) => { ctx.fillText(line, textX + dx, y + k * row.L.size * 1.1); });
+    y += (row.L.lines.length - 1) * row.L.size * 1.1;
+    if (row.note) {
+      const fade = outCubic(clamp((local - 0.4) / 0.6));
+      ctx.globalAlpha = fade * focus;
+      ctx.fillStyle = MUTED; ctx.font = `500 ${row.note.size}px ${FONT}`;
+      y += row.L.size * 0.45 + row.note.size * 0.74;
+      row.note.lines.forEach((line, k) => { ctx.fillText(line, textX + dx * 0.6, y + k * row.note.size * 1.2); });
+    }
+    ctx.globalAlpha = 1;
+  });
+}
+
+let grainCanvas = null;
+function grain(t) {
+  if (P.grain <= 0) return;
+  if (!grainCanvas) {
+    grainCanvas = document.createElement("canvas"); grainCanvas.width = grainCanvas.height = 256;
+    const g = grainCanvas.getContext("2d"), img = g.createImageData(256, 256);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  ctx.save(); ctx.globalAlpha = P.grain; ctx.globalCompositeOperation = "overlay";
+  ctx.translate(-Math.floor((t * 977) % 256), -Math.floor((t * 613) % 256));
+  ctx.fillStyle = ctx.createPattern(grainCanvas, "repeat"); ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+
+function frame(now) {
+  const t = now / 1000;
+  background(t);
+  drawTitle(t);
+  drawSteps(t);
+  grain(t);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

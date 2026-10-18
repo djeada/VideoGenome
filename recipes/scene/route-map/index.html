@@ -1,0 +1,691 @@
+<!doctype html>
+<!--
+  Route map: a stylised journey map. Real coastlines (Natural Earth 1:50m land,
+  public domain, simplified into land-50m.js) on a Web Mercator projection.
+  Stops come from latitude/longitude params. The map zooms in to the whole
+  route while stops pop in, then for every leg the camera eases to frame the
+  leg, a marker (dot or plane) travels along it drawing the route behind it,
+  a ripple and a stop card fire on arrival, and the distance and duration
+  counters count up in proportion to great-circle leg length. The outro pulls
+  back to the whole route with every stop labelled and the counters at their
+  final, stated values. Landscape adds an itinerary panel on the left.
+
+  Beats (D = duration, N stops, L = N - 1 legs):
+    intro  = min(1.4, 0.1 D)           title rises, map settles, stops pop in
+    outro  = min(2.8, 0.2 D)           pull back to the whole route
+    leg    = (D - intro - outro) / L
+    leg k (k = 0..L-1) starts at s_k = intro + k * leg:
+      departure (marker leaves)  s_k + 0.10 leg
+      arrival (ripple + card)    s_k + 0.60 leg  (0.78 leg with two stops)
+    first stop card              0.55 * intro
+    outro start                  D - outro
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Copy is drawn with fillText and fitted with measured glyphs (vg.fit throws
+  when it cannot fit). No network: the land data is a sibling ES module.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+import LAND from "./land-50m.js";
+import BORDERS from "./borders-50m.js";
+
+const { P, W, H, D, unit, portrait: tallFrame } = vg.setup({
+  title: "Lisbon to Seville by rail",
+  stops: ["Lisbon", "Évora", "Badajoz", "Seville"],
+  notes: ["Day 1 · Start", "Day 2", "Day 3", "Day 4 · Finish"],
+  lat: [38.72, 38.57, 38.88, 37.39], lon: [-9.14, -7.91, -6.97, -5.98],
+  distance: 520, distance_unit: "km", duration: 4, duration_unit: "days",
+  labels: ["Distance", "Time"],
+  path: "arc", marker: "dot", land: "fill", borders: true,
+  palette: ["#CFDDE6", "#F8F5EF", "#151A21", "#E4572E", "#7A8590", "#FFFFFF"],
+  grid: 0.5, grain: 0.03,
+});
+// Square and taller frames use the stacked (portrait) layout; wide frames the side-by-side one.
+const portrait = tallFrame || W / H < 1.25;
+const [SEA, LANDC, INK0, ACCENT, MUTED, CARD] = P.palette;
+const ctx = vg.canvas2d();
+const TAU = Math.PI * 2;
+const { clamp, lerp, ease } = vg;
+const ink = vg.readable(SEA, [INK0, "#FFFFFF", "#0B0D10"]);
+const cardInk = vg.readable(CARD, [INK0, "#0B0D10", "#FFFFFF"]);
+const cardMuted = vg.contrast(MUTED, CARD) >= 3 ? MUTED : vg.mix(cardInk, CARD, 0.35);
+const accentOnCard = vg.contrast(ACCENT, CARD) >= 3 ? ACCENT : cardInk;
+const mutedOnSea = vg.contrast(MUTED, SEA) >= 3 ? MUTED : vg.mix(ink, SEA, 0.3);
+
+// ---- stops -----------------------------------------------------------------------
+const stops = [];
+P.stops.forEach((name, i) => {
+  name = String(name || "").trim();
+  if (!name) return;
+  const lat = Number(P.lat[i]), lon = Number(P.lon[i]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error(`route-map: stop "${name}" has no latitude/longitude`);
+  // Templates default unused coordinate slots to 0: a named stop at exactly 0, 0 means its coordinates are missing.
+  if (lat === 0 && lon === 0) throw new Error(`route-map: stop "${name}" has no coordinates (0, 0)`);
+  if (Math.abs(lat) > 80) throw new Error(`route-map: latitude ${lat} of "${name}" is outside the map (±80)`);
+  stops.push({ name, note: String((P.notes || [])[i] || "").trim(), lat, lon });
+});
+const N = stops.length;
+if (N < 2) throw new Error("route-map: give at least two stops with names");
+// Unwrap longitudes so each leg takes the short way round (Pacific crossings).
+for (let i = 1; i < N; i++) stops[i].lon += 360 * Math.round((stops[i - 1].lon - stops[i].lon) / 360);
+const R2D = 180 / Math.PI;
+const mercY = (lat) => -Math.log(Math.tan(Math.PI / 4 + (clamp(lat, -85, 85) / R2D) / 2)) * R2D;
+stops.forEach((s) => { s.x = s.lon; s.y = mercY(s.lat); });
+for (let i = 1; i < N; i++)
+  if (Math.hypot(stops[i].x - stops[i - 1].x, stops[i].y - stops[i - 1].y) < 0.01)
+    throw new Error(`route-map: "${stops[i - 1].name}" and "${stops[i].name}" are at the same place`);
+
+function haversine(a, b) {
+  const p1 = a.lat / R2D, p2 = b.lat / R2D, dp = p2 - p1, dl = (b.lon - a.lon) / R2D;
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 2 * Math.asin(Math.sqrt(h));
+}
+
+// ---- legs: sampled curves in world units with cumulative length ------------------------
+const legs = [];
+for (let i = 0; i < N - 1; i++) {
+  const a = stops[i], b = stops[i + 1];
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+  // Arcs bulge to the left of travel, upward on screen where possible.
+  let nx = -dy / len, ny = dx / len;
+  if (ny > 0) { nx = -nx; ny = -ny; }
+  const bend = P.path === "arc" ? 0.22 * len : 0;
+  const cx = (a.x + b.x) / 2 + nx * bend, cy = (a.y + b.y) / 2 + ny * bend;
+  const pts = [], M = 72;
+  for (let k = 0; k <= M; k++) {
+    const u = k / M, v = 1 - u;
+    pts.push([v * v * a.x + 2 * v * u * cx + u * u * b.x, v * v * a.y + 2 * v * u * cy + u * u * b.y]);
+  }
+  const cum = [0];
+  for (let k = 1; k <= M; k++) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
+  legs.push({ pts, cum, length: cum[M], earth: Math.max(1e-9, haversine(a, b)) });
+}
+const earthTotal = legs.reduce((s, l) => s + l.earth, 0);
+function along(leg, f) {  // point and heading at fraction f of the leg's length
+  const target = clamp(f) * leg.length, { cum, pts } = leg;
+  let k = 1;
+  while (k < cum.length - 1 && cum[k] < target) k++;
+  const u = (target - cum[k - 1]) / Math.max(1e-9, cum[k] - cum[k - 1]);
+  const [x0, y0] = pts[k - 1], [x1, y1] = pts[k];
+  return { x: lerp(x0, x1, u), y: lerp(y0, y1, u), k, u, angle: Math.atan2(y1 - y0, x1 - x0) };
+}
+
+// ---- beats -------------------------------------------------------------------------
+const intro = Math.min(1.4, D * 0.1), outro = Math.min(2.8, D * 0.2);
+const legDur = (D - intro - outro) / (N - 1);
+const legStart = (k) => intro + k * legDur;
+const departAt = (k) => legStart(k) + 0.1 * legDur;
+const ARRIVE = N === 2 ? 0.78 : 0.6;
+const arriveAt = (k) => legStart(k) + ARRIVE * legDur;
+const outroAt = D - outro;
+const arrival = (i) => (i === 0 ? intro * 0.55 : arriveAt(i - 1));            // stop i's card appears
+const leaving = (i) => (i === N - 1 ? Infinity : departAt(i) + 0.35 * legDur); // ...and folds into a label
+function legProgress(t, k) { return ease.inOutCubic(clamp((t - departAt(k)) / (arriveAt(k) - departAt(k)))); }
+
+// ---- layout ------------------------------------------------------------------------
+const m = Math.round(unit * 0.07);
+const panelW = portrait ? 0 : Math.round(W * 0.33);
+const titleBlock = vg.fit(ctx, P.title, {
+  maxSize: unit * (tallFrame ? 0.082 : portrait ? 0.066 : 0.064), minSize: unit * 0.04, weight: 800, leading: 1.05,
+  maxWidth: portrait ? W - 2 * m : panelW - 1.6 * m, maxLines: portrait ? 2 : 3, label: "title",
+});
+// 9:16 keeps copy out of the platform UI (top 12%, bottom 22%); square frames only need a margin.
+const titleTop = tallFrame ? H * 0.125 : portrait ? H * 0.07 : H * 0.1;
+const titleBottom = titleTop + titleBlock.height;
+
+// Counters: label + value per counter that has a value.
+const decimals = (v) => { const s = String(v); return s.includes(".") ? Math.min(2, s.split(".")[1].length) : 0; };
+const counters = [];
+if (Number(P.distance) > 0) counters.push({ label: P.labels[0] || "Distance", total: Number(P.distance), unit: P.distance_unit, dec: decimals(P.distance) });
+if (Number(P.duration) > 0) counters.push({ label: P.labels[1] || "Time", total: Number(P.duration), unit: P.duration_unit, dec: decimals(P.duration) });
+const valueSize = Math.round(unit * (tallFrame ? 0.07 : 0.06));
+const labelSize = Math.round(unit * 0.03);
+const counterW = portrait ? (W - 2 * m) / Math.max(1, counters.length) : (panelW - 1.6 * m) / Math.max(1, counters.length);
+counters.forEach((c) => {
+  vg.font(ctx, valueSize, 800);
+  const widest = ctx.measureText(vg.formatNumber(c.total, c.dec) + " " + c.unit).width;
+  if (widest > counterW * 0.95) throw new Error(`route-map: counter "${c.total} ${c.unit}" does not fit`);
+  vg.font(ctx, labelSize, 700);
+  if (ctx.measureText(c.label.toUpperCase()).width * 1.1 > counterW * 0.95) throw new Error(`route-map: label "${c.label}" does not fit`);
+});
+const counterH = counters.length ? labelSize * 1.6 + valueSize : 0;
+const counterTop = (tallFrame ? H * 0.765 : portrait ? H * 0.9 : H * 0.86) - counterH;
+
+// The map's focus area: where the camera frames stops.
+const focus = portrait
+  ? { x0: m, x1: W - m, y0: titleBottom + unit * 0.2, y1: (counters.length ? counterTop : H * 0.74) - unit * 0.14 }
+  : { x0: panelW + unit * 0.14, x1: W - m * 1.4, y0: H * 0.2, y1: H * 0.82 };
+const FX = (focus.x0 + focus.x1) / 2, FY = (focus.y0 + focus.y1) / 2;
+const FW = focus.x1 - focus.x0, FH = focus.y1 - focus.y0;
+// Where cards and labels may sit.
+const safe = portrait
+  ? { x0: m * 0.6, x1: W - m * 0.6, y0: titleBottom + unit * 0.05, y1: (counters.length ? counterTop : H * 0.78) - unit * 0.04 }
+  : { x0: panelW + unit * 0.03, x1: W - m * 0.6, y0: H * 0.07, y1: H * 0.93 };
+
+// Stop cards: index chip, name, optional note.
+const cardMax = portrait ? W * 0.62 : W * 0.3;
+const pad = Math.round(unit * 0.028);
+const chip = Math.round(unit * 0.05);
+stops.forEach((s, i) => {
+  s.nameBlock = vg.fit(ctx, s.name, { maxSize: unit * 0.046, minSize: unit * 0.032, weight: 800, maxWidth: cardMax - chip - 3 * pad, maxLines: 2, label: "stop name" });
+  s.noteBlock = s.note ? vg.fit(ctx, s.note, { maxSize: unit * 0.032, minSize: Math.floor(unit * 0.03), weight: 500, maxWidth: cardMax - chip - 3 * pad, maxLines: 2, label: "stop note" }) : null;
+  const textW = Math.max(s.nameBlock.width, s.noteBlock ? s.noteBlock.width : 0);
+  s.cardW = chip + 3 * pad + textW;
+  s.cardH = Math.max(chip, s.nameBlock.height + (s.noteBlock ? s.noteBlock.height + unit * 0.01 : 0)) + 2 * pad;
+  s.labelSize = Math.round(unit * 0.03);
+  vg.font(ctx, s.labelSize, 700);
+  s.labelW = ctx.measureText(s.name).width + unit * 0.035;
+  s.labelH = s.labelSize * 1.65;
+  s.index = String(i + 1).padStart(2, "0");
+});
+
+// Landscape itinerary list.
+let listRows = [];
+if (!portrait) {
+  const top = titleBottom + H * 0.06, bottom = (counters.length ? counterTop : H * 0.88) - H * 0.04;
+  const rowH = Math.min(unit * 0.1, (bottom - top) / N);
+  if (rowH < unit * 0.055) throw new Error("route-map: the title and stop list do not fit the panel; shorten the title");
+  const nameSize = clamp(rowH * 0.45, Math.ceil(unit * 0.03), unit * 0.04);
+  listRows = stops.map((s, i) => {
+    const nb = vg.fit(ctx, s.name, { maxSize: nameSize, minSize: unit * 0.03, weight: 700, maxWidth: panelW - 1.6 * m - unit * 0.07, maxLines: 1, label: "stop name" });
+    return { y: top + rowH * i, h: rowH, nb };
+  });
+}
+
+// ---- camera ---------------------------------------------------------------------------
+function frameBox(pts, fill = 1) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  // Never zoom past ~2.2 degrees of span: the 1:50m coastline is not street-level data.
+  const s = Math.min(FW / Math.max(x1 - x0, 2.2), FH / Math.max(y1 - y0, 2.2)) * fill;
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, s };
+}
+const allPts = legs.flatMap((l) => l.pts);
+const overview = frameBox(allPts, 0.78);
+const keys = [{ t: 0, ...overview, s: overview.s * 0.45 }, { t: intro + 0.2, ...overview }];
+legs.forEach((leg, k) => {
+  const view = frameBox(leg.pts, 0.72), b = stops[k + 1];
+  if (N > 2) {
+    keys.push({ t: legStart(k) + 0.32 * legDur, ...view });
+    keys.push({ t: legStart(k) + 0.9 * legDur, x: lerp(view.x, b.x, 0.45), y: lerp(view.y, b.y, 0.45), s: view.s * 1.12 });
+  } else {
+    keys.push({ t: legStart(k) + 0.32 * legDur, ...view });
+    keys.push({ t: legStart(k) + 0.95 * legDur, ...view, s: view.s * 1.06 });
+  }
+});
+keys.push({ t: outroAt + 0.15, ...keys[keys.length - 1] });
+keys.push({ t: Math.min(D - 0.3, outroAt + 1.6), ...overview, s: overview.s * 0.96 });
+keys.push({ t: D + 10, ...overview, s: overview.s * 0.92 });
+function camera(t) {
+  let i = 0;
+  while (i < keys.length - 2 && t > keys[i + 1].t) i++;
+  const a = keys[i], b = keys[i + 1];
+  const u = ease.inOutCubic(clamp((t - a.t) / Math.max(1e-6, b.t - a.t)));
+  const s = Math.exp(lerp(Math.log(a.s), Math.log(b.s), u));
+  // Keep the centre moving in screen terms while zooming (no swoop past the target).
+  return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), s };
+}
+let cam = camera(0);
+const sx = (x) => (x - cam.x) * cam.s + FX;
+const sy = (y) => (y - cam.y) * cam.s + FY;
+
+// ---- land -------------------------------------------------------------------------------
+function decode(shapes, closed) {
+  const path = new Path2D();
+  for (const ring of shapes) {
+    let x = 0, y = 0;
+    for (let k = 0; k < ring.length; k += 2) {
+      x += ring[k]; y += ring[k + 1];
+      const X = x / 100, Y = mercY(y / 100);
+      if (k === 0) path.moveTo(X, Y); else path.lineTo(X, Y);
+    }
+    if (closed) path.closePath();
+  }
+  return path;
+}
+const landPath = decode(LAND.shapes, true);
+const borderPath = P.borders ? decode(BORDERS.shapes, false) : null;
+const coast = vg.mix(LANDC, vg.luminance(LANDC) > 0.5 ? "#000000" : "#FFFFFF", 0.14);
+const maskScale = 0.25;
+const mask = document.createElement("canvas");
+mask.width = Math.ceil(W * maskScale); mask.height = Math.ceil(H * maskScale);
+const mctx = mask.getContext("2d", { willReadFrequently: true });
+
+function worldCopies() {
+  const xmin = cam.x - FX / cam.s, xmax = cam.x + (W - FX) / cam.s, out = [];
+  for (let k = -1; k <= 1; k++) if (xmax > -180 + 360 * k && xmin < 180 + 360 * k) out.push(360 * k);
+  return out;
+}
+
+function drawLand(alpha) {
+  if (P.land === "none") return;
+  const copies = worldCopies();
+  if (P.land === "fill") {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    for (const off of copies) {
+      ctx.setTransform(cam.s, 0, 0, cam.s, FX - (cam.x - off) * cam.s, FY - cam.y * cam.s);
+      // A soft offset copy gives the land a little relief against the sea.
+      ctx.save(); ctx.translate(0, unit * 0.005 / cam.s);
+      ctx.fillStyle = vg.mix(SEA, "#000000", vg.luminance(SEA) > 0.4 ? 0.1 : 0.25); ctx.fill(landPath);
+      ctx.restore();
+      ctx.fillStyle = LANDC; ctx.fill(landPath);
+      ctx.strokeStyle = coast; ctx.lineWidth = Math.max(1, unit * 0.0018) / cam.s; ctx.lineJoin = "round"; ctx.stroke(landPath);
+      if (borderPath) {
+        ctx.strokeStyle = vg.mix(LANDC, vg.luminance(LANDC) > 0.5 ? "#000000" : "#FFFFFF", 0.22);
+        ctx.lineWidth = Math.max(1, unit * 0.0016) / cam.s;
+        ctx.setLineDash([unit * 0.006 / cam.s, unit * 0.005 / cam.s]);
+        ctx.stroke(borderPath);
+        ctx.setLineDash([]);
+      }
+    }
+    ctx.restore();
+    return;
+  }
+  // Dots: a dot grid anchored to the map (so it pans with it), two zoom levels cross-faded.
+  mctx.setTransform(1, 0, 0, 1, 0, 0);
+  mctx.clearRect(0, 0, mask.width, mask.height);
+  mctx.fillStyle = "#fff";
+  for (const off of copies) {
+    mctx.setTransform(cam.s * maskScale, 0, 0, cam.s * maskScale, (FX - (cam.x - off) * cam.s) * maskScale, (FY - cam.y * cam.s) * maskScale);
+    mctx.fill(landPath);
+  }
+  const img = mctx.getImageData(0, 0, mask.width, mask.height).data;
+  const target = unit * 0.016;                       // dot pitch on screen
+  const level = Math.log2(target / cam.s), lo = Math.floor(level), frac = level - lo;
+  ctx.fillStyle = LANDC;
+  for (const [pitchExp, a] of [[lo, 1 - frac], [lo + 1, 1]]) {
+    if (a <= 0.02) continue;
+    const pitch = Math.pow(2, pitchExp), px = pitch * cam.s;
+    const r = Math.min(target, px) * 0.3;
+    const x0 = Math.floor((cam.x - FX / cam.s) / pitch) * pitch, x1 = cam.x + (W - FX) / cam.s;
+    const y0 = Math.floor((cam.y - FY / cam.s) / pitch) * pitch, y1 = cam.y + (H - FY) / cam.s;
+    ctx.globalAlpha = alpha * (pitchExp === lo ? 1 - frac : 1);
+    ctx.beginPath();
+    for (let y = y0; y <= y1; y += pitch) {
+      const Y = sy(y), my = Math.floor(Y * maskScale);
+      if (my < 0 || my >= mask.height) continue;
+      for (let x = x0; x <= x1; x += pitch) {
+        const X = sx(x), mx = Math.floor(X * maskScale);
+        if (mx < 0 || mx >= mask.width || img[(my * mask.width + mx) * 4 + 3] < 128) continue;
+        ctx.moveTo(X + r, Y); ctx.arc(X, Y, r, 0, TAU);
+      }
+    }
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (borderPath) {
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.45; ctx.strokeStyle = LANDC;
+    for (const off of copies) {
+      ctx.setTransform(cam.s, 0, 0, cam.s, FX - (cam.x - off) * cam.s, FY - cam.y * cam.s);
+      ctx.lineWidth = Math.max(1, unit * 0.0014) / cam.s;
+      ctx.stroke(borderPath);
+    }
+    ctx.restore();
+  }
+}
+
+function drawGraticule(alpha) {
+  if (P.grid <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = vg.luminance(SEA) > 0.5 ? "#000000" : "#FFFFFF";
+  ctx.lineWidth = Math.max(1, unit * 0.0012);
+  const xmin = cam.x - FX / cam.s, xmax = cam.x + (W - FX) / cam.s;
+  const ymin = cam.y - FY / cam.s, ymax = cam.y + (H - FY) / cam.s;
+  for (const g of [1, 2, 5, 10, 15, 30]) {
+    const px = g * cam.s;
+    const a = vg.smooth(vg.invLerp(unit * 0.05, unit * 0.12, px)) * (1 - vg.smooth(vg.invLerp(unit * 0.35, unit * 0.7, px)));
+    if (a < 0.02) continue;
+    ctx.globalAlpha = a * alpha * P.grid * 0.12;
+    ctx.beginPath();
+    for (let x = Math.ceil(xmin / g) * g; x <= xmax; x += g) { ctx.moveTo(sx(x), 0); ctx.lineTo(sx(x), H); }
+    for (let lat = -80; lat <= 80; lat += g) {
+      const y = mercY(lat);
+      if (y < ymin || y > ymax) continue;
+      ctx.moveTo(0, sy(y)); ctx.lineTo(W, sy(y));
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ---- route, stops and marker -------------------------------------------------------------
+function strokeLeg(leg, f0, f1) {
+  const a = along(leg, f0), b = along(leg, f1);
+  ctx.beginPath();
+  ctx.moveTo(sx(a.x), sy(a.y));
+  for (let k = a.k; k < b.k; k++) ctx.lineTo(sx(leg.pts[k][0]), sy(leg.pts[k][1]));
+  ctx.lineTo(sx(b.x), sy(b.y));
+  ctx.stroke();
+}
+
+function drawRoute(t) {
+  const reveal = vg.tween(t, intro * 0.4, intro * 0.9, ease.outCubic);
+  const w = Math.max(3, unit * 0.007);
+  ctx.save();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // The road ahead: a quiet dashed preview.
+  ctx.strokeStyle = vg.contrast(MUTED, SEA) > 1.6 ? MUTED : vg.mix(ink, SEA, 0.5);
+  ctx.globalAlpha = 0.55 * reveal;
+  ctx.lineWidth = w * 0.45;
+  ctx.setLineDash([w * 1.2, w * 1.6]);
+  legs.forEach((leg) => strokeLeg(leg, 0, reveal));
+  ctx.setLineDash([]);
+  // Travelled: halo plus solid accent.
+  legs.forEach((leg, k) => {
+    const f = legProgress(t, k);
+    if (f <= 0) return;
+    ctx.globalAlpha = 0.22; ctx.strokeStyle = ACCENT; ctx.lineWidth = w * 3;
+    strokeLeg(leg, 0, f);
+    ctx.globalAlpha = 1; ctx.lineWidth = w;
+    strokeLeg(leg, 0, f);
+  });
+  ctx.restore();
+}
+
+function currentLeg(t) {
+  for (let k = legs.length - 1; k >= 0; k--) if (t >= departAt(k)) return k;
+  return -1;
+}
+
+function drawStops(t) {
+  const r = unit * 0.013;
+  stops.forEach((s, i) => {
+    const pop = ease.outBack(clamp((t - (intro * 0.35 + i * 0.09)) / 0.45));
+    if (pop <= 0) return;
+    const X = sx(s.x), Y = sy(s.y);
+    const reached = t >= arrival(i);
+    // Arrival ripple.
+    const rip = (t - arrival(i)) / 1.1;
+    if (rip > 0 && rip < 1) {
+      ctx.strokeStyle = ACCENT; ctx.globalAlpha = (1 - rip) * 0.8; ctx.lineWidth = Math.max(2, unit * 0.004);
+      ctx.beginPath(); ctx.arc(X, Y, r * (1.2 + ease.outCubic(rip) * 4.5), 0, TAU); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = reached ? ACCENT : CARD;
+    ctx.strokeStyle = reached ? CARD : (vg.contrast(MUTED, SEA) > 1.6 ? MUTED : ink);
+    ctx.lineWidth = Math.max(2, r * 0.38);
+    ctx.beginPath(); ctx.arc(X, Y, r * pop, 0, TAU); ctx.fill(); ctx.stroke();
+  });
+}
+
+function planePath(size) {
+  const p = new Path2D(), s = size;
+  p.moveTo(s * 1.0, 0);
+  p.quadraticCurveTo(s * 0.9, -s * 0.12, s * 0.55, -s * 0.12);
+  p.lineTo(s * 0.12, -s * 0.12); p.lineTo(-s * 0.32, -s * 0.85); p.lineTo(-s * 0.5, -s * 0.85);
+  p.lineTo(-s * 0.22, -s * 0.12); p.lineTo(-s * 0.62, -s * 0.12); p.lineTo(-s * 0.8, -s * 0.38);
+  p.lineTo(-s * 0.94, -s * 0.38); p.lineTo(-s * 0.84, 0);
+  p.lineTo(-s * 0.94, s * 0.38); p.lineTo(-s * 0.8, s * 0.38); p.lineTo(-s * 0.62, s * 0.12);
+  p.lineTo(-s * 0.22, s * 0.12); p.lineTo(-s * 0.5, s * 0.85); p.lineTo(-s * 0.32, s * 0.85);
+  p.lineTo(s * 0.12, s * 0.12); p.lineTo(s * 0.55, s * 0.12);
+  p.quadraticCurveTo(s * 0.9, s * 0.12, s * 1.0, 0);
+  p.closePath();
+  return p;
+}
+const PLANE = planePath(unit * 0.03);
+
+function drawMarker(t) {
+  const k = currentLeg(t);
+  let pos, angle = 0;
+  if (k < 0) { pos = stops[0]; angle = legs[0] ? along(legs[0], 0.01).angle : 0; }
+  else { const a = along(legs[k], legProgress(t, k)); pos = a; angle = a.angle; }
+  const appear = vg.tween(t, intro * 0.6, 0.4, ease.outBack);
+  if (appear <= 0) return;
+  const X = sx(pos.x), Y = sy(pos.y);
+  const moving = k >= 0 && t < arriveAt(k);
+  if (P.marker === "plane") {
+    ctx.save();
+    ctx.translate(X, Y); ctx.rotate(angle); ctx.scale(appear, appear);
+    ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.translate(unit * 0.006, unit * 0.01); ctx.fill(PLANE);
+    ctx.translate(-unit * 0.006, -unit * 0.01);
+    ctx.fillStyle = ACCENT; ctx.strokeStyle = CARD; ctx.lineWidth = unit * 0.003; ctx.lineJoin = "round";
+    ctx.stroke(PLANE); ctx.fill(PLANE);
+    ctx.restore();
+    return;
+  }
+  const r = unit * 0.017 * appear;
+  const pulse = (t * 1.1) % 1;
+  ctx.globalAlpha = (1 - pulse) * (moving ? 0.25 : 0.45);
+  ctx.fillStyle = ACCENT;
+  ctx.beginPath(); ctx.arc(X, Y, r * (1.3 + pulse * 1.8), 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = CARD; ctx.beginPath(); ctx.arc(X, Y, r * 1.25, 0, TAU); ctx.fill();
+  ctx.fillStyle = ACCENT; ctx.beginPath(); ctx.arc(X, Y, r * 0.85, 0, TAU); ctx.fill();
+}
+
+// ---- cards and labels ----------------------------------------------------------------------
+let routeDots = [];   // screen points of the drawn route, refreshed every frame
+const hitsRoute = (b) => routeDots.some(([x, y]) => x > b.x - 6 && x < b.x + b.w + 6 && y > b.y - 6 && y < b.y + b.h + 6);
+function choose(options, w, h, placed) {
+  const free = (o) => inside({ ...o, w, h }) && !placed.some((b) => overlaps(b, { ...o, w, h }));
+  return options.find((o) => free(o) && !hitsRoute({ ...o, w, h })) || options.find(free);
+}
+const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const inside = (b) => b.x >= safe.x0 && b.x + b.w <= safe.x1 && b.y >= safe.y0 && b.y + b.h <= safe.y1;
+const clampBox = (b) => ({ ...b, x: clamp(b.x, safe.x0, safe.x1 - b.w), y: clamp(b.y, safe.y0, safe.y1 - b.h) });
+
+function shadowed(draw) {
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.18)"; ctx.shadowBlur = unit * 0.03; ctx.shadowOffsetY = unit * 0.008;
+  draw();
+  ctx.restore();
+}
+
+function drawCard(s, i, X, Y, p, placed) {
+  const gap = unit * 0.045;
+  const w = s.cardW, h = s.cardH;
+  const cx0 = clamp(X - w / 2, safe.x0, safe.x1 - w);
+  const options = [
+    { x: cx0, y: Y - gap - h, side: "above" }, { x: cx0, y: Y + gap, side: "below" },
+    { x: X + gap, y: Y - h / 2, side: "right" }, { x: X - gap - w, y: Y - h / 2, side: "left" },
+  ];
+  let box = choose(options, w, h, placed);
+  box = box ? { ...box, w, h } : clampBox({ ...options[0], w, h });
+  placed.push(box);
+  const e = ease.outBack(clamp(p / 0.5), 1.3), f = clamp(p / 0.3);
+  ctx.save();
+  ctx.globalAlpha = f;
+  const ox = box.x + w / 2, oy = box.side === "below" ? box.y : box.y + h;
+  ctx.translate(ox, oy); ctx.scale(0.6 + 0.4 * e, 0.6 + 0.4 * e); ctx.translate(-ox, -oy);
+  // Pointer from card to stop.
+  ctx.strokeStyle = cardInk; ctx.globalAlpha = f * 0.5; ctx.lineWidth = Math.max(2, unit * 0.0025);
+  const ax = clamp(X, box.x + pad, box.x + w - pad), ay = box.side === "below" ? box.y : box.side === "above" ? box.y + h : clamp(Y, box.y, box.y + h);
+  const bx = box.side === "left" ? box.x + w : box.side === "right" ? box.x : ax;
+  ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(box.side === "left" || box.side === "right" ? bx : ax, box.side === "left" || box.side === "right" ? clamp(Y, box.y + pad, box.y + h - pad) : ay); ctx.stroke();
+  ctx.globalAlpha = f;
+  shadowed(() => { ctx.fillStyle = CARD; vg.roundRect(ctx, box.x, box.y, w, h, unit * 0.022); ctx.fill(); });
+  // Index chip.
+  const cx = box.x + pad, cy = box.y + pad;
+  ctx.fillStyle = ACCENT; vg.roundRect(ctx, cx, cy, chip, chip, chip * 0.28); ctx.fill();
+  const chipInk = vg.readable(ACCENT, ["#FFFFFF", "#0B0D10"]);
+  vg.font(ctx, chip * 0.44, 800); ctx.fillStyle = chipInk; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(s.index, cx + chip / 2, cy + chip / 2 + chip * 0.02);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  const tx = cx + chip + pad;
+  const textH = s.nameBlock.height + (s.noteBlock ? s.noteBlock.height + unit * 0.01 : 0);
+  const ty = box.y + (h - textH) / 2;
+  vg.drawLines(ctx, s.nameBlock, tx, ty, { color: cardInk, alpha: f });
+  if (s.noteBlock) vg.drawLines(ctx, s.noteBlock, tx, ty + s.nameBlock.height + unit * 0.01, { color: cardMuted, alpha: f * clamp((p - 0.15) / 0.3) });
+  ctx.restore();
+}
+
+function drawLabel(s, X, Y, a, placed) {
+  const w = s.labelW, h = s.labelH, gap = unit * 0.028;
+  const options = [
+    { x: X + gap, y: Y - h / 2 }, { x: X - gap - w, y: Y - h / 2 },
+    { x: X - w / 2, y: Y - gap - h }, { x: X - w / 2, y: Y + gap },
+  ];
+  let box = choose(options, w, h, placed);
+  if (!box) return;            // never draw a label on top of another one
+  box = { ...box, w, h };
+  placed.push(box);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = CARD; vg.roundRect(ctx, box.x, box.y, w, h, h / 2); ctx.fill();
+  vg.font(ctx, s.labelSize, 700); ctx.fillStyle = cardInk; ctx.textBaseline = "middle";
+  ctx.fillText(s.name, box.x + unit * 0.0175, box.y + h / 2 + s.labelSize * 0.04);
+  ctx.restore();
+}
+
+function drawAnnotations(t) {
+  const placed = [];
+  routeDots = [];
+  legs.forEach((leg, k) => {
+    const f = Math.max(legProgress(t, k), t > departAt(k) - 0.6 * legDur ? 1 : 0);  // the leg being or about to be flown
+    if (f <= 0) return;
+    for (let j = 0; j < leg.pts.length; j += 3) if (j / (leg.pts.length - 1) <= f) routeDots.push([sx(leg.pts[j][0]), sy(leg.pts[j][1])]);
+  });
+  // Reserve the marker's spot so labels do not cover it.
+  const k = currentLeg(t);
+  const mp = k < 0 ? stops[0] : along(legs[k], legProgress(t, k));
+  const mr = unit * 0.035;
+  if (k >= 0 && t > departAt(k) && t < arriveAt(k)) placed.push({ x: sx(mp.x) - mr, y: sy(mp.y) - mr, w: 2 * mr, h: 2 * mr });
+  // Active cards first (they win placement), then labels of visited stops.
+  const active = [], labels = [];
+  stops.forEach((s, i) => {
+    const on = t - arrival(i), off = t - leaving(i);
+    const outroCard = i === N - 1 ? 1 - clamp((t - (outroAt + 0.9)) / 0.4) : 1;
+    if (on >= 0 && off < 0.35 && outroCard > 0) active.push([s, i, Math.min(on, 1) * (1 - clamp(off / 0.35)) * outroCard]);
+    if (on > 0 && (off > 0.35 || (i === N - 1 && t > outroAt + 1.0))) labels.push([s, i]);
+  });
+  active.forEach(([s, i, p]) => drawCard(s, i, sx(s.x), sy(s.y), p, placed));
+  labels.forEach(([s, i]) => {
+    const a = i === N - 1 ? clamp((t - (outroAt + 1.0)) / 0.3) : clamp((t - leaving(i) - 0.35) / 0.35);
+    drawLabel(s, sx(s.x), sy(s.y), a, placed);
+  });
+  // Outro: every stop not yet labelled (first stop has a label too by then).
+}
+
+// ---- chrome: title, counters, itinerary --------------------------------------------------
+function counterFraction(t) {
+  let done = 0;
+  legs.forEach((leg, k) => { done += leg.earth * legProgress(t, k); });
+  return done / earthTotal;
+}
+
+function drawTitle(t) {
+  const x = portrait ? W / 2 : m;
+  titleBlock.lines.forEach((line, i) => {
+    const p = ease.outExpo(clamp((t - 0.1 - i * 0.08) / 0.8));
+    const y = titleTop + i * titleBlock.size * titleBlock.leading;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, y - titleBlock.size * 0.2, W, titleBlock.size * 1.25); ctx.clip();
+    vg.drawLines(ctx, { ...titleBlock, lines: [line] }, x, y + (1 - p) * titleBlock.size * 1.45, { color: ink, align: portrait ? "center" : "left" });
+    ctx.restore();
+  });
+  const rule = ease.outExpo(clamp((t - 0.45) / 0.8));
+  const rw = titleBlock.size * 1.4 * rule, rh = Math.max(4, titleBlock.size * 0.075);
+  ctx.fillStyle = ACCENT;
+  ctx.fillRect(portrait ? W / 2 - rw / 2 : m, titleBottom + titleBlock.size * 0.28, rw, rh);
+}
+
+function drawCounters(t) {
+  if (!counters.length) return;
+  const f = counterFraction(t);
+  const appear = ease.outCubic(clamp((t - intro * 0.7) / 0.6));
+  const x0 = portrait ? m : m;
+  counters.forEach((c, i) => {
+    const x = x0 + i * counterW + (portrait ? unit * 0.0 : 0);
+    const y = counterTop + (1 - appear) * unit * 0.03;
+    ctx.globalAlpha = appear;
+    vg.font(ctx, labelSize, 700); ctx.fillStyle = mutedOnSea;
+    ctx.textBaseline = "alphabetic";
+    const label = c.label.toUpperCase();
+    let lx = x;
+    for (const ch of label) { ctx.fillText(ch, lx, y + labelSize * 0.8); lx += ctx.measureText(ch).width + labelSize * 0.1; }
+    const q = Math.pow(10, c.dec);
+    const value = f >= 0.9999 ? c.total : Math.floor(c.total * f * q) / q;
+    const text = vg.formatNumber(value, c.dec);
+    vg.font(ctx, valueSize, 800); ctx.fillStyle = ink;
+    const vy = y + labelSize * 1.6 + valueSize * 0.8;
+    ctx.fillText(text, x, vy);
+    const tw = ctx.measureText(text).width;
+    vg.font(ctx, valueSize * 0.5, 700); ctx.fillStyle = ACCENT === ink ? mutedOnSea : (vg.contrast(ACCENT, SEA) >= 3 ? ACCENT : ink);
+    const singular = { days: "day", weeks: "week" };
+    ctx.fillText(text === "1" && singular[c.unit] ? singular[c.unit] : c.unit, x + tw + valueSize * 0.18, vy);
+    ctx.globalAlpha = 1;
+  });
+  // Progress bar under the counters.
+  const by = counterTop + counterH + unit * 0.03, bw = portrait ? W - 2 * m : panelW - 1.6 * m;
+  ctx.globalAlpha = appear;
+  ctx.fillStyle = vg.mix(SEA, ink, 0.15); ctx.fillRect(m, by, bw, Math.max(3, unit * 0.005));
+  ctx.fillStyle = ACCENT; ctx.fillRect(m, by, bw * f, Math.max(3, unit * 0.005));
+  ctx.globalAlpha = 1;
+}
+
+function drawPanel(t) {
+  if (portrait) return;
+  // A solid panel with a hairline edge and a soft shadow onto the map.
+  const g = ctx.createLinearGradient(panelW, 0, panelW + unit * 0.05, 0);
+  g.addColorStop(0, "rgba(0,0,0,0.16)"); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g; ctx.fillRect(panelW, 0, unit * 0.05, H);
+  ctx.fillStyle = SEA; ctx.fillRect(0, 0, panelW, H);
+  ctx.fillStyle = vg.mix(SEA, ink, 0.18); ctx.fillRect(panelW - 1, 0, 2, H);
+  // Itinerary.
+  const k = currentLeg(t);
+  listRows.forEach((row, i) => {
+    const appear = ease.outExpo(clamp((t - (intro * 0.5 + i * 0.1)) / 0.7));
+    const reached = t >= arrival(i);
+    const isCurrent = reached && (i === N - 1 || t < arrival(i + 1));
+    const a = appear * (isCurrent ? 1 : reached ? 0.8 : 0.45);
+    const y = row.y + (1 - appear) * unit * 0.04;
+    const cy = y + row.h / 2;
+    // Rail between rows.
+    if (i < N - 1) {
+      ctx.globalAlpha = appear * 0.35; ctx.fillStyle = mutedOnSea;
+      ctx.fillRect(m + unit * 0.011 - 1, cy, 2, row.h);
+      const fill = legProgress(t, i);
+      ctx.globalAlpha = appear; ctx.fillStyle = ACCENT;
+      ctx.fillRect(m + unit * 0.011 - 1.5, cy, 3, row.h * fill);
+    }
+    ctx.globalAlpha = appear;
+    ctx.fillStyle = reached ? ACCENT : SEA; ctx.strokeStyle = reached ? ACCENT : mutedOnSea; ctx.lineWidth = Math.max(2, unit * 0.003);
+    ctx.beginPath(); ctx.arc(m + unit * 0.011, cy, unit * 0.011 * (isCurrent ? 1.25 : 1), 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = a;
+    vg.drawLines(ctx, row.nb, m + unit * 0.05, cy - row.nb.height / 2, { color: ink, alpha: a });
+  });
+  void k;
+}
+
+function scrim() {
+  // Gentle sea-coloured fades behind the title and counters in portrait.
+  if (!portrait) return;
+  let g = ctx.createLinearGradient(0, 0, 0, titleBottom + unit * 0.14);
+  g.addColorStop(0, vg.rgba(SEA, 0.95)); g.addColorStop(0.75, vg.rgba(SEA, 0.85)); g.addColorStop(1, vg.rgba(SEA, 0));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, titleBottom + unit * 0.14);
+  if (counters.length) {
+    const top = counterTop - unit * 0.12;
+    g = ctx.createLinearGradient(0, top, 0, H);
+    g.addColorStop(0, vg.rgba(SEA, 0)); g.addColorStop(0.25, vg.rgba(SEA, 0.88)); g.addColorStop(1, vg.rgba(SEA, 0.96));
+    ctx.fillStyle = g; ctx.fillRect(0, top, W, H - top);
+  }
+}
+
+vg.loop((t) => {
+  cam = camera(t);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = SEA; ctx.fillRect(0, 0, W, H);
+  const mapIn = 0.65 + 0.35 * vg.tween(t, 0, 0.6, ease.outCubic);
+  drawGraticule(mapIn);
+  drawLand(mapIn);
+  drawRoute(t);
+  drawStops(t);
+  drawMarker(t);
+  drawAnnotations(t);
+  scrim();
+  drawPanel(t);
+  drawTitle(t);
+  drawCounters(t);
+  vg.vignette(ctx, vg.luminance(SEA) > 0.5 ? 0.08 : 0.3);
+  vg.grain(ctx, t, P.grain);
+});
+</script>
+</body>
+</html>

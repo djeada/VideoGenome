@@ -1,0 +1,386 @@
+{
+  "schema_version": "0.5.0",
+  "id": "commercial.feature-launch",
+  "version": "0.1.0",
+  "title": "SaaS feature launch with stylised UI (16:9)",
+  "category": "commercial",
+  "description": "A 20-second 16:9 app or SaaS launch: a stylised app window built in code rises into a tilted 3D view, a perspective camera glides to a chart, a toggle and a notification while three numbered feature callouts appear beside them, a cursor hovers and clicks with ripples, and the window sinks away for the product name and a call-to-action button the cursor clicks. The interface is an abstract mock (skeleton bars, no real screens or data) and the end card says so. Code-rendered (scene.feature-launch) with a procedural pulse bed, whooshes on the camera moves and clicks on the cursor.",
+  "tags": [
+    "commercial",
+    "product",
+    "launch",
+    "saas",
+    "app",
+    "ui",
+    "features",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "feature_1": {
+      "type": "string",
+      "required": true,
+      "description": "Feature 1 headline, 2-5 words, at most 28 characters; shown beside the chart widget (insight, analytics, visibility). Only features the brief names"
+    },
+    "detail_1": {
+      "type": "string",
+      "required": true,
+      "description": "One plain line explaining feature 1, at most 56 characters; no numbers, prices or claims the brief does not make"
+    },
+    "feature_2": {
+      "type": "string",
+      "required": true,
+      "description": "Feature 2 headline, 2-5 words, at most 28 characters; shown beside the toggle the cursor switches on (control, automation, settings). Only features the brief names"
+    },
+    "detail_2": {
+      "type": "string",
+      "required": true,
+      "description": "One plain line explaining feature 2, at most 56 characters; no numbers, prices or claims the brief does not make"
+    },
+    "feature_3": {
+      "type": "string",
+      "required": true,
+      "description": "Feature 3 headline, 2-5 words, at most 28 characters; shown beside the notification toast the cursor clicks (alerts, updates, collaboration). Only features the brief names"
+    },
+    "detail_3": {
+      "type": "string",
+      "required": true,
+      "description": "One plain line explaining feature 3, at most 56 characters; no numbers, prices or claims the brief does not make"
+    },
+    "cta": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Call to action exactly as written in the brief (the approved wording), at most 26 characters"
+    },
+    "product": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Product name exactly as written in the brief, at most 24 characters"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "midnight",
+        "daylight",
+        "mint",
+        "sand"
+      ],
+      "default": "midnight",
+      "description": "Look: midnight (dark, blue accent), daylight (light grey, orange), mint (deep green, mint), sand (warm paper, blue)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "product",
+        "keynote",
+        "calm-tech"
+      ],
+      "default": "product",
+      "description": "Music energy for the procedural bed"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The launch animation (stylised mock UI, camera moves, callouts, end card); rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.feature-launch",
+          "preset": "{{look}}",
+          "params": {
+            "product": "{{product}}",
+            "headlines": [
+              "{{feature_1}}",
+              "{{feature_2}}",
+              "{{feature_3}}"
+            ],
+            "details": [
+              "{{detail_1}}",
+              "{{detail_2}}",
+              "{{detail_3}}"
+            ],
+            "cta": "{{cta}}",
+            "disclaimer": "Illustrative interface"
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "{{energy}}"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh under each camera move",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "click": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft click on each cursor click",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "soft-click"
+        }
+      }
+    },
+    "swell": {
+      "type": "audio",
+      "required": false,
+      "description": "Swell into the end title",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "swell"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Low hit as the product name lands",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Launch video for Tidewater, a scheduling app for dental clinics. Features: patients book their own appointments online, reminders go out by text automatically, and the front desk sees cancellations the moment they happen. Call to action: Book a demo",
+      "inputs": {
+        "feature_1": "See your week at a glance",
+        "detail_1": "Patients book their own slots online, any hour",
+        "feature_2": "Reminders on autopilot",
+        "detail_2": "Text reminders go out without anyone pressing send",
+        "feature_3": "Know about cancellations",
+        "detail_3": "The front desk sees a cancellation the moment it happens",
+        "cta": "Book a demo",
+        "product": "Tidewater",
+        "look": "sand",
+        "energy": "calm-tech"
+      },
+      "note": "Product name and call to action are copied exactly. Each headline restates one feature from the brief in its own words and the detail line keeps the brief's concrete fact; feature 2 is the automation one because the cursor flips a toggle there, feature 3 the alert one because a notification appears. No numbers or claims the brief does not make."
+    }
+  ],
+  "style": {
+    "mood": "polished, calm, product-confident",
+    "palette": [
+      "#0B0D12",
+      "#151922",
+      "#EEF1F6",
+      "#4C7DFF"
+    ],
+    "typography": "Inter: bold callout headlines, regular detail lines, extra-bold end title",
+    "pacing": "measured"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "captions": false,
+    "poster_frame": 560,
+    "loudness": {
+      "target_lufs": -16,
+      "max_true_peak_dbtp": -1.0
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "launch",
+      "role": "product",
+      "duration_frames": 600,
+      "shots": [
+        {
+          "id": "launch_scene",
+          "kind": "animation",
+          "duration_frames": 600,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Window rises and tilts in; camera to chart (feature 1), toggle click (feature 2), toast click (feature 3); pull-back to the product name and a clicked call-to-action button",
+            "camera_move": "Virtual perspective camera: gentle tilt, push-ins of about 1.5-1.9x, slow float"
+          },
+          "input_refs": [
+            "scene",
+            "product",
+            "feature_1",
+            "feature_2",
+            "feature_3",
+            "cta"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_in_frames": 6,
+    "fade_out_frames": 18,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 600,
+        "gain_db": -2,
+        "fade_in_frames": 12,
+        "fade_out_frames": 45
+      },
+      {
+        "id": "move_1",
+        "input_ref": "whoosh",
+        "start_frame": 58,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "move_2",
+        "input_ref": "whoosh",
+        "start_frame": 200,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "move_3",
+        "input_ref": "whoosh",
+        "start_frame": 342,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "pull_back",
+        "input_ref": "whoosh",
+        "start_frame": 484,
+        "duration_frames": 30,
+        "gain_db": -4
+      },
+      {
+        "id": "click_toggle",
+        "input_ref": "click",
+        "start_frame": 239,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "click_toast",
+        "input_ref": "click",
+        "start_frame": 384,
+        "duration_frames": 12,
+        "gain_db": -3
+      },
+      {
+        "id": "click_cta",
+        "input_ref": "click",
+        "start_frame": 547,
+        "duration_frames": 12,
+        "gain_db": -2
+      },
+      {
+        "id": "swell",
+        "input_ref": "swell",
+        "start_frame": 478,
+        "duration_frames": 36,
+        "gain_db": -6,
+        "fade_in_frames": 6
+      },
+      {
+        "id": "name_hit",
+        "input_ref": "impact",
+        "start_frame": 513,
+        "duration_frames": 60,
+        "gain_db": -9
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/feature-launch) rendered frame-exactly on a virtual clock; a writer supplies only the product name, three feature headlines with one line each, the call to action and two choices.",
+      "The interface is a STYLISED MOCK built from skeleton bars: it is never the product's real screens, data or feature set, and the end card always carries the locked line 'Illustrative interface'. Do not supply real screenshots through this template or describe the video as a screen recording.",
+      "Product name and call to action are VERBATIM: copied from the brief, never invented or restyled.",
+      "Features pair with the chart (1), the toggle the cursor switches (2) and the notification (3); callouts are fitted with measured glyphs at one shared size and the render fails rather than overflow.",
+      "Sound cues at 30 fps: whooshes on the camera moves (moves start at frames 66, 208, 350 and the pull-back at 492), soft clicks on the cursor clicks (frames 240, 385, 548), a swell into the end title and a low hit as the name lands (frame 513)."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -16 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -17,
+        "max": -15
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms every feature headline and line is true of the product and approved; nothing implies capabilities, numbers or results the product does not have."
+    },
+    {
+      "id": "mock_ui_disclosure",
+      "mode": "human",
+      "description": "A reviewer confirms the video is presented as an illustrative animation, not as the real product interface or a screen recording, and the 'Illustrative interface' line is visible on the end card."
+    },
+    {
+      "id": "brand_review",
+      "mode": "human",
+      "description": "The brand owner confirms the product name, spelling and call to action are approved."
+    }
+  ]
+}

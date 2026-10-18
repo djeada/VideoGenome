@@ -1,0 +1,416 @@
+<!doctype html>
+<!--
+  Stat reveal: one to four headline statistics, each in its own beat.
+
+  What the viewer sees: a title rises in at the top with an accent rule and the
+  source line settles at the foot of the frame. Then each statistic lands as
+  the hero of the frame: its digits roll like an odometer (or count up) and
+  stop left to right, a meter fills to the value (a gauge ring with lit ticks,
+  or a bar) when the statistic is a share of a whole, and its label rises in
+  beneath or beside it. Between statistics the hero slides up through a mask
+  while the ring unwinds and refills for the next one. With two or more
+  statistics, a closing recap sets every number side by side with its label.
+
+  Honesty rule: a meter only fills when the value is a share of a stated whole
+  (`scales`, or a "%" suffix, which means "of 100"). Other statistics get a
+  neutral frame that never implies a proportion.
+
+  Beat timing (seconds, D = duration, N = statistics, see plan()):
+    intro   I = min(0.9, 0.1 D)                       title in
+    recap   R = recap && N > 1 ? clamp(0.22 D, 1.8, 3.2) : 0
+    beat    b = (D - I - R) / N, stat k starts at s_k = I + k b
+    count   runs s_k + 0.1 for c = clamp(0.45 b, 0.8, 1.6) / tempo; it lands at s_k + 0.1 + c
+    exit    s_k + b - 0.4 (slide up), next entrance at s_{k+1}
+    recap   rows rise from D - R
+  At D = 13, N = 3, tempo 1: s = 0.90, 3.98, 7.06; lands 2.39, 5.47, 8.55; exits 3.58, 6.66, 9.69; recap 10.14.
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
+  Parameters arrive in window.vgSpec.params. Copy is drawn with fillText,
+  never parsed as HTML, and fitted with measured glyphs; the page throws when
+  copy cannot fit.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, portrait } = vg.setup({
+  title: "Our year in numbers",
+  values: [98, 4.2, 12000],
+  labels: ["of orders shipped the same day", "raised to build the new depot", "volunteers across the network"],
+  prefixes: ["", "$", ""], suffixes: ["%", "M", "+"], scales: [], decimals: [],
+  source: "Source: VideoGenome sample data",
+  meter: "ring", count: "roll", separator: ",", recap: true, tempo: 1.0,
+  palette: ["#0B0F14", "#F3F5F7", "#3DDC97", "#7D8794"], grid: 0.25, grain: 0.03,
+});
+const ctx = vg.canvas2d();
+const [BG, INK0, ACCENT, MUTED0] = P.palette;
+const INK = vg.readable(BG, [INK0, "#FFFFFF", "#000000"]);
+const MUTED = vg.readable(BG, [MUTED0, vg.mix(INK, BG, 0.3), vg.mix(INK, BG, 0.15), INK]);
+const ACCENT_TEXT = vg.contrast(ACCENT, BG) >= 3 ? ACCENT : INK;   // prefix/suffix (large text)
+const TRACK = vg.mix(BG, INK, 0.16);
+const CAP = 0.727;   // Inter cap height (em)
+
+// ---- data --------------------------------------------------------------------
+const values = (P.values || []).map(Number);
+const labels = (P.labels || []).map((s) => String(s).trim());
+if (!values.length || values.length > 4) throw new Error("stat-reveal: give one to four values");
+if (labels.length !== values.length) throw new Error(`stat-reveal: ${values.length} values but ${labels.length} labels; give one label per value`);
+labels.forEach((l, i) => { if (!l) throw new Error(`stat-reveal: statistic ${i + 1} has no label`); });
+values.forEach((v, i) => { if (!Number.isFinite(v)) throw new Error(`stat-reveal: value ${i + 1} is not a number`); });
+
+const asWritten = (v) => { const s = String(Math.abs(v)); return s.includes("e") ? 0 : (s.split(".")[1] || "").length; };
+const SCALE_UNITS = new Set(["k", "K", "M", "B", "bn", "Bn", "tn"]);   // not "m": it may be metres
+const NOSPACE = new Set(["%", "k", "K", "M", "m", "B", "b", "bn", "Bn", "tn", "x", "×", "+", "/", "°"]);
+function fmt(v, dec) {
+  const fixed = Math.abs(v).toFixed(dec);
+  const [whole, frac] = fixed.split(".");
+  const sep = P.separator === "none" ? "" : P.separator === "space" ? " " : P.separator;
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, sep);
+  return (v < 0 ? "−" : "") + grouped + (frac ? (P.separator === "." ? "," : ".") + frac : "");
+}
+const stats = values.map((value, i) => {
+  const dec = Number.isInteger(P.decimals[i]) && P.decimals[i] >= 0 ? P.decimals[i] : Math.min(3, asWritten(value));
+  const prefix = String(P.prefixes[i] || "").trim();
+  let suffix = String(P.suffixes[i] || "").trim();
+  if (suffix && /^[A-Za-z]/.test(suffix) && !NOSPACE.has(suffix)) suffix = " " + suffix;  // "12 GW", "4.2bn"
+  // "860,000M" is never meant: a scale unit only follows a number already shortened (860k, 4.2M).
+  if (SCALE_UNITS.has(suffix.trim()) && Math.abs(value) >= 1000)
+    throw new Error(`stat-reveal: value ${i + 1} (${value}) is written in full but has the scale unit "${suffix.trim()}"; drop the unit, or use the shortened number exactly as the source writes it`);
+  let whole = Number(P.scales[i] || 0);
+  if (!whole && suffix === "%") whole = 100;
+  const share = whole > 0 && value >= 0 && value <= whole ? value / whole : null;
+  return { value, dec, prefix, suffix, core: fmt(value, dec), label: labels[i], share };
+});
+const N = stats.length;
+
+// ---- timeline ----------------------------------------------------------------
+const tempo = P.tempo;
+function plan() {
+  const I = Math.min(0.9, D * 0.1);
+  const R = P.recap && N > 1 ? vg.clamp(D * 0.22, 1.8, 3.2) : 0;
+  const b = (D - I - R) / N;
+  const c = vg.clamp(b * 0.45, 0.8, 1.6) / tempo;
+  return { I, R, b, c, start: (k) => I + k * b, land: (k) => I + k * b + 0.1 + c, recapAt: D - R };
+}
+const T = plan();
+window.vgBeats = { starts: stats.map((_, k) => T.start(k)), lands: stats.map((_, k) => T.land(k)), recap: T.R ? T.recapAt : null };
+
+// ---- type helpers ------------------------------------------------------------
+function width(text, size, weight) { vg.font(ctx, size, weight); return ctx.measureText(text).width; }
+// The number block: [prefix small][core][suffix small], prefix/suffix aligned to the cap line.
+function block(stat, size) {
+  const sub = size * 0.5, gap = size * 0.04;
+  const preW = stat.prefix ? width(stat.prefix, sub, 700) + gap : 0;
+  const coreW = width(stat.core, size, 800);
+  const sufW = stat.suffix ? width(stat.suffix, sub, 700) + gap : 0;
+  return { size, sub, gap, preW, coreW, sufW, w: preW + coreW + sufW };
+}
+function fitNumber(stat, maxW, maxSize, minSize, label) {
+  for (let s = Math.floor(maxSize); s >= minSize; s -= 2) {
+    const b = block(stat, s);
+    if (b.w <= maxW) return b;
+  }
+  throw new Error(`stat-reveal: ${label} "${stat.prefix}${stat.core}${stat.suffix}" does not fit; use a shorter unit or a scale suffix (M, bn)`);
+}
+
+// ---- layout ------------------------------------------------------------------
+const m = Math.round(portrait ? W * 0.085 : W * 0.065);
+const minText = unit * 0.03;
+const title = P.title.trim() ? vg.fit(ctx, P.title, {
+  maxSize: unit * (portrait ? 0.075 : 0.062), minSize: minText * 1.2, weight: 800,
+  maxWidth: portrait ? W - 2 * m : W * 0.55, maxLines: 2, label: "title" }) : null;
+const titleY = portrait ? H * 0.13 : H * 0.095;
+const titleBottom = title ? titleY + title.height + unit * 0.035 : titleY;
+const source = P.source.trim() ? vg.fit(ctx, P.source, {
+  maxSize: unit * 0.032, minSize: unit * 0.026, weight: 500, maxWidth: W - 2 * m, maxLines: 2, leading: 1.25,
+  label: "source" }) : null;
+const sourceBottom = portrait ? H * 0.775 : H * 0.92;
+const sourceTop = source ? sourceBottom - source.height : sourceBottom;
+const area = { x: m, y: titleBottom + H * (portrait ? 0.04 : 0.03), w: W - 2 * m };
+area.h = sourceTop - H * (portrait ? 0.035 : 0.035) - area.y;
+
+const ring = P.meter === "ring";
+const labelSize = { max: unit * (portrait ? 0.058 : 0.056), min: minText * 1.15 };
+// Hero layout, shared ring size; label fitted per stat.
+let hero;
+if (portrait) {
+  const labelsFit = stats.map((s, i) => vg.fit(ctx, s.label, {
+    maxSize: labelSize.max, minSize: labelSize.min, weight: 600, maxWidth: area.w * 0.92, maxLines: 3,
+    maxHeight: area.h * 0.3, leading: 1.14, label: `label ${i + 1}` }));
+  const labelH = Math.max(...labelsFit.map((l) => l.height));
+  const gap = unit * 0.06;
+  const vis = ring ? Math.min(area.w * 0.84, area.h - labelH - gap) : Math.min(unit * 0.42, area.h - labelH - gap);
+  const groupH = vis + gap + labelH;
+  const top = area.y + (area.h - groupH) / 2;
+  hero = { labels: labelsFit, cx: W / 2, cy: top + vis / 2, vis, labelX: W / 2, labelY: top + vis + gap, align: "center" };
+} else {
+  // Landscape: the visual and the label sit side by side, centred as one group.
+  const labelsFit = stats.map((s, i) => vg.fit(ctx, s.label, {
+    maxSize: unit * 0.07, minSize: labelSize.min, weight: 600, maxWidth: W * 0.34, maxLines: 3,
+    maxHeight: area.h * 0.6, leading: 1.14, label: `label ${i + 1}` }));
+  const lw = Math.max(...labelsFit.map((l) => l.width));
+  const gap = unit * 0.13;
+  let vis, visW;
+  if (ring) { vis = Math.min(area.h * 0.94, W - 2 * m - lw - gap); visW = vis * 1.2; }
+  else {
+    vis = area.h * 0.5;
+    visW = Math.max(...stats.map((s, i) => fitNumber(s, W - 2 * m - lw - gap, Math.min(area.h * 0.5, unit * 0.32), minText * 2, `value ${i + 1}`).w));
+  }
+  const x0 = (W - (visW + gap + lw)) / 2;
+  hero = { labels: labelsFit, cx: x0 + visW / 2, cy: area.y + area.h / 2, vis, visW, x0, labelX: x0 + visW + gap, align: "left" };
+}
+hero.R = hero.vis / 2;
+hero.numbers = stats.map((s, i) => ring
+  ? fitNumber(s, hero.R * 1.42, hero.R * 0.62, minText * 2, `value ${i + 1}`)
+  : fitNumber(s, portrait ? area.w : hero.visW, portrait ? Math.min(hero.vis * 0.62, unit * 0.34) : Math.min(area.h * 0.5, unit * 0.32), minText * 2, `value ${i + 1}`));
+
+// Recap layout: rows (portrait) or columns (landscape) with one shared number size.
+let recap = null;
+if (T.R) {
+  if (portrait) {
+    const rowH = Math.min(area.h / N, unit * 0.36), colW = area.w * 0.56;
+    const maxS = Math.min(rowH * 0.5, unit * 0.17);
+    const size = Math.min(...stats.map((s, i) => fitNumber(s, colW - unit * 0.04, maxS, minText * 1.6, `value ${i + 1}`).size));
+    const lw = area.w - colW;
+    const labelFits = stats.map((s, i) => vg.fit(ctx, s.label, { maxSize: Math.min(unit * 0.048, rowH * 0.2), minSize: minText,
+      weight: 600, maxWidth: lw, maxLines: 3, maxHeight: rowH * 0.78, leading: 1.16, label: `label ${i + 1}` }));
+    const top = area.y + (area.h - rowH * N) / 2;
+    recap = { size, rowH, colW, labels: labelFits, top };
+  } else {
+    const colW = area.w / N, inner = colW - unit * 0.06;
+    const maxS = Math.min(unit * 0.2, area.h * 0.38);
+    const size = Math.min(...stats.map((s, i) => fitNumber(s, inner, maxS, minText * 1.6, `value ${i + 1}`).size));
+    const labelFits = stats.map((s, i) => vg.fit(ctx, s.label, { maxSize: unit * 0.042, minSize: minText, weight: 600,
+      maxWidth: inner, maxLines: 3, leading: 1.16, label: `label ${i + 1}` }));
+    const labelH = Math.max(...labelFits.map((l) => l.height));
+    const groupH = size * CAP + size * 0.32 + unit * 0.012 + unit * 0.05 + labelH;
+    recap = { size, colW, inner, labels: labelFits, top: area.y + (area.h - groupH) / 2 };
+  }
+  recap.blocks = stats.map((s) => block(s, recap.size));
+}
+
+// ---- drawing -----------------------------------------------------------------
+const TAU = Math.PI * 2;
+function background(t) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+  const gx = hero.cx + Math.sin(t * 0.35) * unit * 0.04, gy = hero.cy + Math.cos(t * 0.27) * unit * 0.03;
+  const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, unit * 0.75);
+  glow.addColorStop(0, vg.rgba(ACCENT, 0.12)); glow.addColorStop(1, vg.rgba(ACCENT, 0));
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  if (P.grid > 0) vg.dotGrid(ctx, t, INK, { alpha: P.grid * 0.3, spacing: 0.045, size: 0.0026, drift: 0.1 });
+}
+
+function drawHeader(t) {
+  if (title) {
+    title.lines.forEach((line, i) => {
+      const p = vg.tween(t, 0.05 + i * 0.08, 0.75, vg.ease.outExpo);
+      if (p <= 0) return;
+      const y = titleY + i * title.size * title.leading;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, y - title.size * 0.1, W, title.size * 1.25); ctx.clip();
+      vg.drawLines(ctx, { ...title, lines: [line] }, m, y + (1 - p) * title.size * 1.4, { color: INK });
+      ctx.restore();
+    });
+    const rule = vg.tween(t, 0.3, 0.8, vg.ease.outExpo);
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(m, titleY - unit * 0.028, unit * 0.09 * rule, Math.max(3, unit * 0.007));
+  }
+  if (source) {
+    const p = vg.tween(t, 0.45, 0.8, vg.ease.outCubic);
+    vg.drawLines(ctx, source, m, sourceTop + (1 - p) * unit * 0.015, { color: MUTED, alpha: p });
+  }
+}
+
+// Number at (x = left edge of block, baseline y). progress e in [0,1] drives the roll/count.
+function drawNumber(stat, b, x, y, e, alpha, stagger = 1) {
+  ctx.globalAlpha = alpha;
+  ctx.textBaseline = "alphabetic";
+  const subY = y - b.size * CAP + b.sub * CAP;
+  if (stat.prefix) { vg.font(ctx, b.sub, 700); ctx.fillStyle = ACCENT_TEXT; ctx.fillText(stat.prefix, x, subY); }
+  const cx = x + b.preW;
+  vg.font(ctx, b.size, 800); ctx.fillStyle = INK;
+  if (P.count === "count" || e >= 1) {
+    const text = e >= 1 ? stat.core : fmt(stat.value * e, stat.dec);
+    // Count mode keeps the right edge fixed so the unit never jumps.
+    const w = ctx.measureText(text).width;
+    ctx.fillText(text, cx + b.coreW - w, y);
+  } else {
+    const chars = [...stat.core];
+    const digits = chars.filter((c) => /\d/.test(c)).length;
+    let di = 0;
+    chars.forEach((ch, i) => {
+      const x0 = cx + ctx.measureText(chars.slice(0, i).join("")).width, w0 = ctx.measureText(ch).width;
+      if (!/\d/.test(ch)) { ctx.globalAlpha = alpha * vg.clamp(e * 3); ctx.fillText(ch, x0, y); ctx.globalAlpha = alpha; return; }
+      // Columns stop left to right; the rightmost spins the most.
+      const local = vg.clamp((e - di * 0.07 * stagger / Math.max(1, digits)) / (1 - 0.07 * stagger));
+      const k = vg.ease.outCubic(local);
+      const turns = 1 + Math.floor((digits - 1 - di) * 0.7);
+      const target = Number(ch);
+      const pos = vg.lerp(-10 * turns, target, k);
+      const base = Math.floor(pos), f = pos - base, L = b.size * 1.0;
+      ctx.save(); ctx.beginPath(); ctx.rect(x0 - b.size * 0.05, y - b.size * 0.92, w0 + b.size * 0.1, b.size * 1.06); ctx.clip();
+      for (const [d, dy] of [[base, -f * L], [base + 1, (1 - f) * L]]) {
+        const glyph = String(((d % 10) + 10) % 10), gw = ctx.measureText(glyph).width;
+        ctx.fillText(glyph, x0 + (w0 - gw) / 2, y + dy);
+      }
+      ctx.restore();
+      di += 1;
+    });
+  }
+  // Units sit on the baseline (4.2M, 12 GW, 3.4x); marks like + and ° ride the cap line.
+  if (stat.suffix) { vg.font(ctx, b.sub, 700); ctx.fillStyle = ACCENT_TEXT; ctx.fillText(stat.suffix, cx + b.coreW + b.gap, /^[+*\u00b0\u2020]$/.test(stat.suffix) ? subY : y); }
+  ctx.globalAlpha = 1;
+}
+
+function drawRing(cx, cy, R, share, fill, frame, alpha) {
+  const lw = Math.max(4, R * 0.06);
+  ctx.globalAlpha = alpha;
+  ctx.lineCap = "round";
+  // Track.
+  ctx.strokeStyle = TRACK; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+  // Gauge ticks just outside the ring; lit up to the value.
+  const ticks = 60, r0 = R + lw * 1.3, r1 = R + lw * 2.2;
+  ctx.lineWidth = Math.max(2, lw * 0.22);
+  for (let i = 0; i < ticks; i++) {
+    const f = i / ticks, a = -Math.PI / 2 + f * TAU;
+    const lit = share !== null && f < share * fill;
+    ctx.strokeStyle = lit ? ACCENT : TRACK;
+    ctx.globalAlpha = alpha * (lit ? 0.9 : 0.7) * vg.clamp(frame * 1.5 - f * 0.5);
+    const long = i % 5 === 0 ? 1.35 : 1;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+    ctx.lineTo(cx + Math.cos(a) * (r0 + (r1 - r0) * long), cy + Math.sin(a) * (r0 + (r1 - r0) * long)); ctx.stroke();
+  }
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = lw;
+  if (share !== null) {
+    const end = -Math.PI / 2 + TAU * share * fill;
+    if (share * fill > 0.001) {
+      ctx.strokeStyle = ACCENT;
+      ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, end); ctx.stroke();
+      // Glowing head.
+      const hx = cx + Math.cos(end) * R, hy = cy + Math.sin(end) * R;
+      const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, lw * 3);
+      g.addColorStop(0, vg.rgba(ACCENT, 0.55)); g.addColorStop(1, vg.rgba(ACCENT, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hx, hy, lw * 3, 0, TAU); ctx.fill();
+      ctx.fillStyle = vg.mix(ACCENT, "#FFFFFF", 0.35);
+      ctx.beginPath(); ctx.arc(hx, hy, lw * 0.32, 0, TAU); ctx.fill();
+    }
+  } else if (frame > 0) {
+    // Not a share of anything: a neutral frame drawn once, never a proportion.
+    ctx.strokeStyle = vg.mix(BG, INK, 0.42);
+    ctx.lineWidth = Math.max(2, lw * 0.35);
+    ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + TAU * frame); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBar(x, y, w, h, share, fill, alpha) {
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = TRACK; vg.roundRect(ctx, x, y, w, h, h / 2); ctx.fill();
+  if (share !== null && share * fill > 0) {
+    ctx.fillStyle = ACCENT; vg.roundRect(ctx, x, y, Math.max(h, w * share * fill), h, h / 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHero(t) {
+  for (let k = 0; k < N; k++) {
+    const s = T.start(k), local = t - s;
+    const last = k === N - 1;
+    const exitAt = last ? (T.R ? T.recapAt - 0.45 : Infinity) : s + T.b - 0.4;
+    if (local < -0.05 || t > exitAt + 0.5) continue;
+    const stat = stats[k], b = hero.numbers[k];
+    const enter = vg.tween(t, s, 0.55, vg.ease.outExpo);
+    const exit = vg.tween(t, exitAt, 0.45, vg.ease.inOutCubic);
+    const count = vg.tween(t, s + 0.1, T.c, (x) => x);
+    const e = vg.ease.outCubic(count);
+    const fill = vg.ease.inOutCubic(vg.clamp((t - s - 0.1) / T.c)) * (1 - exit);
+    const lift = (1 - enter) * unit * 0.08 - exit * unit * 0.1;
+    const alpha = enter * (1 - exit);
+    // Visual.
+    if (ring) drawRing(hero.cx, hero.cy, hero.R, stat.share, fill, vg.clamp((t - s) / 0.9) * (1 - exit), 1 - exit * 0.9);
+    // Number, centred in the ring or the visual box (cap-height centred).
+    const nx = portrait || ring ? hero.cx - b.w / 2 : hero.x0;
+    const ny = hero.cy + (b.size * CAP) / 2 + (ring ? 0 : -b.size * 0.15) + lift;
+    ctx.save(); ctx.beginPath();
+    ctx.rect(0, hero.cy - b.size * 0.75 - unit * 0.02, W, b.size * 1.5 + unit * 0.04); ctx.clip();
+    drawNumber(stat, b, nx, ny, e, alpha);
+    ctx.restore();
+    if (!ring) {
+      const bw = portrait ? Math.min(area.w, Math.max(b.w, unit * 0.62)) : Math.max(b.w, hero.visW);
+      const bx = portrait ? hero.cx - bw / 2 : hero.x0, by = ny + b.size * 0.22;
+      // Meters only for shares; anything else stands alone (no bar that could be read as a quantity).
+      if (P.meter === "bar" && stat.share !== null) drawBar(bx, by, bw, Math.max(6, unit * 0.016), stat.share, fill, alpha);
+    }
+    // Label rises line by line.
+    const L = hero.labels[k];
+    const ly0 = portrait ? hero.labelY : hero.cy - L.height / 2;
+    L.lines.forEach((line, i) => {
+      const p = vg.tween(t, s + 0.35 + i * 0.07, 0.7, vg.ease.outExpo);
+      if (p <= 0) return;
+      const y = ly0 + i * L.size * L.leading - exit * unit * 0.06;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, y - L.size * 0.15, W, L.size * L.leading + L.size * 0.2); ctx.clip();
+      vg.drawLines(ctx, { ...L, lines: [line] }, hero.labelX, y + (1 - p) * L.size * 1.45,
+                   { color: INK, align: hero.align, alpha: 1 - exit });
+      ctx.restore();
+    });
+    if (!portrait) {   // Accent rule on the label's left edge, a typographic anchor.
+      const p = vg.tween(t, s + 0.3, 0.6, vg.ease.outExpo) * (1 - exit);
+      ctx.fillStyle = ACCENT;
+      ctx.fillRect(hero.labelX - unit * 0.035, ly0, Math.max(3, unit * 0.006), L.height * p);
+    }
+  }
+}
+
+function drawRecap(t) {
+  if (!T.R || t < T.recapAt - 0.05) return;
+  const r = recap;
+  stats.forEach((stat, k) => {
+    const s = T.recapAt + k * 0.12;
+    const p = vg.tween(t, s, 0.7, vg.ease.outExpo);
+    const fill = vg.tween(t, s + 0.2, 0.9, vg.ease.inOutCubic);
+    const b = r.blocks[k], L = r.labels[k];
+    if (portrait) {
+      const y0 = r.top + k * r.rowH, cy = y0 + r.rowH / 2;
+      if (k > 0) {   // Hairline divider draws across.
+        ctx.fillStyle = TRACK; ctx.fillRect(m, y0, area.w * vg.tween(t, s - 0.05, 0.6, vg.ease.outExpo), Math.max(1, unit * 0.0016));
+      }
+      const meterH = Math.max(5, unit * 0.009);
+      const blockH = b.size * CAP + (stat.share !== null ? b.size * 0.3 + meterH : 0);
+      const base = cy - blockH / 2 + b.size * CAP;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, y0 + 2, W, r.rowH - 2); ctx.clip();
+      drawNumber(stat, b, m, base + (1 - p) * r.rowH * 0.5, 1, p);
+      ctx.restore();
+      if (stat.share !== null && P.meter !== "none") drawBar(m, base + b.size * 0.3, r.colW - unit * 0.06, meterH, stat.share, fill, p);
+      vg.drawLines(ctx, L, m + r.colW, cy - L.height / 2 + (1 - p) * unit * 0.03, { color: INK, alpha: p });
+    } else {
+      const x = area.x + k * r.colW + (k > 0 ? unit * 0.04 : 0);
+      if (k > 0) {
+        const h = vg.tween(t, s - 0.05, 0.6, vg.ease.outExpo) * (area.h * 0.7);
+        ctx.fillStyle = TRACK; ctx.fillRect(area.x + k * r.colW, area.y + area.h * 0.15, Math.max(1, unit * 0.0018), h);
+      }
+      const base = r.top + b.size * CAP;
+      ctx.save(); ctx.beginPath(); ctx.rect(x - 4, r.top - b.size * 0.4, r.colW, b.size * 1.6); ctx.clip();
+      drawNumber(stat, b, x, base + (1 - p) * b.size * 1.1, 1, p);
+      ctx.restore();
+      const my = base + b.size * 0.32, meterH = Math.max(5, unit * 0.012);
+      if (stat.share !== null && P.meter !== "none") drawBar(x, my, r.inner * 0.9, meterH, stat.share, fill, p);
+      vg.drawLines(ctx, L, x, my + meterH + unit * 0.05 + (1 - p) * unit * 0.03, { color: INK, alpha: p });
+    }
+  });
+}
+
+vg.loop((t) => {
+  background(t);
+  drawHero(t);
+  drawRecap(t);
+  drawHeader(t);
+  if (P.grain > 0) vg.grain(ctx, t, P.grain);
+});
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.product-turntable",
   "template": "commercial.product-turntable",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "product_name": "Amber No. 7",
     "tagline": "Small batch. Slow pour.",

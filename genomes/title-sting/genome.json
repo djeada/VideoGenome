@@ -1,0 +1,35 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "title-sting",
+  "title": "Brand title sting",
+  "summary": "A name or logo-like wordmark assembles with impact (fly-in, flash, sparks), a light sweep crosses it and a tagline tracks in: the classic channel or product opener.",
+  "family": "brand",
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "duration_seconds": [
+    4,
+    8
+  ],
+  "recipes": [
+    "scene.title-sting"
+  ],
+  "templates": [
+    "commercial.title-sting"
+  ],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "Canvas 2D",
+    "faux depth fly-in",
+    "motion blur samples",
+    "light sweep",
+    "spark burst"
+  ],
+  "gallery_share": "Logo and title intros are a staple of model-made galleries.",
+  "limits": [
+    "Typeset wordmarks only; no vector logo import yet"
+  ]
+}

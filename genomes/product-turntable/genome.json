@@ -1,0 +1,33 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "product-turntable",
+  "title": "Product turntable from your 3D model",
+  "summary": "A name card, a Blender turntable of the product model you supply, and a call to action over a procedural backdrop.",
+  "family": "product",
+  "formats": [
+    "1:1"
+  ],
+  "duration_seconds": [
+    6,
+    12
+  ],
+  "recipes": [
+    "visual.aurora",
+    "audio.pulse"
+  ],
+  "templates": [
+    "commercial.product-turntable"
+  ],
+  "prompt": "prompt.md",
+  "needs": [
+    "A .glb model of the product and Blender in the pipeline"
+  ],
+  "techniques": [
+    "Blender EEVEE render",
+    "turntable",
+    "title cards"
+  ],
+  "limits": [
+    "Renders the supplied model as is; no material editing"
+  ]
+}

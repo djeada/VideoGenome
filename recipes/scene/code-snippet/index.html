@@ -1,0 +1,468 @@
+<!doctype html>
+<!--
+  Code snippet: a self-contained code reveal. An editor window (title bar,
+  file tab, line numbers) scales in under the title; the code types itself
+  with a human rhythm (auto-indent, quicker runs inside words, pauses after
+  punctuation and at line ends) and is syntax-highlighted by a small
+  tokenizer for Python, JavaScript, Rust or Bash. The key lines are then
+  highlighted while the rest dims, an optional terminal panel slides up and
+  "runs" the file (the output is supplied text, never computed), and the title
+  gives way to the takeaway. The code is displayed, never executed.
+
+  Beats (D = duration):
+    intro      0 .. 1.0 s                  title rises, window scales in
+    typing     1.0 .. typeEnd              typeEnd = D - tail, tail = 1.8 (highlight)
+                                           + 2.2 if there is output + 2.6 (takeaway)
+    highlight  typeEnd + 0.25              key lines light up, others dim
+    terminal   typeEnd + 2.05              panel slides up; command types for 0.5 s;
+                                           output lines land 0.14 s apart after that
+    takeaway   D - 2.6                     title lines leave, takeaway rises in
+  (When D is short the tail shrinks in proportion; see `plan` below.)
+
+  Timing: clock (requestAnimationFrame on VideoGenome's virtual clock). Copy is
+  drawn with fillText and fitted with measured glyphs; the page throws when the
+  code or copy cannot fit at a legible size.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<script type="module">
+import * as vg from "../../_lib/vg-scene/vg-scene.js";
+
+const { P, W, H, D, unit, portrait: tallFrame, seed } = vg.setup({
+  title: "Count words in one line",
+  filename: "count.py",
+  language: "python",
+  code: "from collections import Counter\n\ntext = \"the cat and the hat\"\ncounts = Counter(text.split())\n\nfor word, n in counts.most_common(2):\n    print(f\"{word}: {n}\")",
+  highlight: [4],
+  highlight_text: [],
+  output: "the: 2\ncat: 1",
+  command: "",
+  takeaway: "Counter tallies anything iterable for you",
+  palette: ["#0D1017", "#161B24", "#E6EAF2", "#7AA2FF", "#6B7385"],
+  syntax: ["#C792EA", "#C3E88D", "#F78C6C", "#5C6773", "#82AAFF", "#FFCB6B", "#89DDFF"],
+  pace: 0.9, grain: 0.03,
+});
+// Square and taller frames use the stacked (portrait) layout; wide frames the side-by-side one.
+const portrait = tallFrame || W / H < 1.25;
+const [BG, WIN, INK0, ACCENT, MUTED] = P.palette;
+const [K_KEY, K_STR, K_NUM, K_COM, K_FN, K_TYPE, K_OP] = P.syntax;
+const ctx = vg.canvas2d();
+const { clamp, lerp, ease } = vg;
+const MONO = '"JetBrains Mono", "DejaVu Sans Mono", "Noto Sans Mono", "Liberation Mono", monospace';
+const ink = vg.readable(BG, [INK0, "#FFFFFF", "#0B0D10"]);
+const codeInk = vg.readable(WIN, [INK0, "#FFFFFF", "#0B0D10"]);
+const muted = vg.contrast(MUTED, WIN) >= 2.2 ? MUTED : vg.mix(codeInk, WIN, 0.5);
+const accentInk = vg.contrast(ACCENT, BG) >= 3 ? ACCENT : ink;
+const rnd = vg.rng(seed * 7919 + 17);
+
+// ---- code and tokens ---------------------------------------------------------------
+// Code and output arrive as multi-line strings (arrays are accepted too).
+const asLines = (v) => (Array.isArray(v) ? v.map(String) : String(v ?? "").split("\n")).map((l) => l.replace(/\t/g, "    ").replace(/\s+$/, ""));
+const lines = asLines(P.code);
+while (lines.length && !lines[lines.length - 1]) lines.pop();
+while (lines.length && !lines[0]) lines.shift();
+if (!lines.length) throw new Error("code-snippet: the code is empty");
+if (lines.length > 16) throw new Error("code-snippet: at most 16 lines of code");
+lines.forEach((l, i) => { if (l.length > 56) throw new Error(`code-snippet: line ${i + 1} has ${l.length} characters; at most 56`); });
+const LANG = {
+  python: {
+    keywords: "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case",
+    builtins: "print len range enumerate zip map filter sum min max sorted reversed list dict set tuple str int float bool open isinstance super self cls any all abs round input type",
+    comment: "#", strings: ["\"\"\"", "'''", "\"", "'"], prefixes: /^[rRbBfFuU]{1,2}(?=['"])/, decorator: true, capsType: true,
+  },
+  javascript: {
+    keywords: "async await break case catch class const continue debugger default delete do else export extends finally for from function if import in instanceof let new of return static super switch this throw try typeof var void while yield null undefined true false",
+    builtins: "console Math JSON Promise Array Object String Number Boolean Map Set Date document window fetch require module process setTimeout parseInt",
+    comment: "//", block: true, strings: ["`", "\"", "'"], capsType: true,
+  },
+  rust: {
+    keywords: "as async await break const continue crate dyn else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while",
+    builtins: "i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str String Vec Option Result Some None Ok Err Box HashMap",
+    comment: "//", block: true, strings: ["\""], chars: true, macros: true, capsType: true,
+  },
+  bash: {
+    keywords: "if then else elif fi for while until do done case esac in function return local export select time",
+    builtins: "echo cd ls grep sed awk cat printf read set unset source exit test mkdir rm cp mv find xargs sort uniq wc head tail curl git tr cut tee touch chmod sudo",
+    comment: "#", strings: ["\"", "'"], variables: true,
+  },
+}[P.language];
+if (!LANG) throw new Error(`code-snippet: unknown language ${P.language}`);
+const KW = new Set(LANG.keywords.split(" ")), BI = new Set(LANG.builtins.split(" "));
+const COLOR = { plain: codeInk, key: K_KEY, str: K_STR, num: K_NUM, com: K_COM, fn: K_FN, type: K_TYPE, op: K_OP };
+
+function tokenize(source) {
+  let inBlock = false;
+  return source.map((line) => {
+    const out = [];
+    let i = 0;
+    const push = (text, kind) => { if (text) out.push({ text, kind }); };
+    while (i < line.length) {
+      const rest = line.slice(i);
+      if (inBlock) {
+        const end = rest.indexOf("*/");
+        const n = end < 0 ? rest.length : end + 2;
+        push(rest.slice(0, n), "com"); i += n; if (end >= 0) inBlock = false; continue;
+      }
+      if (LANG.block && rest.startsWith("/*")) { inBlock = true; continue; }
+      if (rest.startsWith(LANG.comment) && (LANG.comment !== "#" || P.language === "python" || i === 0 || /\s/.test(line[i - 1]))) {
+        push(rest, "com"); break;
+      }
+      const ws = rest.match(/^\s+/);
+      if (ws) { push(ws[0], "plain"); i += ws[0].length; continue; }
+      let pre = LANG.prefixes ? rest.match(LANG.prefixes) : null;
+      const body = pre ? rest.slice(pre[0].length) : rest;
+      const quote = LANG.strings.find((q) => body.startsWith(q));
+      if (quote) {
+        let j = (pre ? pre[0].length : 0) + quote.length;
+        while (j < rest.length && !rest.startsWith(quote, j)) j += rest[j] === "\\" ? 2 : 1;
+        j = Math.min(rest.length, j + quote.length);
+        push(rest.slice(0, j), "str"); i += j; continue;
+      }
+      if (LANG.chars && /^'(\\.|[^'\\])'/.test(rest)) { const m = rest.match(/^'(\\.|[^'\\])'/); push(m[0], "str"); i += m[0].length; continue; }
+      if (LANG.variables) {
+        const v = rest.match(/^\$(\{[^}]*\}|[A-Za-z_][A-Za-z0-9_]*|[0-9@#?*!$-])/);
+        if (v) { push(v[0], "type"); i += v[0].length; continue; }
+      }
+      if (LANG.decorator) { const d = rest.match(/^@[A-Za-z_][\w.]*/); if (d) { push(d[0], "key"); i += d[0].length; continue; } }
+      const num = rest.match(/^(0[xX][0-9a-fA-F_]+|\d[\d_]*(\.\d[\d_]*)?([eE][+-]?\d+)?)([a-z]\w*)?/);
+      if (num && (i === 0 || !/[\w$]/.test(line[i - 1]))) { push(num[0], "num"); i += num[0].length; continue; }
+      const id = rest.match(/^[A-Za-z_][A-Za-z0-9_]*/);
+      if (id) {
+        const word = id[0], after = rest.slice(word.length);
+        let kind = "plain";
+        if (KW.has(word)) kind = "key";
+        else if (LANG.macros && after.startsWith("!")) { push(word + "!", "fn"); i += word.length + 1; continue; }
+        else if (/^\s*\(/.test(after)) kind = BI.has(word) ? "type" : "fn";
+        else if (BI.has(word)) kind = "type";
+        else if (LANG.capsType && /^[A-Z][a-z0-9]/.test(word)) kind = "type";
+        else if (P.language === "bash" && i === line.search(/\S/)) kind = "fn";
+        push(word, kind); i += word.length; continue;
+      }
+      if (P.language === "bash" && /^--?[A-Za-z]/.test(rest) && /\s/.test(line[i - 1] || " ")) {
+        const f = rest.match(/^--?[\w-]+/); push(f[0], "num"); i += f[0].length; continue;
+      }
+      push(rest[0], /[=+\-*/%<>!&|^~?:.]/.test(rest[0]) ? "op" : "plain"); i += 1;
+    }
+    return out;
+  });
+}
+const tokens = tokenize(lines);
+
+// Highlighted lines: numbers and/or exact text (whitespace-insensitive).
+const hl = new Set();
+(P.highlight || []).forEach((n) => {
+  if (n < 1 || n > lines.length) throw new Error(`code-snippet: highlight line ${n} is outside the code (1-${lines.length})`);
+  hl.add(n - 1);
+});
+// Snippets match ignoring all whitespace, so a key line a writer re-flowed (or one
+// spanning several lines) still finds its lines; a snippet that is not in the code fails.
+const dense = [], lineOf = [];
+lines.forEach((l, i) => { for (const ch of l) if (!/\s/.test(ch)) { dense.push(ch); lineOf.push(i); } });
+const denseCode = dense.join("");
+(P.highlight_text || []).forEach((needle) => {
+  const key = String(needle).replace(/\s+/g, "");
+  if (!key) return;
+  let at = denseCode.indexOf(key), found = 0;
+  while (at >= 0) {
+    for (let li = lineOf[at]; li <= lineOf[at + key.length - 1]; li++) hl.add(li);
+    found++; at = denseCode.indexOf(key, at + 1);
+  }
+  if (!found) throw new Error(`code-snippet: highlight text "${String(needle).slice(0, 40)}" is not in the code`);
+});
+
+// ---- beats ---------------------------------------------------------------------------
+const output = asLines(P.output).filter((l, i, a) => l || a.slice(i).some(Boolean));
+if (output.length > 5 || output.some((l) => l.length > 48)) throw new Error("code-snippet: the output allows 5 lines of at most 48 characters");
+const hasTerm = output.length > 0;
+const command = String(P.command || "").trim() || {
+  python: `python ${P.filename}`, javascript: `node ${P.filename}`, rust: "cargo run -q", bash: `bash ${P.filename}`,
+}[P.language];
+function plan() {
+  const want = { intro: 1.0, hl: hl.size ? 1.8 : 0.6, term: hasTerm ? 2.2 : 0, take: P.takeaway ? 2.6 : 0.8 };
+  const tail = want.hl + want.term + want.take;
+  // Typing gets at least 40% of the piece; the tail shrinks proportionally if needed.
+  const room = Math.max(0, D - want.intro - Math.max(D * 0.4, 1.5));
+  const k = Math.min(1, room / tail);
+  const typeEnd = D - tail * k;
+  return { typeStart: want.intro, typeEnd, hlAt: typeEnd + 0.25 * k, termAt: typeEnd + (want.hl + 0.05) * k,
+           takeAt: D - want.take * k, k };
+}
+const B = plan();
+
+// Human typing rhythm: relative delays per character, then scaled to the window.
+const schedule = [];   // {line, col, at}
+{
+  let clock = 0;
+  lines.forEach((line, li) => {
+    const indent = line.match(/^\s*/)[0].length;
+    if (li > 0) clock += 2.2 + rnd() * 1.6;           // Enter, then a beat to think
+    if (!line.trim()) { schedule.push({ line: li, col: line.length, at: clock }); return; }
+    schedule.push({ line: li, col: indent, at: clock });  // the editor auto-indents
+    let burst = 0;
+    for (let c = indent; c < line.length; c++) {
+      const ch = line[c], prev = line[c - 1] || "";
+      let d = 0.55 + rnd() * 0.7;
+      if (/\w/.test(ch) && /\w/.test(prev)) { d *= 0.7; burst++; } else burst = 0;
+      if (burst > 6) d *= 0.85;
+      if (ch === " ") d *= 1.3;
+      if (/[,:;({[]/.test(prev)) d *= 1.9;
+      if (/[)\]}"'`]/.test(ch)) d *= 0.6;          // closing pairs come fast
+      if (rnd() < 0.04) d += 2.5;                    // an occasional hesitation
+      clock += d;
+      schedule.push({ line: li, col: c + 1, at: clock });
+    }
+  });
+  const total = clock || 1;
+  const scale = (B.typeEnd - 0.15 - B.typeStart) * clamp(P.pace, 0.5, 1) / total;
+  schedule.forEach((s) => { s.at = B.typeStart + 0.15 + s.at * scale; });
+}
+// Characters visible per line at time t (binary search on the schedule).
+function typedAt(t) {
+  let lo = 0, hi = schedule.length - 1, idx = -1;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (schedule[mid].at <= t) { idx = mid; lo = mid + 1; } else hi = mid - 1; }
+  const shown = lines.map(() => -1);
+  for (let i = 0; i <= idx; i++) shown[schedule[i].line] = schedule[i].col;
+  return { shown, cursor: idx < 0 ? { line: 0, col: lines[0].match(/^\s*/)[0].length } : { line: schedule[idx].line, col: schedule[idx].col },
+           lastAt: idx < 0 ? -1 : schedule[idx].at, done: idx === schedule.length - 1 };
+}
+
+// ---- layout ---------------------------------------------------------------------------
+const m = Math.round(W * (portrait ? 0.075 : 0.06));
+// Wide code gets more of the landscape frame; the title column narrows.
+const widest = Math.max(...lines.map((l) => l.length));
+const textW = portrait ? W - 2 * m : W * (widest > 44 ? 0.25 : 0.3);
+const titleOpts = { maxSize: unit * (tallFrame ? 0.08 : portrait ? 0.062 : 0.072), minSize: unit * 0.04, weight: 800, leading: 1.06, maxWidth: textW, maxLines: 3 };
+const titleB = vg.fit(ctx, P.title, { ...titleOpts, label: "title" });
+const takeB = P.takeaway ? vg.fit(ctx, P.takeaway, { ...titleOpts, maxSize: unit * (tallFrame ? 0.068 : portrait ? 0.056 : 0.06), label: "takeaway" }) : null;
+// 9:16 keeps copy out of the platform UI (top 12%, bottom 22%); square frames only need a margin.
+const safeTop = tallFrame ? 0.12 : 0.07, safeBottom = tallFrame ? 0.78 : 0.93;
+const headTop = portrait ? H * safeTop : 0;
+const headH = Math.max(titleB.height, takeB ? takeB.height : 0) + unit * 0.05;
+
+const cols = Math.max(...lines.map((l) => l.length), 12);
+const outCols = hasTerm ? Math.max(...output.map((l) => l.length), command.length + 2) : 0;
+const gutterCols = String(lines.length).length + 2;
+const area = portrait
+  ? { x: W * 0.055, y: headTop + headH + unit * 0.06, w: W * 0.89, h: H * safeBottom - (headTop + headH + unit * 0.06) }
+  : { x: m + textW + W * 0.05, y: H * 0.1, w: W - (m + textW + W * 0.05) - m, h: H * 0.8 };
+vg.font(ctx, 100, 500, MONO);
+const ADV = ctx.measureText("M").width / 100;      // monospace advance per px of size
+// Long snippets get tighter leading so 16 lines still fit at a legible size.
+const LH = (portrait ? 1.65 : 1.55) - (lines.length > 10 ? 0.12 : 0), BAR = 2.6;                         // line height, title bar height (in font sizes)
+const padF = 1.1;                                   // inner padding (font sizes)
+const termLinesN = hasTerm ? output.length + 1 : 0;
+function sizes(fs) {
+  const winW = Math.min(area.w, Math.max(area.w * (portrait ? 1 : 0.7), (cols + gutterCols) * ADV * fs + 2 * padF * fs));
+  const winH = BAR * fs + 2 * padF * fs + lines.length * LH * fs;
+  const termH = hasTerm ? BAR * 0.8 * fs + 2 * padF * fs + termLinesN * LH * fs : 0;
+  const termW = hasTerm ? Math.min(area.w, Math.max(outCols * ADV * fs + 2 * padF * fs, winW * (portrait ? 1 : 0.72))) : 0;
+  return { fs, winW, winH, termW, termH };
+}
+// Prefer the terminal stacked below the editor; let it overlap the editor's lower
+// edge only when stacking would cost more than a quarter of the font size.
+const widthOk = (fs) => (cols + gutterCols) * ADV * fs + 2 * padF * fs <= area.w && (!hasTerm || outCols * ADV * fs + 2 * padF * fs <= area.w);
+const overlapShare = lines.length > 10 ? 0.2 : 0.55;
+let S = null, stacked = null;
+const maxFs = Math.round(unit * 0.042), minFs = Math.floor(unit * 0.026);
+for (let fs = maxFs; fs >= minFs && !S; fs--) {
+  const s = sizes(fs);
+  if (widthOk(fs) && s.winH + (hasTerm ? s.termH * overlapShare + fs : 0) <= area.h) S = s;
+}
+for (let fs = maxFs; fs >= minFs && !stacked; fs--) {
+  const s = sizes(fs);
+  if (widthOk(fs) && s.winH + (hasTerm ? fs * 0.9 + s.termH : 0) <= area.h) stacked = s;
+}
+if (stacked && (!S || stacked.fs >= S.fs * 0.75)) S = stacked;
+if (!S) throw new Error(`code-snippet: ${lines.length} lines of up to ${cols} characters do not fit at a legible size; shorten the code`);
+const fs = S.fs;
+const stackH = hasTerm ? Math.max(S.winH + fs * 0.9 + S.termH, 0) : S.winH;
+const fitsBelow = stackH <= area.h;
+const overlapH = S.winH + (hasTerm ? S.termH * overlapShare + fs : 0);
+const groupH = fitsBelow ? stackH : overlapH;
+const win = { x: area.x + (area.w - S.winW) / 2, y: area.y + (area.h - groupH) / 2, w: S.winW, h: S.winH };
+if (!portrait) win.x = area.x + (area.w - S.winW) / 2;
+const term = hasTerm ? {
+  w: S.termW, h: S.termH,
+  x: portrait ? win.x + (S.winW - S.termW) / 2 : Math.min(area.x + area.w - S.termW, win.x + S.winW - S.termW + fs * 1.5),
+  y: fitsBelow ? win.y + S.winH + fs * 0.9 : win.y + overlapH - S.termH,
+} : null;
+const headX = portrait ? m : m;
+const headY = portrait ? headTop : (H - headH) / 2;
+
+// ---- drawing ----------------------------------------------------------------------------
+function background(t) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+  const gx = win.x + win.w * 0.7, gy = win.y + win.h * 0.2;
+  const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, unit * 0.9);
+  g.addColorStop(0, vg.rgba(ACCENT, 0.16)); g.addColorStop(1, vg.rgba(ACCENT, 0));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  vg.dotGrid(ctx, t, ink, { alpha: 0.07, drift: 0.08 });
+}
+
+function drawHead(t) {
+  const leave = takeB ? ease.inCubic(clamp((t - B.takeAt) / 0.35)) : 0;
+  const lines1 = titleB.lines;
+  lines1.forEach((line, i) => {
+    const p = ease.outExpo(clamp((t - 0.05 - i * 0.08) / 0.8));
+    const y = headY + i * titleB.size * titleB.leading;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, y - titleB.size * 0.2, W, titleB.size * 1.25); ctx.clip();
+    vg.drawLines(ctx, { ...titleB, lines: [line] }, headX, y + (1 - p) * titleB.size * 1.45 - leave * titleB.size * 1.45, { color: ink });
+    ctx.restore();
+  });
+  if (takeB) {
+    takeB.lines.forEach((line, i) => {
+      const p = ease.outExpo(clamp((t - B.takeAt - 0.35 - i * 0.09) / 0.8));
+      if (p <= 0) return;
+      const y = headY + i * takeB.size * takeB.leading;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, y - takeB.size * 0.2, W, takeB.size * 1.25); ctx.clip();
+      vg.drawLines(ctx, { ...takeB, lines: [line] }, headX, y + (1 - p) * takeB.size * 1.45, { color: ink });
+      ctx.restore();
+    });
+  }
+  const blockH = (t >= B.takeAt + 0.2 && takeB) ? takeB.height : titleB.height;
+  const rule = ease.outExpo(clamp((t - 0.4) / 0.8));
+  const ruleY = headY + blockH + unit * 0.02;
+  ctx.fillStyle = accentInk;
+  ctx.fillRect(headX, ruleY, unit * 0.09 * rule, Math.max(4, unit * 0.007));
+}
+
+function chrome(x, y, w, h, barH, label, labelColor) {
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = unit * 0.05; ctx.shadowOffsetY = unit * 0.015;
+  ctx.fillStyle = WIN; vg.roundRect(ctx, x, y, w, h, fs * 0.7); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  vg.roundRect(ctx, x, y, w, h, fs * 0.7); ctx.clip();
+  ctx.fillStyle = vg.mix(WIN, BG, 0.45); ctx.fillRect(x, y, w, barH);
+  ctx.fillStyle = vg.mix(WIN, codeInk, 0.08); ctx.fillRect(x, y + barH - 1, w, 1);
+  ctx.restore();
+  ctx.strokeStyle = vg.rgba(codeInk, 0.08); ctx.lineWidth = 1.5;
+  vg.roundRect(ctx, x + 0.75, y + 0.75, w - 1.5, h - 1.5, fs * 0.7); ctx.stroke();
+  // Window dots (neutral), then the label.
+  ["#FF5F57", "#FEBC2E", "#28C840"].forEach((c, i) => {
+    ctx.fillStyle = vg.mix(c, WIN, 0.15); ctx.beginPath(); ctx.arc(x + fs * (1.1 + i * 0.9), y + barH / 2, fs * 0.27, 0, Math.PI * 2); ctx.fill();
+  });
+  vg.font(ctx, fs * 0.78, 600); ctx.textBaseline = "middle"; ctx.fillStyle = labelColor;
+  ctx.fillText(label, x + fs * 4.1, y + barH / 2 + 1);
+  ctx.textBaseline = "alphabetic";
+}
+
+function drawEditor(t) {
+  const appear = ease.outBack(clamp((t - 0.05) / 0.75), 1.2), fade = clamp(0.25 + t / 0.35);
+  if (fade <= 0) return;
+  const typed = typedAt(t);
+  const hlP = hl.size ? ease.outCubic(clamp((t - B.hlAt) / 0.5)) : 0;
+  // Camera: a slow push-in while typing, a nudge toward the key lines on the highlight.
+  const push = 1 + 0.02 * clamp((t - B.typeStart) / Math.max(1, B.typeEnd - B.typeStart));
+  const hlLines = [...hl];
+  const focusY = hlLines.length ? win.y + BAR * fs + padF * fs + (Math.min(...hlLines) + Math.max(...hlLines) + 1) / 2 * LH * fs : win.y + win.h / 2;
+  const zoom = push * (1 + 0.035 * hlP);
+  const ox = win.x + win.w / 2, oy = lerp(win.y + win.h / 2, focusY, hlP * 0.5);
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.translate(ox, oy); ctx.scale(zoom * (0.92 + 0.08 * appear), zoom * (0.92 + 0.08 * appear)); ctx.translate(-ox, -oy + (1 - appear) * unit * 0.04);
+  const barH = BAR * fs;
+  chrome(win.x, win.y, win.w, win.h, barH, P.filename, muted);
+  // Language dot on the tab.
+  const x0 = win.x + padF * fs, y0 = win.y + barH + padF * fs;
+  const gutterW = gutterCols * ADV * fs;
+  ctx.save();
+  vg.roundRect(ctx, win.x, win.y, win.w, win.h, fs * 0.7); ctx.clip();
+  // Highlight bands.
+  if (hlP > 0) hl.forEach((li) => {
+    const y = y0 + li * LH * fs - fs * 0.12;
+    ctx.fillStyle = vg.rgba(ACCENT, 0.16 * hlP); ctx.fillRect(win.x, y, win.w * ease.outExpo(hlP), LH * fs);
+    ctx.fillStyle = ACCENT; ctx.fillRect(win.x, y, Math.max(3, fs * 0.14), LH * fs * hlP);
+  });
+  vg.font(ctx, fs, 500, MONO);
+  ctx.textBaseline = "middle";
+  tokens.forEach((toks, li) => {
+    const shown = typed.shown[li];
+    const y = y0 + li * LH * fs + LH * fs / 2 - fs * 0.12;
+    const dim = hl.size ? lerp(1, hl.has(li) ? 1 : 0.38, hlP) : 1;
+    // Line number.
+    ctx.globalAlpha = fade * (shown >= 0 ? (hl.has(li) && hlP > 0 ? 1 : 0.7) : 0.25) * (hl.has(li) ? 1 : dim);
+    ctx.fillStyle = hl.has(li) && hlP > 0.5 ? ACCENT : muted;
+    const num = String(li + 1);
+    ctx.fillText(num, x0 + (gutterCols - 2 - num.length) * ADV * fs, y);
+    if (shown < 0) return;
+    ctx.globalAlpha = fade * dim;
+    let col = 0;
+    for (const tok of toks) {
+      if (col >= shown) break;
+      const part = tok.text.slice(0, shown - col);
+      ctx.fillStyle = COLOR[tok.kind];
+      if (tok.text.trim()) ctx.fillText(part, x0 + gutterW + col * ADV * fs, y);
+      col += tok.text.length;
+    }
+  });
+  ctx.globalAlpha = fade;
+  // Cursor: solid while typing, blinking when idle; it leaves once the highlight begins.
+  if (t < B.hlAt + 0.1) {
+    const idle = t - typed.lastAt > 0.35;
+    const on = !idle || Math.floor((t - typed.lastAt) / 0.5) % 2 === 0;
+    if (on) {
+      const cx = x0 + gutterW + typed.cursor.col * ADV * fs, cy = y0 + typed.cursor.line * LH * fs + LH * fs / 2 - fs * 0.12;
+      ctx.fillStyle = ACCENT; ctx.fillRect(cx, cy - fs * 0.62, Math.max(2, fs * 0.1), fs * 1.24);
+    }
+  }
+  ctx.restore();
+  ctx.textBaseline = "alphabetic";
+  ctx.restore();
+}
+
+function drawTerminal(t) {
+  if (!hasTerm) return;
+  const p = ease.outExpo(clamp((t - B.termAt) / 0.6));
+  if (p <= 0) return;
+  // Terminals stay dark, even beside a light editor.
+  const termBg = vg.luminance(WIN) > 0.4 ? vg.mix(vg.luminance(INK0) < 0.2 ? INK0 : "#1B1F24", "#000000", 0.1) : vg.mix(WIN, "#000000", 0.35);
+  const y = term.y + (1 - p) * unit * 0.08;
+  ctx.save();
+  ctx.globalAlpha = clamp(p * 1.5);
+  const barH = BAR * 0.8 * fs;
+  ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = unit * 0.05; ctx.shadowOffsetY = unit * 0.015;
+  ctx.fillStyle = termBg; vg.roundRect(ctx, term.x, y, term.w, term.h, fs * 0.7); ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.fillStyle = vg.mix(termBg, BG, 0.4);
+  ctx.save(); vg.roundRect(ctx, term.x, y, term.w, term.h, fs * 0.7); ctx.clip(); ctx.fillRect(term.x, y, term.w, barH); ctx.restore();
+  ctx.strokeStyle = vg.rgba(codeInk, 0.08); ctx.lineWidth = 1.5; vg.roundRect(ctx, term.x + 0.75, y + 0.75, term.w - 1.5, term.h - 1.5, fs * 0.7); ctx.stroke();
+  vg.font(ctx, fs * 0.72, 600); ctx.fillStyle = muted; ctx.textBaseline = "middle";
+  ctx.fillText("Terminal", term.x + padF * fs, y + barH / 2 + 1);
+  const termInk = vg.readable(termBg, [codeInk, "#FFFFFF"]);
+  vg.font(ctx, fs, 500, MONO);
+  const x0 = term.x + padF * fs, y0 = y + barH + padF * fs;
+  const cmdP = clamp((t - B.termAt - 0.3) / (0.5 * B.k + 0.1));
+  const cmdChars = Math.round(command.length * cmdP);
+  const ly = (i) => y0 + i * LH * fs + LH * fs / 2 - fs * 0.12;
+  ctx.fillStyle = ACCENT; ctx.fillText("$", x0, ly(0));
+  ctx.fillStyle = termInk; ctx.fillText(command.slice(0, cmdChars), x0 + 2 * ADV * fs, ly(0));
+  const outStart = B.termAt + 0.3 + 0.5 * B.k + 0.25;
+  if (t < outStart && Math.floor(t / 0.5) % 2 === 0 || cmdP < 1) {
+    ctx.fillStyle = ACCENT; ctx.fillRect(x0 + (2 + cmdChars) * ADV * fs, ly(0) - fs * 0.62, Math.max(2, fs * 0.1), fs * 1.24);
+  }
+  output.forEach((line, i) => {
+    const a = clamp((t - outStart - i * 0.14) / 0.12);
+    if (a <= 0) return;
+    ctx.globalAlpha = a; ctx.fillStyle = termInk;
+    ctx.fillText(line, x0, ly(i + 1));
+  });
+  ctx.restore();
+  ctx.textBaseline = "alphabetic";
+}
+
+vg.loop((t) => {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  background(t);
+  drawEditor(t);
+  drawTerminal(t);
+  drawHead(t);
+  vg.vignette(ctx, vg.luminance(BG) > 0.5 ? 0.06 : 0.25);
+  vg.grain(ctx, t, P.grain);
+});
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.4.0",
+  "schema_version": "0.5.0",
   "id": "educational.cc0-documentary",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Short documentary from openly licensed footage",
   "category": "educational",
   "description": "A 21.5-second mini documentary: title, three b-roll shots found by topic (CC0 / public-domain footage via the cc0-stock pipeline, or your own clips), narration and matching captions per shot, crossfaded edit and a music bed that ducks under the voice.",
@@ -155,6 +155,22 @@
       }
     }
   },
+  "copy_examples": [
+    {
+      "brief": "A short, calm piece about honeybees for a nature channel: bees visit flowers to collect nectar and pollen; in the hive they turn nectar into honey; their pollination helps grow the food we eat. Close on a gentle call to protect pollinators.",
+      "inputs": {
+        "title": "The quiet work of bees",
+        "topic_1": "honeybee flower",
+        "line_1": "From flower to flower, bees gather nectar and pollen.",
+        "topic_2": "beehive honeycomb",
+        "line_2": "Back in the hive, that nectar slowly becomes honey.",
+        "topic_3": "orchard blossom",
+        "line_3": "Every visit pollinates plants that grow our food.",
+        "closing": "Protect the pollinators"
+      },
+      "note": "Topics are two plain words naming something a camera can film. Each line is one sentence under ten words that adds the next fact from the brief, so narration and footage move together."
+    }
+  ],
   "style": {
     "mood": "observational, restrained",
     "palette": [

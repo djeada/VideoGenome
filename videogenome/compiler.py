@@ -176,11 +176,93 @@ def _compile_picture(blueprint: dict, segments: list[dict]) -> dict:
     }
 
 
-def _compile_timeline(blueprint: dict, inputs: dict, assets: dict) -> dict:
+def _caption_cue(cue: dict, style: dict, inputs: dict, fps: int) -> dict:
+    """One caption cue with its copy checked against the locked line and reading limits."""
+    text = " ".join(_substitute(cue["text_template"], inputs).split())
+    if not text or any(unicodedata.category(char) == "Cc" for char in text):
+        raise ProductionError(f"Caption {cue['id']!r} needs nonempty printable text")
+    if any(len(word) > style["max_chars_per_line"] for word in text.split()):
+        raise ProductionError(f"Caption {cue['id']!r} contains a word too long for the line limit")
+    lines = textwrap.wrap(text, width=style["max_chars_per_line"],
+                          break_long_words=False, break_on_hyphens=False)
+    if len(lines) > style["max_lines"]:
+        raise ProductionError(f"Caption {cue['id']!r} exceeds the line limit; shorten the copy")
+    cps = len(text) * fps / cue["duration_frames"]
+    if cps > style["max_chars_per_second"]:
+        raise ProductionError(f"Caption {cue['id']!r} exceeds the reading-speed limit ({cps:.1f} chars/s)")
+    return {"id": cue["id"], "start_frame": cue["start_frame"],
+            "end_frame": cue["start_frame"] + cue["duration_frames"], "text": text, "lines": lines}
+
+
+def _card_copy(card: dict, shot: dict, inputs: dict, output: dict) -> dict:
+    """Title-card copy wrapped at the largest locked size that fits."""
+    direction = shot["direction"]
+    # Empty title cards are allowed as color pauses, not invented copy.
+    text = " ".join(_substitute(direction.get("text_template", ""), inputs).split())
+    kicker = " ".join(_substitute(direction.get("kicker_template", ""), inputs).split())
+    for label, copy in (("Text", text), ("Kicker", kicker)):
+        if any(unicodedata.category(char) == "Cc" for char in copy):
+            raise ProductionError(f"{label} for shot {shot['id']!r} contains control characters")
+    try:
+        size, lines = fit_copy(card, text, kicker, output)
+    except ValueError as exc:
+        raise ProductionError(f"Copy for shot {shot['id']!r} does not fit: {exc}") from exc
+    return {"text": text, "lines": lines, "font_size": size, "kicker": kicker}
+
+
+def copy_issues(blueprint: dict, inputs: dict) -> tuple[list[dict], list[dict]]:
+    """Check every piece of on-screen copy the given text inputs feed.
+
+    Unlike ``compile_job`` this reports all problems at once, each with the
+    inputs it depends on, so a writer can revise exactly those slots. Items
+    whose inputs are not all present yet are skipped. Returns ``(issues,
+    cards)``: ``{"slots", "where", "problem"}`` entries and the compiled
+    title-card copy (for a renderer's glyph-accurate check).
+    """
+    inputs = with_defaults(blueprint, inputs)
+    card = resolve_title_card(blueprint)
+    issues: list[dict] = []
+    cards: list[dict] = []
+
+    def ready(*templates: str) -> list[str] | None:
+        slots = sorted({name for template in templates for name in TOKEN.findall(template)})
+        return slots if all(name in inputs for name in slots) else None
+
+    for scene in blueprint["scenes"]:
+        for shot in scene["shots"]:
+            direction = shot["direction"]
+            templates = (direction.get("text_template", ""), direction.get("kicker_template", ""))
+            slots = ready(*templates)
+            if not slots:
+                continue
+            try:
+                if shot["kind"] == "motion_graphics":
+                    cards.append({"shot_id": shot["id"], "slots": slots,
+                                  **_card_copy(card, shot, inputs, blueprint["output"])})
+                else:
+                    _substitute(templates[0], inputs)
+            except ProductionError as exc:
+                issues.append({"slots": slots, "where": f"on-screen text of shot {shot['id']}",
+                               "problem": str(exc)})
+    captions = blueprint.get("timeline", {}).get("captions")
+    if captions:
+        for cue in captions["cues"]:
+            slots = ready(cue["text_template"])
+            if not slots:
+                continue
+            try:
+                _caption_cue(cue, captions["style"], inputs, blueprint["output"]["fps"])
+            except ProductionError as exc:
+                issues.append({"slots": slots, "where": f"caption {cue['id']}", "problem": str(exc)})
+    return issues, cards
+
+
+def _compile_timeline(blueprint: dict, inputs: dict, assets: dict, skip: set[str] = frozenset()) -> dict:
     source = blueprint["timeline"]
     tracks = []
     for track in source.get("audio_tracks", []):
-        if track["input_ref"] not in inputs and not blueprint["inputs"][track["input_ref"]]["required"]:
+        if track["input_ref"] not in inputs and (track["input_ref"] in skip
+                                                 or not blueprint["inputs"][track["input_ref"]]["required"]):
             continue  # An optional bed the job chose not to supply.
         asset_id = inputs.get(track["input_ref"])
         if not isinstance(asset_id, str) or assets.get(asset_id, {}).get("kind") != "audio":
@@ -211,26 +293,19 @@ def _compile_timeline(blueprint: dict, inputs: dict, assets: dict) -> dict:
         style = source["captions"]["style"]
         cues = []
         for cue in sorted(source["captions"]["cues"], key=lambda c: c["start_frame"]):
-            text = " ".join(_substitute(cue["text_template"], inputs).split())
-            if not text or any(unicodedata.category(char) == "Cc" for char in text):
-                raise ProductionError(f"Caption {cue['id']!r} needs nonempty printable text")
-            if any(len(word) > style["max_chars_per_line"] for word in text.split()):
-                raise ProductionError(f"Caption {cue['id']!r} contains a word too long for the line limit")
-            lines = textwrap.wrap(text, width=style["max_chars_per_line"],
-                                  break_long_words=False, break_on_hyphens=False)
-            if len(lines) > style["max_lines"]:
-                raise ProductionError(f"Caption {cue['id']!r} exceeds the line limit; shorten the copy")
-            cps = len(text) * blueprint["output"]["fps"] / cue["duration_frames"]
-            if cps > style["max_chars_per_second"]:
-                raise ProductionError(f"Caption {cue['id']!r} exceeds the reading-speed limit ({cps:.1f} chars/s)")
-            cues.append({"id": cue["id"], "start_frame": cue["start_frame"],
-                         "end_frame": cue["start_frame"] + cue["duration_frames"],
-                         "text": text, "lines": lines})
+            cues.append(_caption_cue(cue, style, inputs, blueprint["output"]["fps"]))
         timeline["captions"] = {"style": style, "cues": cues}
     return timeline
 
 
-def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = ()) -> dict[str, Any]:
+def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = (),
+                allow_pending: bool = False) -> dict[str, Any]:
+    """Compile a job to a render plan.
+
+    With ``allow_pending`` (used by ``validate``), producible inputs that have not
+    been produced yet are listed in ``plan["pending_inputs"]`` instead of failing;
+    such a plan is for checking only and is never rendered.
+    """
     job_path = job_path.resolve()
     job_dir = job_path.parent
     job = read_json(job_path)
@@ -265,9 +340,11 @@ def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = ()) -> dict[s
     unknown = sorted(set(inputs) - set(blueprint["inputs"]))
     if unknown:
         raise ProductionError(f"Undeclared inputs (template is locked): {unknown}")
+    pending = [name for name, spec in blueprint["inputs"].items()
+               if allow_pending and name not in inputs and "produce" in spec]
     for name, spec in blueprint["inputs"].items():
         if name not in inputs:
-            if spec["required"]:
+            if spec["required"] and name not in pending:
                 hint = (f" (producible via {spec['produce']['capability']!r}: run `videogenome produce` "
                         "or `make` with a --pipeline that routes it)" if "produce" in spec else "")
                 raise ProductionError(f"Missing required input: {name}{hint}")
@@ -300,7 +377,9 @@ def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = ()) -> dict[s
                               and isinstance(inputs.get(ref), str)]
                 if len(candidates) == 1:
                     binding = {"asset": candidates[0]}
-            if kind != "motion_graphics" and not binding:
+            waiting = [ref for ref in shot.get("input_refs", []) if ref in pending
+                        and blueprint["inputs"][ref]["type"] == required_kind]
+            if kind != "motion_graphics" and not binding and not waiting:
                 raise ProductionError(
                     f"Shot {shot['id']!r} ({kind}) needs a rendered {required_kind} asset"
                 )
@@ -309,21 +388,12 @@ def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = ()) -> dict[s
             asset_id = binding["asset"] if binding else None
             if asset_id is not None and (asset_id not in records or records[asset_id]["kind"] != required_kind):
                 raise ProductionError(f"Shot {shot['id']!r} needs a {required_kind} asset")
-            direction = shot["direction"]
-            text = _substitute(direction.get("text_template", ""), inputs)
             graphics = {}
             if kind == "motion_graphics":
-                # Empty title cards are allowed as color pauses, not invented copy.
-                text = " ".join(text.split())
-                kicker = " ".join(_substitute(direction.get("kicker_template", ""), inputs).split())
-                for label, copy in (("Text", text), ("Kicker", kicker)):
-                    if any(unicodedata.category(char) == "Cc" for char in copy):
-                        raise ProductionError(f"{label} for shot {shot['id']!r} contains control characters")
-                try:
-                    size, lines = fit_copy(card, text, kicker, blueprint["output"])
-                except ValueError as exc:
-                    raise ProductionError(f"Copy for shot {shot['id']!r} does not fit: {exc}") from exc
-                graphics = {"lines": lines, "font_size": size, "kicker": kicker}
+                graphics = _card_copy(card, shot, inputs, blueprint["output"])
+                text = graphics.pop("text")
+            else:
+                text = _substitute(shot["direction"].get("text_template", ""), inputs)
             duration = shot["duration_frames"]
             segment = {
                 "scene_id": scene["id"], "shot_id": shot["id"], "kind": kind,
@@ -364,5 +434,7 @@ def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = ()) -> dict[s
         ],
     }
     if "timeline" in blueprint:
-        plan["timeline"] = _compile_timeline(blueprint, inputs, records)
+        plan["timeline"] = _compile_timeline(blueprint, inputs, records, skip=set(pending))
+    if pending:
+        plan["pending_inputs"] = pending
     return plan

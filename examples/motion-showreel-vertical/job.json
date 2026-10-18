@@ -1,0 +1,18 @@
+{
+  "job_schema": "0.1.0",
+  "id": "sample.motion-showreel-vertical",
+  "template": "social.motion-showreel-vertical",
+  "template_version": "0.1.0",
+  "inputs": {
+    "name": "VideoGenome",
+    "word_1": "Springs",
+    "word_2": "Loops",
+    "word_3": "Masks",
+    "kicker": "Made in code",
+    "look": "acid",
+    "energy": "night"
+  },
+  "assets": {},
+  "shot_assets": {},
+  "approved_gates": []
+}

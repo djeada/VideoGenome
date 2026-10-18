@@ -1,0 +1,41 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "motion-showreel",
+  "title": "Motion design showreel",
+  "summary": "An abstract motion-design reel in a brand palette: dot grids, spring shape morphs, iris, stripe and shutter transitions, masked and circular kinetic type for three words, and a name lockup with an impact.",
+  "family": "brand",
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "duration_seconds": [
+    10,
+    20
+  ],
+  "recipes": [
+    "scene.motion-showreel"
+  ],
+  "templates": [
+    "social.motion-showreel",
+    "social.motion-showreel-vertical"
+  ],
+  "prompt": "prompt.md",
+  "needs": [],
+  "techniques": [
+    "Canvas 2D",
+    "radial shape morphing",
+    "damped springs",
+    "dot-grid ripple and gather",
+    "text on a circle",
+    "stripe, iris and shutter wipes",
+    "two-tone mask reveal",
+    "letter-staggered masked rises"
+  ],
+  "gallery_share": "'Make a 15 s showreel that shows what an incredible motion designer you are' is one of the most common prompts in public model-made video galleries.",
+  "limits": [
+    "Abstract reel: it does not show anyone's real client work",
+    "Fixed six-beat structure; beats scale with duration and read best from 12 to 18 s",
+    "Latin scripts set best; one typeface (Inter or the system sans)"
+  ]
+}
