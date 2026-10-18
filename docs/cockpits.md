@@ -44,6 +44,23 @@ videogenome previews --pipeline procedural --workspace ~/vg-runs   # optional: l
 * **Runs**: everything rendered in the workspace.
 * **Connect**: copy-paste commands for agents and the CLI.
 
+The library supports text search, category and format filters, readiness tabs,
+sorting, and saved styles. Card illustrations are labeled as illustrations;
+rendered preview posters are labeled separately. Open **View details** to see
+requirements and limits before choosing a template.
+
+The editor starts with manual copy, works without a writing model, and offers
+sample copy for a quick first render. **Start from a brief** uses the workspace's
+configured writer when one is connected. Drafts are saved in this browser,
+scoped to the workspace and template version; **Start fresh** clears the draft.
+Copy checks mark the fields to revise, and failed requests keep the copy intact.
+Render progress shows stages and elapsed time rather than invented percentages.
+
+**My renders** can search, download, review, and reopen the original template
+copy using **Edit copy**. Editing and rendering again leaves the original video
+in its existing run. In **Motion lab**, selecting a look updates the visible
+controls to that preset's values before rendering.
+
 Security: the Studio binds to 127.0.0.1, prints a URL with a per-session token
 (stored in an HttpOnly, SameSite=Strict cookie), refuses requests whose Host
 header is not localhost (DNS rebinding), serves files from the workspace only,

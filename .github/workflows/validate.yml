@@ -6,6 +6,32 @@ on:
   pull_request:
 
 jobs:
+  studio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VIDEOGENOME_UI_ARTIFACTS: /tmp/vg-studio-ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Studio browser test dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fontconfig fonts-inter
+          python -m pip install '.[browser]'
+          python -m playwright install --with-deps chromium-headless-shell
+      - name: Exercise Studio user journeys and capture responsive screenshots
+        run: python -m unittest tests.test_studio_ui -v
+      - name: Upload Studio desktop and mobile previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: videogenome-studio-ui
+          path: /tmp/vg-studio-ui/
+          if-no-files-found: warn
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45

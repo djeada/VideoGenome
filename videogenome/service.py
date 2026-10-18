@@ -112,9 +112,33 @@ class Service:
 
     def recipes(self, media: str | None = None) -> list[dict]:
         from videogenome.procedural import catalog
-        return [r.describe() | {"params_schema": r.data["params"], "timing": r.data.get("timing", "frame"),
+        return [r.describe() | {"params_schema": r.data["params"], "preset_values": r.data.get("presets", {}),
+                                "timing": r.data.get("timing", "frame"),
                                 "libraries": r.data.get("libraries", [])}
                 for r in catalog.discover().values() if not media or media in r.data["media"]]
+
+    def edit_run(self, name: str) -> dict:
+        """Reopen a run's original text inputs without changing its rendered output."""
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,119}", name):
+            raise ProductionError("Invalid run name")
+        run = self.workspace.root / "runs" / name
+        if not run.is_dir() or not self.workspace.contains(run):
+            raise ProductionError("Run not found in this workspace")
+        for path in (run / "job.json", run / "job" / "job.json"):
+            if not path.is_file() or not path.resolve().is_relative_to(run.resolve()):
+                continue
+            job = read_json(path)
+            template_id = job.get("template")
+            if not isinstance(template_id, str):
+                raise ProductionError("This run does not contain an editable template job")
+            if not isinstance(job.get("inputs", {}), dict):
+                raise ProductionError("This run's saved inputs are invalid")
+            slots = self.template(template_id)["slots"]
+            receipt_path = run / "receipt.json"
+            receipt = read_json(receipt_path) if receipt_path.is_file() and receipt_path.resolve().is_relative_to(run.resolve()) else {}
+            return {"template": template_id, "inputs": {k: v for k, v in job.get("inputs", {}).items() if k in slots},
+                    "brief": receipt.get("fill", {}).get("brief", "")}
+        raise ProductionError("This run has no saved template copy")
 
     # ---- writing and checking copy ----------------------------------------------
     def check_inputs(self, template_id: str, inputs: dict, brief: str | None = None) -> dict:

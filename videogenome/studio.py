@@ -161,6 +161,8 @@ class Studio:
                 return 200, s.recipes()
             if head == "runs":
                 return 200, [self.with_urls(r) for r in s.workspace.runs()]
+            if head == "run" and len(parts) == 2:
+                return 200, s.edit_run(parts[1])
             if head == "jobs" and len(parts) == 2:
                 job = self.jobs.get(parts[1])
                 if job is None:

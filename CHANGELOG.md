@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Studio experience
+- Rebuilt the Studio around a visual template library, a guided editor, a motion
+  lab and a searchable render history, with a responsive navigation drawer.
+- Search styles, filter by category/format/readiness, sort, and bookmark favorites.
+  Original style illustrations distinguish concepts from actual rendered samples.
+- Restore copy drafts by workspace and template, see live copy checks, keep edits
+  after errors, follow render stages, retry failed work, and reopen a render's
+  original copy without replacing its video.
+- Show actual recipe preset values in the controls, with keyboard focus states,
+  field labels, live status announcements and reduced-motion support.
+- Bundle Inter locally under the SIL Open Font License. Add browser user-journey
+  coverage and a separate CI job publishing desktop/mobile screenshots.
+
 ### Fixed
 - MCP sessions survive malformed JSON-RPC requests and report protocol errors;
   tool arguments now enforce the advertised schemas before dispatch.
