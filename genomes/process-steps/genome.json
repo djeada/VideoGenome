@@ -6,7 +6,8 @@
   "family": "explainer",
   "formats": [
     "16:9",
-    "9:16"
+    "9:16",
+    "1:1"
   ],
   "duration_seconds": [
     10,

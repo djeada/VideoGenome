@@ -11,6 +11,7 @@ from typing import Iterable
 
 from videogenome.blueprint import validate_blueprint
 from videogenome.compiler import ROOT, ProductionError, read_json
+from videogenome.formats import label, main_format
 from videogenome.resources import template_roots
 
 ASSET_TYPES = {"image", "image_array", "video", "video_array", "audio"}
@@ -23,12 +24,10 @@ def describe_template(path: Path) -> dict:
         raise ProductionError(f"Invalid catalog template {path}: {'; '.join(errors)}")
     width, height = data["output"]["width"], data["output"]["height"]
     divisor = gcd(width, height)
-    if height > width:
-        orientation = "portrait"
-    elif width > height:
-        orientation = "landscape"
-    else:
-        orientation = "square"
+    orientation = _orientation(width, height)
+    formats = [{"id": format_id, "aspect_ratio": label(format_id), "width": spec["width"],
+                "height": spec["height"], "orientation": _orientation(spec["width"], spec["height"])}
+               for format_id, spec in ((main_format(data), data["output"]), *data["output"].get("formats", {}).items())]
     kinds = sorted({
         shot["kind"] for scene in data["scenes"] for shot in scene["shots"]
     })
@@ -51,6 +50,8 @@ def describe_template(path: Path) -> dict:
         "self_contained": not needs_media and kinds == ["motion_graphics"],
         "machine_checked_gates": [g["id"] for g in data["quality_gates"] if "check" in g],
         "output": {**data["output"], "orientation": orientation, "aspect_ratio": f"{width//divisor}:{height//divisor}"},
+        # Every delivery format, main first; one job renders in any of them.
+        "formats": formats,
         "required_inputs": {
             name: spec["type"] for name, spec in data["inputs"].items() if spec["required"]
         },
@@ -62,6 +63,10 @@ def describe_template(path: Path) -> dict:
         "timeline": data.get("timeline"),
         "path": str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path),
     }
+
+
+def _orientation(width: int, height: int) -> str:
+    return "portrait" if height > width else "landscape" if width > height else "square"
 
 
 def discover(
@@ -79,7 +84,7 @@ def discover(
             continue
         if tag and tag not in descriptor["tags"]:
             continue
-        if orientation and descriptor["output"]["orientation"] != orientation:
+        if orientation and orientation not in {f["orientation"] for f in descriptor["formats"]}:
             continue
         if engine and engine not in descriptor["engines"]:
             continue

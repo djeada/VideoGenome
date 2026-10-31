@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "social.cinematic-title",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Cinematic 3D title opener (9:16)",
   "category": "social",
   "description": "A 12-second vertical title opener rendered in code (scene.cinematic-3d, Three.js): a generative 3D world under a slow camera, ending on a film-style title. Terrain looks fly low along a river through a seeded mountain valley at golden hour, dawn or dusk and climb over a far ridge to reveal the low sun; planet looks drift above the night side of a procedural planet until the sun breaks over the limb. The title letters fade in while their tracking settles, an accent rule grows and the subtitle rises. An ambient pad with a swell into the sun reveal and a soft impact under the title. The world is generated, not filmed: it depicts no real place.",
@@ -156,6 +156,16 @@
     "loudness": {
       "target_lufs": -14,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

@@ -33,6 +33,7 @@ from typing import Any
 from videogenome.compiler import (
     ProductionError, _check_input, copy_issues, read_json, sha256_file,
 )
+from videogenome.formats import label, variants
 from videogenome.layout import WEIGHTS, block_height, resolve_title_card, text_width_px
 from videogenome.plugins import PluginError, Renderer, Writer
 from videogenome.produce import timing_needs
@@ -116,7 +117,29 @@ def _recipe_text_param(produce: dict, field_path: str) -> tuple[int, str] | None
 
 
 def slot_contracts(blueprint: dict) -> dict[str, dict]:
-    """Fillable text slots with their purpose and length budgets."""
+    """Fillable text slots with their purpose and length budgets.
+
+    Copy must fit every delivery format the template offers, so each budget is the
+    tightest across formats (and its description says which format set it).
+    """
+    if not blueprint["output"].get("formats"):
+        return _slot_contracts(blueprint)
+    views = variants(blueprint)
+    merged = _slot_contracts(views[0][1])
+    for format_id, view in views[1:]:
+        for name, contract in _slot_contracts(view).items():
+            mine = merged[name]
+            tighter = False
+            for key in ("max_chars", "max_words"):
+                if contract[key] is not None and (mine[key] is None or contract[key] < mine[key]):
+                    mine[key] = contract[key]
+                    tighter = True
+            if tighter:
+                mine["uses"] = [f"{use} [{label(format_id)} format]" for use in contract["uses"]]
+    return merged
+
+
+def _slot_contracts(blueprint: dict) -> dict[str, dict]:
     output = blueprint["output"]
     fps = output["fps"]
     card = resolve_title_card(blueprint)
@@ -439,8 +462,14 @@ def _undrawable(text: str) -> list[str]:
 
 
 def check_values(blueprint: dict, contracts: dict[str, dict], values: dict, brief: str, *,
-                 pinned: dict | None = None, renderer: Renderer | None = None) -> list[dict]:
-    """Problems with proposed slot values, each naming the slots to revise."""
+                 pinned: dict | None = None, renderer: Renderer | None = None,
+                 layout: bool = False, formats: list[str] | None = None) -> list[dict]:
+    """Problems with proposed slot values, each naming the slots to revise.
+
+    ``layout`` also loads every code-rendered scene with the copy in each of
+    ``formats`` (default: all) and reports what does not fit; it runs only when
+    every other check passes, since it starts a browser.
+    """
     issues: list[dict] = []
     for name, value in values.items():
         contract = contracts[name]
@@ -499,18 +528,29 @@ def check_values(blueprint: dict, contracts: dict[str, dict], values: dict, brie
                 f"({every[partner]}): use the {name} the brief gives for that {partner}")})
     flagged = {slot for issue in issues for slot in issue["slots"]}
     candidate = {**(pinned or {}), **{k: v for k, v in values.items() if k not in flagged}}
-    layout_issues, cards = copy_issues(blueprint, candidate)
-    for issue in layout_issues:
-        single = issue["slots"][0] if len(issue["slots"]) == 1 else None
-        issues.append({"slots": issue["slots"], "problem": f"{issue['where']}: {issue['problem']}",
-                       **({"value": candidate[single]} if single in values else {})})
-    if renderer is not None and not layout_issues:
-        card = resolve_title_card(blueprint)
-        by_shot = {entry["shot_id"]: entry["slots"] for entry in cards}
-        for shot_id, problem in renderer.check_copy(card, blueprint["output"], cards):
-            slots = by_shot.get(shot_id, [])
-            issues.append({"slots": slots, "problem": problem,
-                           **({"value": candidate[slots[0]]} if len(slots) == 1 and slots[0] in values else {})})
+    views = variants(blueprint) if blueprint["output"].get("formats") else [(None, blueprint)]
+    # Layout depends on the frame: check the copy in every format, and say which
+    # formats a problem occurs in when it is not all of them.
+    found: dict[tuple, list] = {}
+    layouts = [(format_id, view, *copy_issues(view, candidate)) for format_id, view in views]
+    for format_id, _, layout_issues, _ in layouts:
+        for issue in layout_issues:
+            found.setdefault((tuple(issue["slots"]), f"{issue['where']}: {issue['problem']}"), []).append(format_id)
+    if renderer is not None and not found:
+        for format_id, view, _, cards in layouts:
+            by_shot = {entry["shot_id"]: entry["slots"] for entry in cards}
+            for shot_id, problem in renderer.check_copy(resolve_title_card(view), view["output"], cards):
+                found.setdefault((tuple(by_shot.get(shot_id, [])), problem), []).append(format_id)
+    for (slots, problem), where in found.items():
+        if len(where) < len(views):
+            problem = f"in the {', '.join(label(f) for f in where)} format: {problem}"
+        issues.append({"slots": list(slots), "problem": problem,
+                       **({"value": candidate[slots[0]]} if len(slots) == 1 and slots[0] in values else {})})
+    if layout and not issues:
+        from videogenome.layout_check import layout_issues
+        for issue in layout_issues(blueprint, candidate, formats):
+            slots = issue["slots"]
+            issues.append({**issue, **({"value": candidate[slots[0]]} if len(slots) == 1 and slots[0] in values else {})})
     return issues
 
 
@@ -553,7 +593,7 @@ class Filler:
     def __init__(self, blueprint: dict, template_path: Path, writer: Writer, *, brief: str,
                  renderer: Renderer | None = None, pinned: dict | None = None,
                  base_job: dict | None = None, job_id: str | None = None,
-                 max_attempts: int = 3, pipeline_id: str | None = None) -> None:
+                 max_attempts: int = 3, pipeline_id: str | None = None, layout: bool = True) -> None:
         brief = brief.strip()
         if not brief:
             raise ProductionError("The brief is empty")
@@ -568,6 +608,11 @@ class Filler:
         self.brief = brief
         self.max_attempts = max(1, max_attempts)
         self.pipeline_id = pipeline_id
+        from videogenome.layout_check import available
+        # Code-rendered scenes are loaded with the copy in every format before it is accepted.
+        self.layout = layout and available()
+        self.notes: list[str] = [] if self.layout or not layout else [
+            "layout check skipped: Playwright is not installed; the render still checks the layout"]
         contracts = slot_contracts(blueprint)
         job = json.loads(json.dumps(base_job)) if base_job else {
             "job_schema": "0.1.0",
@@ -684,8 +729,14 @@ class Filler:
                     problem = (f"{name} is required and is yours to write: compose it from the brief "
                                f"({contract['description']})")
                 issues.append({"slots": [name], "problem": problem})
-        issues += check_values(self.blueprint, self.contracts, values, self.brief,
-                               pinned=self.pinned, renderer=self.renderer)
+        try:
+            issues += check_values(self.blueprint, self.contracts, values, self.brief,
+                                   pinned=self.pinned, renderer=self.renderer, layout=self.layout)
+        except ProductionError as exc:  # The browser could not start: the render will still check.
+            self.layout = False
+            self.notes.append(f"layout check skipped: {exc}")
+            issues += check_values(self.blueprint, self.contracts, values, self.brief,
+                                   pinned=self.pinned, renderer=self.renderer)
         return values, issues, missing, ignored
 
     # ---- conversation -------------------------------------------------------
@@ -696,6 +747,7 @@ class Filler:
         except PluginError as exc:
             raise ProductionError(f"Writer {self.writer.name!r} failed: {exc}") from exc
         self.messages.append({"role": "assistant", "content": written.text})
+        wrote = time.monotonic()
         try:
             reply = parse_reply(written.text)
             values, issues, missing, ignored = self._check(reply)
@@ -703,7 +755,9 @@ class Filler:
             values, issues, missing, ignored = {}, [{"slots": [], "problem": f"Reply was not valid JSON ({exc})"}], [], []
         self.values = {**self.values, **values}
         self.attempts.append({
-            "attempt": len(self.attempts) + 1, "seconds": round(time.monotonic() - started, 2),
+            # Writer time only; checking (glyphs, layout in a browser) is reported apart.
+            "attempt": len(self.attempts) + 1, "seconds": round(wrote - started, 2),
+            "check_seconds": round(time.monotonic() - wrote, 2),
             "reply_sha256": hashlib.sha256(written.text.encode()).hexdigest(),
             "issues": issues, "missing": missing, "ignored_keys": ignored,
             "writer": written.metadata,
@@ -760,6 +814,8 @@ class Filler:
             "written_inputs": sorted(accepted),
             "missing": missing,
             "unresolved_issues": issues,
+            "layout_checked": self.layout,
+            **({"notes": self.notes} if self.notes else {}),
             "attempts": self.attempts,
             "caveat": "Copy was proposed by a language model from the brief. Verbatim slots were matched "
                       "against the brief text; other claims are not fact-checked. Human review gates "

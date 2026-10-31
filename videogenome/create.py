@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from videogenome.compiler import ProductionError, compile_job
+from videogenome.formats import label, output_path, resolve as resolve_formats
 from videogenome.fill import Filler, FillResult, load_for_fill, narration_slots
 from videogenome.pipeline import run_render
 from videogenome.produce import CopyTooLong, produce
@@ -37,10 +38,11 @@ def save_fill(result: FillResult, job_path: Path) -> Path:
 
 def make_filler(reference: str, brief: str, profile: Profile, *, template_dirs: Iterable[Path] = (),
                 pinned: dict | None = None, max_attempts: int = 3, job_id: str | None = None) -> Filler:
+    from videogenome.layout_check import renders_recipes
     blueprint, template_path, job, _ = load_for_fill(reference, template_dirs)
     return Filler(blueprint, template_path, profile.writer(), brief=brief, renderer=profile.renderer(),
                   pinned=pinned, base_job=job, job_id=job_id, max_attempts=max_attempts,
-                  pipeline_id=profile.id)
+                  pipeline_id=profile.id, layout=renders_recipes(profile))
 
 
 def explain(result: FillResult) -> str:
@@ -61,13 +63,20 @@ def _require_complete(result: FillResult, output: Path) -> None:
 def create(reference: str, brief: str, profile: Profile, output: Path, *,
            template_dirs: Iterable[Path] = (), pinned: dict | None = None, max_attempts: int = 3,
            workdir: Path | None = None, revisions: int = 2, write_deliverables: bool = True,
-           log: Callable[[str], None] = print) -> tuple[dict, FillResult, Path]:
-    """Return ``(receipt, fill_result, job_path)``; raise if any stage cannot finish."""
+           formats: Iterable[str] = (), log: Callable[[str], None] = print) -> tuple[dict[str, dict], FillResult, Path]:
+    """Return ``({format: receipt}, fill_result, job_path)``; raise if any stage cannot finish.
+
+    One fill serves every requested format (copy contracts already fit them all);
+    each format is produced and rendered in turn, to ``NAME.<format>.mp4`` when
+    there are several.
+    """
     template_dirs = list(template_dirs)
     workdir = (workdir or output.parent / f"{output.stem}.job").resolve()
     job_path = workdir / "job.json"
     filler = make_filler(reference, brief, profile, template_dirs=template_dirs, pinned=pinned,
                          max_attempts=max_attempts)
+    chosen = resolve_formats(filler.blueprint, list(formats))
+    several = len(chosen) > 1
     result = filler.run()
     save_fill(result, job_path)
     log(f"Fill:     {result.status} after {len(result.record['attempts'])} attempt(s) -> {job_path}")
@@ -75,7 +84,7 @@ def create(reference: str, brief: str, profile: Profile, output: Path, *,
 
     for revision in range(revisions + 1):
         try:
-            produced, report = produce(job_path, profile, template_dirs=template_dirs)
+            produced, report = produce(job_path, profile, template_dirs=template_dirs, format=chosen[0])
             break
         except CopyTooLong as exc:
             slots = [s for s in narration_slots(filler.blueprint, exc.input) if s in filler.contracts]
@@ -90,13 +99,19 @@ def create(reference: str, brief: str, profile: Profile, output: Path, *,
                 f"rewrite it in at most {target} words")}])
             save_fill(result, job_path)
             _require_complete(result, output)
-    for entry in report:
-        flag = "  [PLACEHOLDER]" if entry.get("placeholder") else ""
-        log(f"Produce:  {entry['status']:<10} {entry['input']:<22} {' -> '.join(entry.get('providers', []))}{flag}")
-    plan = compile_job(produced, template_dirs=template_dirs)
     fill = {"record": str(fill_paths(job_path)), "status": result.status, "writer": result.record["writer"],
             "attempts": len(result.record["attempts"]), "brief": result.record["brief"],
             "written_inputs": result.record["written_inputs"], "caveat": result.record["caveat"]}
-    receipt = run_render(plan, produced.parent, output, profile, write_deliverables=write_deliverables,
-                         context={"fill": fill})
-    return receipt, result, job_path
+    receipts = {}
+    for index, format_id in enumerate(chosen):
+        if index:
+            produced, report = produce(job_path, profile, template_dirs=template_dirs, format=format_id)
+        where = f" [{label(format_id)}]" if several else ""
+        for entry in report:
+            flag = "  [PLACEHOLDER]" if entry.get("placeholder") else ""
+            log(f"Produce:  {entry['status']:<10} {entry['input']:<22} "
+                f"{' -> '.join(entry.get('providers', []))}{flag}{where}")
+        plan = compile_job(produced, template_dirs=template_dirs, format=format_id)
+        receipts[format_id] = run_render(plan, produced.parent, output_path(output, format_id, several), profile,
+                                         write_deliverables=write_deliverables, context={"fill": fill})
+    return receipts, result, job_path

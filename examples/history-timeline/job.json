@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.history-timeline",
   "template": "educational.history-timeline",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "Five moments that made the web",
     "year_1": 1969,

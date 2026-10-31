@@ -216,7 +216,97 @@ def _write_wav(path: Path, pcm: bytes, sample_rate: int) -> None:
         handle.writeframes(pcm)
 
 
+def _open_page(browser, spec: dict, entry: Path, root: Path, allowed: list[Path],
+               libraries: dict[str, Path], *, record_audio: bool = False):
+    """A fresh page at the spec's size with the seeded, virtual-clock harness, loaded and set up.
+
+    Returns ``(context, page, errors)``; ``errors`` collects every uncaught page error.
+    """
+    clock = spec.get("mode") == "clock"
+    width, height = spec["width"], spec["height"]
+    context = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=1,
+                                  reduced_motion="no-preference")
+    context.route("**/*", _served(root, allowed, libraries))
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda exc: errors.append(str(exc)))
+    public = {k: spec[k] for k in ("params", "width", "height", "fps", "duration_seconds", "seed", "media")
+              if k in spec}
+    page.add_init_script(f"window.__vgSeed = {int(spec.get('seed', 0))};"
+                         f"window.__vgDuration = {float(spec.get('duration_seconds', 0))};"
+                         f"window.vgSpec = Object.freeze({json.dumps(public)});"
+                         + SEEDED_RANDOM + (VIRTUAL_CLOCK if clock else "")
+                         + (VIRTUAL_AUDIO if record_audio else ""))
+    page.goto(f"{ORIGIN}/{entry.relative_to(root).as_posix()}", wait_until="load")
+    if clock:
+        page.evaluate("() => document.fonts ? document.fonts.ready.then(() => true) : true")
+        if spec.get("click"):  # Pages that start on a click or tap ("click to play").
+            x, y = spec["click"] if isinstance(spec["click"], list) else (width / 2, height / 2)
+            page.mouse.click(x, y)
+    else:
+        page.evaluate("spec => window.vgSetup(spec)", spec)
+    return context, page, errors
+
+
+def _launch(playwright):
+    return playwright.chromium.launch(args=["--enable-unsafe-swiftshader", "--ignore-gpu-blocklist",
+                                            "--autoplay-policy=no-user-gesture-required"])
+
+
+def check(batch: Path, out: Path, samples: int = 12) -> None:
+    """Load each page and step it through its duration without capturing frames.
+
+    Recipes throw when copy cannot fit the frame; this surfaces those errors for
+    every requested size in one browser session, in seconds rather than a render.
+    ``batch`` is a JSON list of ``{"entry", "root", "allow", "lib", "spec"}``;
+    ``out`` receives one ``{"error": str | null}`` per item.
+    """
+    from playwright.sync_api import Error as PlaywrightError, sync_playwright
+    items = json.loads(batch.read_text(encoding="utf-8"))
+    results = []
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        try:
+            for item in items:
+                spec = item["spec"]
+                entry, root = Path(item["entry"]).resolve(), Path(item["root"]).resolve()
+                allowed = [Path(a).resolve() for a in item.get("allow", [])] or [entry.parent]
+                libraries = {name: Path(path).resolve() for name, path in item.get("lib", {}).items()}
+                context, errors = None, []
+                try:
+                    if not entry.is_relative_to(root):
+                        raise ValueError("entry must be inside the served root")
+                    context, page, errors = _open_page(browser, spec, entry, root, allowed, libraries)
+                    clock = spec.get("mode") == "clock"
+                    frames = max(1, round(spec.get("duration_seconds", 1) * spec.get("fps", 24)))
+                    for index in range(samples + 1):
+                        if errors:
+                            break
+                        frame = min(frames - 1, round(index * (frames - 1) / samples))
+                        ms = 1000 * frame / spec.get("fps", 24)
+                        if clock:
+                            page.evaluate("ms => window.__vgAdvance(ms)", ms)
+                        else:
+                            page.evaluate("([f, t]) => window.vgRender(f, t)", [frame, ms / 1000])
+                except (PlaywrightError, ValueError) as exc:
+                    errors.append(str(exc).splitlines()[0])
+                finally:
+                    if context is not None:
+                        context.close()
+                results.append({"error": errors[0] if errors else None})
+        finally:
+            browser.close()
+    out.write_text(json.dumps(results), encoding="utf-8")
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "--check":
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--check", type=Path, required=True, help="JSON list of pages to check")
+        parser.add_argument("--out", type=Path, required=True)
+        args = parser.parse_args()
+        check(args.check, args.out)
+        return
     parser = argparse.ArgumentParser()
     parser.add_argument("--entry", type=Path, required=True)
     parser.add_argument("--spec", type=Path, required=True)
@@ -251,33 +341,13 @@ def main() -> None:
         encode = ["-f", "image2pipe", "-c:v", "mjpeg", "-framerate", str(fps), "-i", "-",
                   "-c:v", "libx264", "-preset", "medium", "-crf", "14", "-pix_fmt", "yuv420p",
                   "-movflags", "+faststart", str(video_out)]
-    errors: list[str] = []
     captured = None
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(args=["--enable-unsafe-swiftshader", "--ignore-gpu-blocklist",
-                                                   "--autoplay-policy=no-user-gesture-required"])
-        context = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=1,
-                                      reduced_motion="no-preference")
+        browser = _launch(playwright)
         libraries = {name: Path(directory).resolve() for name, _, directory in
                      (item.partition("=") for item in args.lib)}
-        context.route("**/*", _served(root, allowed, libraries))
-        page = context.new_page()
-        page.on("pageerror", lambda exc: errors.append(str(exc)))
-        public = {k: spec[k] for k in ("params", "width", "height", "fps", "duration_seconds", "seed", "media")
-                  if k in spec}
-        page.add_init_script(f"window.__vgSeed = {int(spec.get('seed', 0))};"
-                             f"window.__vgDuration = {float(spec.get('duration_seconds', 0))};"
-                             f"window.vgSpec = Object.freeze({json.dumps(public)});"
-                             + SEEDED_RANDOM + (VIRTUAL_CLOCK if clock else "")
-                             + (VIRTUAL_AUDIO if record_audio else ""))
-        page.goto(f"{ORIGIN}/{entry.relative_to(root).as_posix()}", wait_until="load")
-        if clock:
-            page.evaluate("() => document.fonts ? document.fonts.ready.then(() => true) : true")
-            if spec.get("click"):  # Pages that start on a click or tap ("click to play").
-                x, y = spec["click"] if isinstance(spec["click"], list) else (width / 2, height / 2)
-                page.mouse.click(x, y)
-        else:
-            page.evaluate("spec => window.vgSetup(spec)", spec)
+        context, page, errors = _open_page(browser, spec, entry, root, allowed, libraries,
+                                           record_audio=record_audio)
         if errors:
             sys.exit(f"page setup failed: {errors[0]}")
         encoder = subprocess.Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *encode],

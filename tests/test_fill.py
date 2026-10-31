@@ -325,9 +325,10 @@ class CreateTests(unittest.TestCase):
         ScriptedWriter.queue = [reply({"title": "Hello", "line": "one two three four five six seven eight"}),
                                 reply({"title": "Hello", "line": "one two three four five"})]
         ScriptedWriter.seen = []
-        receipt, result, job_path = create("test.narrated-card", "Say hello in five words.",
-                                           Profile.load(self.profile_path), self.root / "out" / "card.mp4",
-                                           template_dirs=[self.templates], log=lambda _: None)
+        receipts, result, job_path = create("test.narrated-card", "Say hello in five words.",
+                                            Profile.load(self.profile_path), self.root / "out" / "card.mp4",
+                                            template_dirs=[self.templates], log=lambda _: None)
+        (receipt,) = receipts.values()
         self.assertEqual(result.job["inputs"]["line"], "one two three four five")
         self.assertIn("narration slot", ScriptedWriter.seen[1][-1]["content"])
         self.assertEqual(receipt["fill"]["status"], "complete")
@@ -355,8 +356,9 @@ class CreateTests(unittest.TestCase):
                                 reply({"title": "Hi", "line": "a b c d e"})]
         ScriptedWriter.seen = []
         logs: list[str] = []
-        receipt, result, _ = create("test.narrated-card-slow", "Say hi.", Profile.load(self.profile_path),
-                                    self.root / "slow.mp4", template_dirs=[self.templates], log=logs.append)
+        receipts, result, _ = create("test.narrated-card-slow", "Say hi.", Profile.load(self.profile_path),
+                                     self.root / "slow.mp4", template_dirs=[self.templates], log=logs.append)
+        (receipt,) = receipts.values()
         self.assertTrue(any(line.startswith("Revise:") for line in logs))
         self.assertIn("rewrite it in at most", ScriptedWriter.seen[-1][-1]["content"])
         self.assertEqual(result.job["inputs"]["line"], "a b c d e")

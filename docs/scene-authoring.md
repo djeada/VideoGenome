@@ -32,7 +32,10 @@ vendored at `_lib/three` with bloom, glTF loading and a room environment.
    templates can cue sound to them.
 2. **Any aspect ratio.** Lay out from `W`, `H` and `unit = min(W, H)`. Check
    16:9, 9:16 and 1:1. In 9:16 keep copy out of the top 12% and bottom 22%,
-   where platform UI sits.
+   where platform UI sits. A square is its own shape, not a short portrait or a
+   narrow landscape: it needs neither that reserve nor side columns a third of
+   the frame wide. Every param value the schema allows must fit every shape, or
+   the page must throw.
 3. **Copy.** Every on-screen string is a param with `maxLength`. Draw it with
    `fillText` (never `innerHTML`) and fit it with `vg.fit`, which balances
    lines and **throws** when copy cannot fit. Never shrink text below
@@ -60,7 +63,9 @@ vendored at `_lib/three` with bloom, glTF loading and a room environment.
 
 ## Template rules (ready to fill)
 
-* Schema `0.5.0`, `kind: "animation"`, `engine_hint: "browser"`, `fit: "cover"`.
+* Schema `0.6.0`, `kind: "animation"`, `engine_hint: "browser"`, `fit: "cover"`.
+  List every aspect ratio you have rendered and reviewed in `output.formats`
+  ([delivery formats](delivery-formats.md)); one job then renders them all.
   The scene is a producible `video` input whose `produce.request` names the
   recipe, its preset (`"{{look}}"` from an enum input) and params mapped from
   slots (`"{{headline}}"`, or arrays such as `["{{stat_1}}", "{{stat_2}}"]`;
@@ -95,7 +100,8 @@ python -m tools.validate                                     # blueprints, copy 
 videogenome recipe scene.my-scene --preset P --size 1080x1920 --duration 10 -o p.mp4   # every preset
 videogenome recipe scene.my-scene --size 1920x1080 --duration 10 -o l.mp4
 ffmpeg -i p.mp4 -vf "select='not(mod(n\,45))',scale=360:-2,tile=6x1" -frames:v 1 sheet.jpg
-videogenome make examples/my-template/job.json --pipeline procedural -o out.mp4   # all automated gates pass
+videogenome make examples/my-template/job.json --pipeline procedural --format all -o out.mp4   # every format, all gates pass
+python -m unittest tests.test_formats                        # samples and copy examples fit every format
 videogenome fill my.template --pipeline procedural-writer --brief "..." -o job.json # a local writer can fill it
 ~~~
 

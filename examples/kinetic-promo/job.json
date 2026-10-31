@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.kinetic-promo",
   "template": "social.kinetic-promo",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "hook": "Write the brief once.",
     "point_1": "Experts lock the craft",

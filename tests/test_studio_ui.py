@@ -148,6 +148,34 @@ class StudioBrowserTests(unittest.TestCase):
         expect(self.page.locator("#view-make")).to_be_visible()
         self.assertEqual(self.page.locator("#slot-headline").input_value(), original)
 
+    def test_format_picker_sends_the_chosen_formats(self) -> None:
+        from playwright.sync_api import expect
+        self.page.get_by_role("button", name="Make your first video", exact=True).click()
+        picker = self.page.locator("#format-picker")
+        expect(picker).to_be_hidden()  # A single-format template offers no choice.
+        self.page.locator("#template-select").select_option("social.quote-loop")
+        expect(picker).to_be_visible()
+        options = picker.locator("input[type=checkbox]")
+        self.assertEqual(options.count(), 3)
+        self.assertEqual([options.nth(i).is_checked() for i in range(3)], [True, False, False])
+        expect(self.page.locator("#template-info")).to_contain_text("9:16 · 16:9 · 1:1 formats")
+        options.nth(0).click()  # The last chosen format cannot be cleared.
+        self.assertTrue(options.nth(0).is_checked())
+        picker.get_by_text("1:1", exact=True).click()
+        self.page.get_by_role("button", name="Try sample copy", exact=True).click()
+        sent: list[dict] = []
+
+        def capture(route) -> None:
+            sent.append(json.loads(route.request.post_data or "{}"))
+            route.abort()
+        self.page.route("**/api/render", capture)
+        self.page.route("**/api/check", lambda route: route.fulfill(
+            status=200, content_type="application/json",
+            body=json.dumps({"ok": True, "issues": [], "warnings": [], "verbatim_unverified": []})))
+        self.page.get_by_role("button", name="Render video", exact=True).click()
+        self.page.locator("#make-job .notice.bad").wait_for()
+        self.assertEqual(sent[0]["formats"], ["9x16", "1x1"])
+
     def test_preset_picker_updates_visible_controls(self) -> None:
         self.page.locator('.tab[data-view="code"]').click()
         self.page.locator("#recipe-select").select_option("scene.kinetic-type")

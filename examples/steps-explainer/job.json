@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.steps-explainer",
   "template": "educational.steps-explainer",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "From brief to video",
     "step_1": "Pick a template",

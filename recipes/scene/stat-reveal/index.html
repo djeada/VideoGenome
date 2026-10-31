@@ -168,10 +168,12 @@ hero.numbers = stats.map((s, i) => ring
   ? fitNumber(s, hero.R * 1.42, hero.R * 0.62, minText * 2, `value ${i + 1}`)
   : fitNumber(s, portrait ? area.w : hero.visW, portrait ? Math.min(hero.vis * 0.62, unit * 0.34) : Math.min(area.h * 0.5, unit * 0.32), minText * 2, `value ${i + 1}`));
 
-// Recap layout: rows (portrait) or columns (landscape) with one shared number size.
+// Recap layout: rows (portrait and squarish frames) or columns (wide frames) with one
+// shared number size. Columns in a square would leave each label a third of the width.
+const recapRows = portrait || W < H * 1.25;
 let recap = null;
 if (T.R) {
-  if (portrait) {
+  if (recapRows) {
     const rowH = Math.min(area.h / N, unit * 0.36), colW = area.w * 0.56;
     const maxS = Math.min(rowH * 0.5, unit * 0.17);
     const size = Math.min(...stats.map((s, i) => fitNumber(s, colW - unit * 0.04, maxS, minText * 1.6, `value ${i + 1}`).size));
@@ -374,7 +376,7 @@ function drawRecap(t) {
     const p = vg.tween(t, s, 0.7, vg.ease.outExpo);
     const fill = vg.tween(t, s + 0.2, 0.9, vg.ease.inOutCubic);
     const b = r.blocks[k], L = r.labels[k];
-    if (portrait) {
+    if (recapRows) {
       const y0 = r.top + k * r.rowH, cy = y0 + r.rowH / 2;
       if (k > 0) {   // Hairline divider draws across.
         ctx.fillStyle = TRACK; ctx.fillRect(m, y0, area.w * vg.tween(t, s - 0.05, 0.6, vg.ease.outExpo), Math.max(1, unit * 0.0016));

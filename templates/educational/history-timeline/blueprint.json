@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "educational.history-timeline",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "History timeline: camera along the axis (9:16)",
   "category": "educational",
   "description": "A 30-second vertical history explainer: the title rises and slides into a header while a timeline axis draws itself; the camera glides along the axis to five events, one year each, as year ticks and a ghost year counter roll by; at each one a pin drops with a ripple and a card lands with the date, a headline and a one-line note; the travelled axis lights and a progress track fills; the camera zooms out to every pin with its date and a summary line. Code-rendered (scene.history-timeline) with a procedural ambient pad, a whoosh on every camera move, a click on every pin and a swell into the summary.",
@@ -254,6 +254,16 @@
     "loudness": {
       "target_lufs": -14,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

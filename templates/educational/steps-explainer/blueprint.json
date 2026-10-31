@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "educational.steps-explainer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Animated three-step explainer (16:9)",
   "category": "educational",
   "description": "A 15-second 16:9 process explainer: a title with an accent rule, then three numbered steps that pop in on a self-drawing connector with a one-line note each, turn into check marks and come back together as a recap. Code-rendered (scene.steps) with a procedural lo-fi bed and a soft click as each step lands.",
@@ -147,6 +147,16 @@
     "loudness": {
       "target_lufs": -16,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "9x16": {
+        "width": 1080,
+        "height": 1920
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

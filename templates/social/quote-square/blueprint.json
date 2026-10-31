@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "social.quote-square",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Quote loop (1:1)",
   "category": "social",
   "description": "A 15-second square quote or lyric card that loops: a slow generative backdrop (silk flow-field ribbons, bokeh dust or a soft mesh gradient, all periodic in the clip length), a large opening mark, the quote arriving phrase by phrase in a system serif at reading speed, then an accent rule and the attribution. A procedural ambient pad sits underneath. Code-rendered (scene.quote-loop): no footage, models or downloads. The quote and attribution are copied verbatim from the brief, never written.",
@@ -127,6 +127,16 @@
     "loudness": {
       "target_lufs": -16,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "9x16": {
+        "width": 1080,
+        "height": 1920
+      }
     }
   },
   "engines": [

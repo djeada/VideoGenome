@@ -75,10 +75,11 @@ def run_bench(suite_path: Path, profile: Profile, *, template_dirs: Iterable[Pat
         row: dict = {"id": entry["id"], "template": entry["template"], "expect": expect}
         try:
             if render_dir is not None and expect == "complete":
-                receipt, result, job_path = create(
+                receipts, result, job_path = create(
                     entry["template"], entry["brief"], profile, render_dir / f"{entry['id']}.mp4",
                     template_dirs=template_dirs, pinned=entry.get("set"), max_attempts=max_attempts,
                     log=lambda _: None)
+                receipt = next(iter(receipts.values()))
                 gates = {g["id"]: g["status"] for g in receipt["quality_gates"]}
                 row["render"] = {"output": receipt["output_path"], "gates": gates,
                                  "automated_failed": sorted(k for k, v in gates.items() if v == "failed")}

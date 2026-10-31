@@ -8,8 +8,9 @@ from pathlib import Path
 
 from videogenome import __version__
 from videogenome.catalog import discover, inspect_template, scaffold
-from videogenome.compiler import ProductionError, compile_job
+from videogenome.compiler import ProductionError, compile_job, job_format, read_json, resolve_template
 from videogenome.doctor import diagnose
+from videogenome.formats import job_stem, label, output_path, resolve as resolve_formats
 from videogenome.pipeline import run_render
 from videogenome.plugins import CAPABILITIES, KINDS, available, load_type
 from videogenome.produce import produce
@@ -24,6 +25,22 @@ def _template_option(parser: argparse.ArgumentParser) -> None:
         "--templates", type=Path, action="append", default=[], metavar="DIR",
         help="Trust an additional template directory (repeatable; also VIDEOGENOME_TEMPLATE_PATH)",
     )
+
+
+def _format_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--format", action="append", default=[], metavar="ID",
+                        help="Delivery format from the template's formats, e.g. 9x16 or 1:1; repeat, "
+                             "comma-separate or use 'all'. Several formats write NAME.<format>.mp4 each")
+
+
+def _job_formats(job: Path, requested: list[str], template_dirs: list[Path]) -> list[str]:
+    """The formats to process: the requested ones, else the job's own (or the main) format."""
+    data = read_json(job)
+    template = data.get("template")
+    if not isinstance(template, str):
+        raise ProductionError(f"{job}: job has no template id")
+    blueprint = read_json(resolve_template(template, job.resolve().parent, template_dirs))
+    return resolve_formats(blueprint, requested) if requested else [job_format(data, blueprint)]
 
 
 def _pipeline_option(parser: argparse.ArgumentParser) -> None:
@@ -81,7 +98,7 @@ def _print_fill(result, job_path: Path, record: Path) -> None:
 
 def _fill_context(job: Path) -> dict | None:
     """Carry a `fill` record (``<job>.fill.json``) into the receipt and review page."""
-    record = job.with_name(f"{job.stem.removesuffix('.produced')}.fill.json")
+    record = job.with_name(f"{job_stem(job)}.fill.json")
     if not record.is_file():
         return None
     try:
@@ -206,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
         command = commands.add_parser(name, help=helps[name])
         command.add_argument("job", type=Path, help="Production job JSON manifest")
         _template_option(command)
+        _format_option(command)
         if name in ("render", "produce", "make"):
             _pipeline_option(command)
         if name in ("compile", "render", "make"):
@@ -285,6 +303,7 @@ def main(argv: list[str] | None = None) -> int:
     create.add_argument("--receipt", type=Path, help="Write QA/provenance receipt JSON")
     create.add_argument("--no-deliverables", action="store_true", help="Skip sidecar exporters")
     _template_option(create)
+    _format_option(create)
     _pipeline_option(create)
     bench = commands.add_parser("bench", help="Measure how reliably the pipeline's writer fills templates")
     bench.add_argument("suite", type=Path, help="Brief suite JSON (see examples/briefs/smoke.json)")
@@ -462,20 +481,27 @@ def main(argv: list[str] | None = None) -> int:
                 raise ProductionError("Output must be an .mp4 file")
             profile = Profile.load(args.pipeline, search=args.pipelines)
             try:
-                receipt, _, _ = create_video(
+                receipts, _, _ = create_video(
                     args.template, _brief(args), profile, args.output, template_dirs=args.templates,
                     pinned=_pairs(args.set), max_attempts=args.max_attempts, workdir=args.workdir,
-                    write_deliverables=not args.no_deliverables)
+                    write_deliverables=not args.no_deliverables, formats=args.format)
             except ProductionError as exc:
                 print(f"ERROR: {exc}", file=sys.stderr)
                 return EXIT_INCOMPLETE if isinstance(exc, FillIncomplete) else 1
-            if args.receipt:
-                args.receipt.parent.mkdir(parents=True, exist_ok=True)
-                args.receipt.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-            _print_receipt_summary(receipt)
-            print(f"Copy:     written by {receipt['fill']['writer'].get('model', {}).get('name') or receipt['fill']['writer']['name']}"
+            failed = False
+            for format_id, receipt in receipts.items():
+                if len(receipts) > 1:
+                    print(f"Format:   {label(format_id)}")
+                if args.receipt:
+                    path = output_path(args.receipt, format_id, len(receipts) > 1)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+                _print_receipt_summary(receipt)
+                failed |= any(gate["status"] == "failed" for gate in receipt["quality_gates"])
+            writer = receipt["fill"]["writer"]
+            print(f"Copy:     written by {writer.get('model', {}).get('name') or writer['name']}"
                   " from the brief; review claims before publishing")
-            if any(gate["status"] == "failed" for gate in receipt["quality_gates"]):
+            if failed:
                 print("ERROR: an automated quality gate failed; output kept for inspection", file=sys.stderr)
                 return EXIT_GATE_FAILED
             return 0
@@ -490,8 +516,9 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             for entry in entries:
                 media = "text only" if entry["self_contained"] else "needs media"
+                ratios = "/".join(f["aspect_ratio"] for f in entry["formats"])
                 print(f"{entry['id']:<40} {entry['version']:<7} "
-                      f"{entry['output']['aspect_ratio']:>5} {entry['duration_seconds']:>6.1f}s  "
+                      f"{ratios:>14} {entry['duration_seconds']:>6.1f}s  "
                       f"{media:<11}  {entry['title']}")
             return 0
         if args.command == "inspect":
@@ -508,37 +535,46 @@ def main(argv: list[str] | None = None) -> int:
             if optional:
                 print(f"Optional inputs you may add: {', '.join(sorted(optional))}")
             return 0
-        if args.command in ("produce", "make"):
-            profile = Profile.load(args.pipeline, search=args.pipelines)
-            produced, report = produce(args.job, profile, template_dirs=args.templates,
-                                       force=args.force, only=args.only)
-            _print_production(report, produced)
-            if args.command == "produce":
-                return 0
-            args.job = produced
-        plan = compile_job(args.job, template_dirs=args.templates, allow_pending=args.command == "validate")
-        if args.command == "validate":
-            pending = plan.get("pending_inputs", [])
-            print(f"PASS {args.job}: {len(plan['segments'])} shots, {plan['total_frames']} frames"
-                  + (f"; to produce before rendering: {', '.join(pending)}" if pending else ""))
-        elif args.command == "compile":
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
-            print(f"Wrote immutable shot plan: {args.output}")
-        else:
-            if args.command == "render":
-                profile = Profile.load(args.pipeline, search=args.pipelines)
-            receipt = run_render(plan, args.job.resolve().parent, args.output, profile,
-                                 write_deliverables=not args.no_deliverables,
-                                 context=_fill_context(args.job))
-            if args.receipt:
-                args.receipt.parent.mkdir(parents=True, exist_ok=True)
-                args.receipt.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-            _print_receipt_summary(receipt)
-            if any(gate["status"] == "failed" for gate in receipt["quality_gates"]):
-                print("ERROR: an automated quality gate failed; output kept for inspection",
-                      file=sys.stderr)
-                return EXIT_GATE_FAILED
+        formats = _job_formats(args.job, args.format, args.templates)
+        several = len(formats) > 1
+        profile = (Profile.load(args.pipeline, search=args.pipelines)
+                   if args.command in ("produce", "make", "render") else None)
+        failed = False
+        for format_id in formats:
+            job = args.job
+            if several:
+                print(f"Format:   {label(format_id)}")
+            if args.command in ("produce", "make"):
+                job, report = produce(args.job, profile, template_dirs=args.templates,
+                                      force=args.force, only=args.only, format=format_id)
+                _print_production(report, job)
+                if args.command == "produce":
+                    continue
+            plan = compile_job(job, template_dirs=args.templates, allow_pending=args.command == "validate",
+                               format=format_id)
+            if args.command == "validate":
+                pending = plan.get("pending_inputs", [])
+                where = f" ({label(format_id)})" if several else ""
+                print(f"PASS {args.job}{where}: {len(plan['segments'])} shots, {plan['total_frames']} frames"
+                      + (f"; to produce before rendering: {', '.join(pending)}" if pending else ""))
+            elif args.command == "compile":
+                path = output_path(args.output, format_id, several)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+                print(f"Wrote immutable shot plan: {path}")
+            else:
+                receipt = run_render(plan, job.resolve().parent, output_path(args.output, format_id, several),
+                                     profile, write_deliverables=not args.no_deliverables,
+                                     context=_fill_context(args.job))
+                if args.receipt:
+                    path = output_path(args.receipt, format_id, several)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+                _print_receipt_summary(receipt)
+                failed |= any(gate["status"] == "failed" for gate in receipt["quality_gates"])
+        if failed:
+            print("ERROR: an automated quality gate failed; output kept for inspection", file=sys.stderr)
+            return EXIT_GATE_FAILED
         return 0
     except ProductionError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

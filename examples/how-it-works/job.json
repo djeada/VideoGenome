@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.how-it-works",
   "template": "educational.how-it-works",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "How a tap-to-pay payment goes through",
     "node_1": "You tap to pay",

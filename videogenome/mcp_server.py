@@ -26,7 +26,7 @@ from videogenome import __version__
 from videogenome.compiler import ProductionError
 from videogenome.service import Service
 from videogenome.requests import (
-    BRIEF, CAPTURE_PROPERTIES, COPY_PROPERTIES, IDENTIFIER, NAME, PREVIEW_PROPERTIES,
+    BRIEF, CAPTURE_PROPERTIES, COPY_PROPERTIES, FORMATS, IDENTIFIER, NAME, PREVIEW_PROPERTIES,
     object_schema, parse_request, validate_request,
 )
 
@@ -36,6 +36,8 @@ INSTRUCTIONS = """VideoGenome turns briefs into finished, measured videos from e
 Workflow: `library` (what can be made, by readiness) -> `template` (slot contracts and examples) ->
 write copy for the slots yourself -> `check_inputs` (fix every issue it reports; pass the brief so
 names, quotes and numbers are matched against it) -> `render` -> look at the returned contact sheet.
+A template's `formats` lists every aspect ratio it is authored for (e.g. 16:9, 9:16, 1:1); pass
+`formats` to `render` to deliver one job in several of them.
 Never invent names, quotes, testimonials, numbers or dates: slots marked VERBATIM must use the
 brief's exact words. To render code you wrote, call `capture_html` with a self-contained page that
 animates with requestAnimationFrame/CSS/timers (it runs unmodified on a virtual clock; shared
@@ -59,12 +61,16 @@ TOOLS = [
           "enum choices), whether it is VERBATIM, worked copy examples, media inputs and quality gates.",
           {"id": IDENTIFIER}, ["id"]),
     _tool("check_inputs", "Check proposed slot values exactly as the renderer will (copy fitting with the real "
-          "font, caption limits, narration length, enums, verbatim grounding against the brief).",
+          "font, caption limits, narration length, enums, verbatim grounding against the brief), and load "
+          "code-rendered scenes with the copy in each delivery format (default: all) to catch text that "
+          "cannot fit the frame.",
           COPY_PROPERTIES,
           ["template", "inputs"]),
     _tool("render", "Render a template from slot values you wrote: produces media with the operator's pipeline, "
-          "renders, runs the gates and returns the video, review page, gate results and a contact sheet image.",
-          {**COPY_PROPERTIES, "name": NAME},
+          "renders, runs the gates and returns the video, review page, gate results and a contact sheet image. "
+          "Pass formats (e.g. [\"all\"] or [\"16x9\", \"9x16\"]) for one video per delivery format the "
+          "template lists; each gets its own gates and contact sheet.",
+          {**COPY_PROPERTIES, "name": NAME, "formats": FORMATS},
           ["template", "inputs"]),
     _tool("fill_from_brief", "Let the operator's configured writer model fill a template from a brief "
           "(only when the server's pipeline has a writer; otherwise write the copy yourself).",
@@ -93,9 +99,11 @@ class Server:
             "genome": lambda a: self.service.genome(a["id"]),
             "templates": lambda a: self.service.templates(),
             "template": lambda a: self.service.template(a["id"]),
-            "check_inputs": lambda a: self.service.check_inputs(a["template"], a["inputs"], a.get("brief")),
+            "check_inputs": lambda a: self.service.check_inputs(a["template"], a["inputs"], a.get("brief"),
+                                                                formats=a.get("formats"), layout=True),
             "render": lambda a: self.service.render(a["template"], a["inputs"], brief=a.get("brief"),
-                                                    author="agent (MCP)", name=a.get("name")),
+                                                    author="agent (MCP)", name=a.get("name"),
+                                                    formats=a.get("formats")),
             "fill_from_brief": lambda a: self.service.fill(a["template"], a["brief"]),
             "recipes": lambda a: self.service.recipes(a.get("media")),
             "preview_recipe": lambda a: self.service.preview_recipe(
@@ -200,8 +208,12 @@ class Server:
             return {"isError": True, "content": [{"type": "text", "text": f"Internal error: {exc}\n"
                                                   + traceback.format_exc(limit=3)}]}
         content = [{"type": "text", "text": json.dumps(result, indent=2, ensure_ascii=False, default=str)}]
-        sheet = result.get("contact_sheet") if isinstance(result, dict) else None
-        if sheet and Path(sheet).is_file() and Path(sheet).stat().st_size < 4_000_000:
-            content.append({"type": "image", "mimeType": "image/jpeg",
-                            "data": base64.b64encode(Path(sheet).read_bytes()).decode()})
+        sheets = []
+        if isinstance(result, dict):  # One contact sheet per delivery format.
+            rows = result.get("formats") if isinstance(result.get("formats"), list) else [result]
+            sheets = [row.get("contact_sheet") for row in rows if isinstance(row, dict)]
+        for sheet in sheets:
+            if sheet and Path(sheet).is_file() and Path(sheet).stat().st_size < 4_000_000:
+                content.append({"type": "image", "mimeType": "image/jpeg",
+                                "data": base64.b64encode(Path(sheet).read_bytes()).decode()})
         return {"content": content, "isError": False}

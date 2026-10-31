@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.chart-story",
   "template": "educational.chart-story",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "E-books now lead library loans",
     "measure": "Loans by format, Westbrook libraries, 2025",

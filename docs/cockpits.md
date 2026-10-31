@@ -40,6 +40,10 @@ videogenome previews --pipeline procedural --workspace ~/vg-runs   # optional: l
   live limits (characters, spoken words, VERBATIM tags) and press *Check*, or
   paste a brief and let the pipeline's writer fill it (*Write the copy*,
   *Brief to video*). Renders show the video, every gate and a link to the review page.
+  Templates with several [delivery formats](delivery-formats.md) show a
+  *Deliver in* picker (16:9, 9:16, 1:1...): one render makes each chosen format,
+  and the result switches between them. *Check my copy* also lays the copy out
+  in every chosen format.
 * **Code**: tune any recipe's parameters (sliders, colour pickers, lists) and
   preview it in any format; paste or open your own HTML animation and render it
   unmodified, with its Web Audio recorded.
@@ -96,8 +100,12 @@ The intended loop has the agent acting as the writer:
 
 1. `library` → choose a class; `template` → read each slot's limits and whether it is VERBATIM.
 2. Write the copy, then `check_inputs` with the brief; fix every issue it returns.
+   It also loads each code-rendered scene with the copy in every format the
+   template offers and reports text that cannot fit, naming slot and format.
 3. `render` → the video, the review page and the gate results, plus a contact
-   sheet returned as an image so the agent can judge the result.
+   sheet returned as an image so the agent can judge the result. Pass
+   `formats: ["all"]` (or e.g. `["16x9", "9x16"]`) for one video per delivery
+   format, each with its own gates and contact sheet.
 4. For something no template covers, write a self-contained HTML animation and
    call `capture_html`; the page runs unmodified on the virtual clock.
 

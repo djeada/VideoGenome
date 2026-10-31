@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "social.kinetic-promo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Kinetic type promo (9:16)",
   "category": "social",
   "description": "A 10-second vertical kinetic-typography promo in the style of studio motion-design reels: four phrases rise word by word, an accent circle lands as each full stop and swells into the next phrase's ground, over a drifting dot grid, with a procedural pulse bed and a whoosh on every wipe. Code-rendered (scene.kinetic-type), so it renders with no footage, models or downloads.",
@@ -138,6 +138,16 @@
     "loudness": {
       "target_lufs": -14,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

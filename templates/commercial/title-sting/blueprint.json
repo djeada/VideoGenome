@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "commercial.title-sting",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Brand title sting (16:9)",
   "category": "commercial",
   "description": "A 6-second 16:9 brand or title reveal: letters fly in from depth and lock together on an impact (flash ring, sparks, camera punch), a light sweep crosses the name, an accent rule extends and the tagline tracks in. A procedural riser builds into an impact hit on the landing. Code-rendered (scene.title-sting).",
@@ -121,6 +121,16 @@
     "loudness": {
       "target_lufs": -16,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "9x16": {
+        "width": 1080,
+        "height": 1920
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

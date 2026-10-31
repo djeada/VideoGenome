@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.code-snippet-vertical",
   "template": "educational.code-snippet-vertical",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "Trim file names in Bash",
     "filename": "trim.sh",

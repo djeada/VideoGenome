@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Multi-format delivery
+- **One job, several aspect ratios** (blueprint schema `0.6.0`): `output.formats`
+  lists the other aspect ratios a template is authored and reviewed for, with
+  optional per-format title-card and caption sizes. Every format is validated at
+  its own size, copy examples included. See `docs/delivery-formats.md`.
+- `--format` (repeatable, comma lists, `9:16` or `9x16`, `all`) on `validate`,
+  `compile`, `render`, `produce`, `make` and `create`; several formats write
+  `NAME.<format>.mp4` and `receipt.<format>.json`. Receipts and plans record their
+  format; a gate that fails in any format fails the run.
+- Media is produced per format (`generated/<format>/`, `job.<format>.produced.json`);
+  frame-independent media such as music and sound effects is produced once and
+  reused. A job holding produced media refuses to render in another format.
+- Copy contracts are the tightest across formats, and layout problems name the
+  format they occur in.
+- **Layout check**: code-rendered scenes are loaded with the real params at each
+  format's size and stepped through their clock without capturing frames, so copy
+  a scene cannot fit is reported in seconds, naming the slot and format. It runs in
+  MCP `check_inputs`, before Studio and MCP renders, on the Studio's *Check my copy*,
+  and inside writer fills (`fill`, `create`) as revision feedback, whenever the
+  operator's pipeline renders recipes.
+- All 20 code-animated templates now render 16:9, 9:16 and 1:1 (chart story: 16:9
+  and 9:16), each sample rendered and reviewed in every format; their minor versions
+  are bumped. The catalog lists every format and `--orientation` matches any of them;
+  genome formats must cover what their templates render.
+- Studio: a *Deliver in* picker for templates with several formats, per-format
+  results with a switcher, and formats in template details. MCP: `formats` on
+  `render` and `check_inputs`, one contact sheet image per format.
+
+### Scene layout fixes
+- `scene.stat-reveal` lists its closing recap as rows in square frames, where
+  three columns left labels too narrow to fit.
+- `scene.route-map` shrinks its distance and time counters to fit their column
+  (down to a legible floor) instead of failing in 16:9.
+- `scene.feature-launch` frames the focused UI higher and the callout lower in
+  square frames, so they no longer overlap; 9:16 output is unchanged.
+- Audio production requests no longer carry the frame size (one-time cache refresh).
+
 ### Studio experience
 - Rebuilt the Studio around a visual template library, a guided editor, a motion
   lab and a searchable render history, with a responsive navigation drawer.

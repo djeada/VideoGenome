@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.route-story",
   "template": "social.route-story",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "Route 66 in two weeks",
     "stop_1": "Chicago",

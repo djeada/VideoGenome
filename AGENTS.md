@@ -16,12 +16,13 @@ VideoGenome is a **universal video-production expertise repository**, not solely
 - Add test cases for missing inputs, incompatible assets, duration consistency and expected output.
 - Give every text input a `fill` policy where it matters (`verbatim` for names, quotes, testimonials and approved wording; `never` for what only a person may supply) and ship one to three `copy_examples` that pass `python -m tools.validate`. Try the template from a brief with `videogenome create` and add briefs for it to a bench suite.
 - To turn a one-off animation into a template, write it as a browser recipe with `"timing": "clock"` (ordinary rAF/CSS/timer code, parameters from `window.vgSpec`), move copy, colours and timing into bounded params, and lock the look in the blueprint. Cue sound to the scene's own beats.
+- List in `output.formats` (schema 0.6.0) only aspect ratios you have rendered with `--format all` and reviewed frame by frame; `tests/test_formats.py` checks the sample job and copy examples fit each one (see docs/delivery-formats.md). A square is neither a short portrait nor a narrow landscape.
 
 Templates requiring unavailable providers may be contributed **as blueprints**, but documentation must state they do not render with the current adapter without independently produced media.
 
 ## Cockpits
 
-- Agents connect through `videogenome mcp` (started by the operator with a pipeline and a workspace). Use `template` for slot contracts, write the copy yourself, call `check_inputs` with the brief until it reports no issues, then `render` and inspect the returned contact sheet. Never ask for a different pipeline.
+- Agents connect through `videogenome mcp` (started by the operator with a pipeline and a workspace). Use `template` for slot contracts, write the copy yourself, call `check_inputs` with the brief until it reports no issues (it also lays the copy out in every format), then `render` (with `formats` for several aspect ratios) and inspect each returned contact sheet. Never ask for a different pipeline.
 - `videogenome library` shows each class's level: template (fill it), code (tune its params) or prompt (build it: follow `videogenome genome ID --prompt`, preview with `videogenome capture`, then promote it to a recipe and template per docs/scene-authoring.md).
 - People use `videogenome studio`; power users the CLI. All three share one service layer and the same checks.
 
@@ -36,6 +37,7 @@ Templates requiring unavailable providers may be contributed **as blueprints**, 
 - If essential input or consent is missing, report the missing requirement rather than fabricating it. `fill` exit status 4 means the brief lacks required facts: report the listed missing inputs.
 - Copy slots marked verbatim only with words that appear in the brief; never paraphrase a quote, testimonial, name or approved call to action.
 - Validate with python -m videogenome validate JOB.json before trying to render.
+- Deliver extra aspect ratios with `--format` (e.g. `--format all`) from the same job; only formats the template lists exist. Never edit width, height or `output.formats`.
 - Inputs marked producible may be left out; run `videogenome produce` or `make` with the pipeline the operator chose. Never pick, add or edit a pipeline profile, provider, command, endpoint or voice yourself.
 - Never claim generated or placeholder media is real footage, a real voice or a real product; receipts flag placeholders and these must not be published.
 - Never place arbitrary Python, JS, shell commands or provider secrets into production job fields.

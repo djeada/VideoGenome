@@ -83,6 +83,9 @@ const light = vg.luminance(GROUND) > 0.4;
 
 // ---- UI layout (design units; the window spans 0..DW x 0..DH) ------------------------------
 const wide = W / H >= 1.25;
+// Tall (9:16) frames keep the foot clear of platform UI; squarish frames use that room,
+// so the focused UI sits higher and the callout lower, with clear space between them.
+const tall = H / W >= 1.4;
 const DW = wide ? 1600 : 900, DH = wide ? 1000 : 1300, PAD = 90, TB = 64;
 const L = wide ? {
   side: { x: 0, y: TB, w: 260, h: DH - TB }, mx: 300, mw: 1260,
@@ -139,7 +142,7 @@ if (beat < 1.8) throw new Error("feature-launch: too many features for this dura
 const tilt = P.tilt;
 const zWide = wide ? Math.min(W * 0.8 / DW, H * 0.76 / DH) : Math.min(W * 0.86 / DW, H * 0.6 / DH);
 const zMax = zWide * (wide ? 1.85 : 1.75);
-const stage = wide ? { w: W * 0.5, h: H * 0.66 } : { w: W * 0.92, h: H * 0.34 };
+const stage = wide ? { w: W * 0.5, h: H * 0.66 } : { w: W * 0.92, h: H * (tall ? 0.34 : 0.3) };
 const wideShot = { fx: DW / 2, fy: DH / 2, z: zWide, rx: 14 * tilt, ry: -12 * tilt, ax: W / 2, ay: H * (wide ? 0.5 : 0.45) };
 const introShot = { ...wideShot, z: zWide * 0.82, rx: 16 + 40 * tilt, ry: -18 * tilt, ay: wideShot.ay + H * 0.22 };
 const shots = regions.map((r) => {
@@ -147,7 +150,7 @@ const shots = regions.map((r) => {
   const fxp = lerp(r.rect.x + r.rect.w / 2, r.target.x, wide ? 0.25 : 0.4);
   const fyp = lerp(r.rect.y + r.rect.h / 2, r.target.y, 0.3);
   return { fx: fxp, fy: fyp, z, rx: 9 * tilt, ry: (wide ? 11 * r.side : -8) * tilt,
-           ax: wide ? W * (r.side > 0 ? 0.31 : 0.69) : W / 2, ay: wide ? H * 0.5 : H * 0.33 };
+           ax: wide ? W * (r.side > 0 ? 0.31 : 0.69) : W / 2, ay: wide ? H * 0.5 : H * (tall ? 0.33 : 0.27) };
 });
 const outroShot = { fx: DW / 2, fy: DH * 0.3, z: zWide * (wide ? 0.95 : 1.0), rx: 38 + 20 * tilt, ry: 0, ax: W / 2, ay: H * (wide ? 0.84 : 0.8) };
 const mixShot = (a, b, p) => {
@@ -206,7 +209,7 @@ const callouts = heads.map((h, i) => {
   const r = regions[i];
   let x, y;
   if (wide) { x = r.side > 0 ? W * 0.59 : W * 0.41 - width; y = H / 2 - height / 2; }
-  else { x = W / 2; y = H * 0.775 - height; }
+  else { x = W / 2; y = H * (tall ? 0.775 : 0.92) - height; }
   return { head, det, label, gap1, gap2, height, width, x, y };
 });
 const nameBlock = vg.fit(fx, product, { maxSize: unit * (wide ? 0.15 : 0.14), minSize: unit * 0.05, weight: 800,

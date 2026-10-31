@@ -24,6 +24,15 @@ DEFAULT_SPEC = {"type": "object", "additionalProperties": False, "required": ["r
                                "params": {"type": "object"}}}
 
 
+def recipe_spec(recipe, request: dict, media: str, preset: str | None, params: dict | None) -> dict:
+    """The spec a recipe runs with for ``request`` (also used to check layouts without rendering)."""
+    return {"recipe": recipe.id, "params": recipe.resolve(preset, params), "media": media,
+            "width": request.get("width", 1280), "height": request.get("height", 720),
+            "fps": request.get("fps", 24), "duration_seconds": request.get("duration_seconds", 4.0),
+            "seed": request.get("seed", 0), "sample_rate": 48000,
+            **({"mode": "clock"} if recipe.data.get("timing") == "clock" else {})}
+
+
 class ProceduralProvider(Provider):
     summary = "Render procedural recipes (Python/numpy, JS/WebGL in headless Chromium)"
     reports_rights = True
@@ -91,12 +100,8 @@ class ProceduralProvider(Provider):
         media = request.get("media") or recipe.data["media"][0]
         if media not in recipe.data["media"]:
             raise PluginError(f"recipe {recipe_id} cannot produce {media} (only {recipe.data['media']})")
-        resolved = recipe.resolve(preset, params)
-        spec = {"recipe": recipe_id, "params": resolved, "media": media,
-                "width": request.get("width", 1280), "height": request.get("height", 720),
-                "fps": request.get("fps", 24), "duration_seconds": request.get("duration_seconds", 4.0),
-                "seed": request.get("seed", 0), "sample_rate": 48000,
-                **({"mode": "clock"} if recipe.data.get("timing") == "clock" else {})}
+        spec = recipe_spec(recipe, request, media, preset, params)
+        resolved = spec["params"]
         spec_path = workdir / "spec.json"
         spec_path.write_text(json.dumps(spec, indent=2), encoding="utf-8")
         output = workdir / f"procedural{EXTENSIONS[media]}"
