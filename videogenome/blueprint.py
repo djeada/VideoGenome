@@ -9,6 +9,7 @@ import re
 
 from jsonschema import Draft202012Validator
 
+from videogenome.formats import errors as format_errors, label, variants
 from videogenome.resources import SCHEMAS
 
 SCHEMA_PATH = SCHEMAS / "blueprint.schema.json"
@@ -261,6 +262,8 @@ def _fill_errors(data: dict) -> list[str]:
 def _version_errors(data: dict, shots: list[dict]) -> list[str]:
     """Features introduced in newer schemas must not leak into older contracts."""
     errors = []
+    if _version(data) < (0, 6, 0) and "formats" in data["output"]:
+        errors.append("output.formats requires schema_version 0.6.0")
     if _version(data) < (0, 5, 0):
         newer = [name for name, spec in data["inputs"].items() if "fill" in spec or "grounded_with" in spec or "whole_quote" in spec]
         if newer:
@@ -372,7 +375,13 @@ def validate_blueprint(data: object, schema: dict | None = None) -> list[str]:
     errors.extend(_produce_errors(data))
     errors.extend(_v04_feature_errors(data, shots))
     errors.extend(_fill_errors(data))
+    errors.extend(format_errors(data))
     if not errors and "copy_examples" in data:
         from videogenome.fill import example_errors  # Late: fill depends on the compiler.
         errors.extend(example_errors(data))
+    if not errors and data["output"].get("formats"):
+        # Each format must stand on its own: caption safe areas, title-card fit and
+        # copy examples are checked again at that frame size.
+        for format_id, variant in variants(data)[1:]:
+            errors.extend(f"format {label(format_id)}: {problem}" for problem in validate_blueprint(variant))
     return errors

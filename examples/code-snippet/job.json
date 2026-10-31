@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.code-snippet",
   "template": "educational.code-snippet",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "Merge two dicts with |",
     "filename": "settings.py",

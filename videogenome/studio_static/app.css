@@ -1634,6 +1634,71 @@ main {
 .copy-card {
   padding: 24px;
 }
+.format-picker {
+  border: 0;
+  padding: 0;
+  margin: 18px 0 0;
+}
+.format-picker legend {
+  font-size: 10px;
+  font-weight: 600;
+  color: #4b525e;
+  margin-bottom: 8px;
+}
+.format-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.format-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  min-height: 40px;
+}
+.format-option:has(input:checked) {
+  border-color: #292e37;
+  background: #f5f6f8;
+}
+.format-option input {
+  margin: 0;
+}
+.format-option:has(input:focus-visible) {
+  outline: 2px solid #3d6df2;
+  outline-offset: 2px;
+}
+.format-shape {
+  display: inline-block;
+  border: 1.5px solid #6b7380;
+  border-radius: 2px;
+}
+.format-shape.landscape {
+  width: 16px;
+  height: 9px;
+}
+.format-shape.portrait {
+  width: 9px;
+  height: 16px;
+}
+.format-shape.square {
+  width: 12px;
+  height: 12px;
+}
+.format-size {
+  color: #8a91a0;
+  font-size: 9px;
+}
+.format-switch {
+  margin: 10px 0 4px;
+}
+.format-picker .hint {
+  margin-top: 8px;
+}
 .editor-actions {
   display: flex;
   align-items: center;

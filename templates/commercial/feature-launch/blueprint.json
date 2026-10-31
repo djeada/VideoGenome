@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "commercial.feature-launch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "SaaS feature launch with stylised UI (16:9)",
   "category": "commercial",
   "description": "A 20-second 16:9 app or SaaS launch: a stylised app window built in code rises into a tilted 3D view, a perspective camera glides to a chart, a toggle and a notification while three numbered feature callouts appear beside them, a cursor hovers and clicks with ripples, and the window sinks away for the product name and a call-to-action button the cursor clicks. The interface is an abstract mock (skeleton bars, no real screens or data) and the end card says so. Code-rendered (scene.feature-launch) with a procedural pulse bed, whooshes on the camera moves and clicks on the cursor.",
@@ -208,6 +208,16 @@
     "loudness": {
       "target_lufs": -16,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "9x16": {
+        "width": 1080,
+        "height": 1920
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

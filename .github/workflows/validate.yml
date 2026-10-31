@@ -175,7 +175,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: [0, 1, 2, 3, 4, 5]
     env:
       SCENE_SHARD: ${{ matrix.shard }}
       SCENE_SHARDS: ${{ strategy.job-total }}
@@ -191,7 +191,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
           python -m playwright install --with-deps chromium-headless-shell
           python -m pip install .
-      - name: Render every code-animated sample job
+      - name: Render every code-animated sample job in every delivery format
         run: |
           index=0
           for job in examples/*/job.json; do
@@ -204,7 +204,7 @@ jobs:
             name=$(basename "$(dirname "$job")")
             mkdir -p "/tmp/vg-scene-$name" && cp "$job" "/tmp/vg-scene-$name/"
             echo "::group::$name ($recipe)"
-            videogenome make "/tmp/vg-scene-$name/job.json" --pipeline procedural \
+            videogenome make "/tmp/vg-scene-$name/job.json" --pipeline procedural --format all \
               -o "/tmp/vg-scene-$name/scene.mp4" --receipt "/tmp/vg-scene-$name/receipt.json"
             echo "::endgroup::"
           done
@@ -215,5 +215,5 @@ jobs:
           name: videogenome-scenes-${{ matrix.shard }}
           path: |
             /tmp/vg-scene-*/scene.*
-            /tmp/vg-scene-*/receipt.json
+            /tmp/vg-scene-*/receipt*.json
           if-no-files-found: error

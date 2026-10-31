@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "educational.code-snippet",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Code snippet reveal (16:9)",
   "category": "educational",
   "description": "A 15-second code reveal rendered in the browser with no external tools: an editor window types the snippet with a human rhythm and syntax highlighting (Python, JavaScript, Rust or Bash), the key line lights up while the rest dims, a terminal panel shows what the program prints, and the title gives way to a takeaway. The code is displayed, never executed. Code-rendered (scene.code-snippet).",
@@ -190,6 +190,16 @@
     "loudness": {
       "target_lufs": -16,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "9x16": {
+        "width": 1080,
+        "height": 1920
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

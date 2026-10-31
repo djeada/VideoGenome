@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from videogenome.compiler import ProductionError, compile_job, find_template, read_json, with_defaults
+from videogenome.formats import label, output_path, resolve as resolve_formats
 from videogenome.fill import TEXT_TYPES, check_values, describe_slots, slot_contracts
 from videogenome.profile import Profile
 from videogenome.requests import COPY_PROPERTIES, PREVIEW_PROPERTIES, RENDER_PROPERTIES, object_schema, validate_request
@@ -89,11 +90,12 @@ class Service:
     def templates(self) -> list[dict]:
         from videogenome.catalog import discover
         return [{k: e[k] for k in ("id", "version", "title", "description", "category", "tags", "duration_seconds",
-                                   "self_contained", "shot_kinds")} | {"aspect_ratio": e["output"]["aspect_ratio"]}
+                                   "self_contained", "shot_kinds")}
+                | {"aspect_ratio": e["output"]["aspect_ratio"], "formats": [f["aspect_ratio"] for f in e["formats"]]}
                 for e in discover(template_dirs=self.template_dirs)]
 
     def template(self, template_id: str) -> dict:
-        from videogenome.catalog import inspect_template
+        from videogenome.catalog import describe_template, inspect_template
         path = find_template(template_id, self.template_dirs)
         blueprint = read_json(path)
         contracts = slot_contracts(blueprint)
@@ -106,6 +108,8 @@ class Service:
             "media_inputs": media,
             "renders_from_text_alone": all(not m["required"] or m["producible"] for m in media.values()),
             "copy_examples": blueprint.get("copy_examples", []),
+            "formats": [{"id": f["id"], "label": f["aspect_ratio"], "width": f["width"], "height": f["height"],
+                         "orientation": f["orientation"]} for f in describe_template(path)["formats"]],
             "quality_gates": blueprint["quality_gates"],
             "pipeline": self.profile.id,
         }
@@ -141,11 +145,18 @@ class Service:
         raise ProductionError("This run has no saved template copy")
 
     # ---- writing and checking copy ----------------------------------------------
-    def check_inputs(self, template_id: str, inputs: dict, brief: str | None = None) -> dict:
-        """The checks a writer's reply must pass, for copy written by anyone (agent, person, UI)."""
-        validate_request({"template": template_id, "inputs": inputs, **({"brief": brief} if brief is not None else {})},
+    def check_inputs(self, template_id: str, inputs: dict, brief: str | None = None, *,
+                     formats: list[str] | None = None, layout: bool = False) -> dict:
+        """The checks a writer's reply must pass, for copy written by anyone (agent, person, UI).
+
+        ``layout`` also loads each code-rendered scene with the copy in ``formats``
+        (default: every format) to catch copy the scene cannot fit, in seconds.
+        """
+        validate_request({"template": template_id, "inputs": inputs, **({"brief": brief} if brief is not None else {}),
+                          **({"formats": formats} if formats is not None else {})},
                          object_schema(COPY_PROPERTIES, ("template", "inputs")))
         blueprint = read_json(find_template(template_id, self.template_dirs))
+        chosen = resolve_formats(blueprint, formats or ["all"])
         contracts = slot_contracts(blueprint)
         issues: list[dict] = []
         unknown = sorted(set(inputs) - set(contracts))
@@ -168,9 +179,24 @@ class Service:
         # Word budgets estimate speaking time; the produced speech is measured and decides.
         warnings = [i for i in found if i.get("kind") == "estimate"]
         issues += [i for i in found if i.get("kind") != "estimate"]
+        notes = ["Verbatim slots were not checked: pass the brief so names, quotes and numbers "
+                 "can be matched against it."] if unverified else []
+        layout_checked = False
+        if layout and not issues:
+            from videogenome.layout_check import available, layout_issues, renders_recipes
+            if not renders_recipes(self.profile):
+                notes.append(f"Scene layout not checked: pipeline {self.profile.id!r} does not render code recipes.")
+            elif not available():
+                notes.append("Scene layout not checked: Playwright is not installed; the render will check it.")
+            else:
+                try:
+                    issues += layout_issues(blueprint, values, chosen)
+                    layout_checked = True
+                except ProductionError as exc:  # The browser could not start; the render checks again.
+                    notes.append(f"Scene layout not checked: {exc}")
         return {"ok": not issues, "issues": issues, "warnings": warnings, "verbatim_unverified": unverified,
-                "note": ("Verbatim slots were not checked: pass the brief so names, quotes and numbers "
-                         "can be matched against it.") if unverified else None}
+                "formats": [label(f) for f in chosen], "layout_checked": layout_checked,
+                "note": " ".join(notes) or None}
 
     def fill(self, template_id: str, brief: str, pinned: dict | None = None, max_attempts: int = 3) -> dict:
         from videogenome.create import make_filler
@@ -182,15 +208,21 @@ class Service:
 
     # ---- producing videos ------------------------------------------------------------
     def render(self, template_id: str, inputs: dict, *, brief: str | None = None, author: str = "person",
-               name: str | None = None, log: Callable[[str], None] = lambda _: None) -> dict:
-        """Write a job from finished copy, produce its media with the operator's pipeline, render, gate."""
+               name: str | None = None, formats: list[str] | None = None,
+               log: Callable[[str], None] = lambda _: None) -> dict:
+        """Write a job from finished copy, produce its media with the operator's pipeline, render, gate.
+
+        ``formats`` (aspect ids such as ``9x16``, or ``all``) renders the same job in
+        several of the template's delivery formats; the default is its main format.
+        """
         from videogenome.pipeline import run_render
         from videogenome.produce import produce
-        check = self.check_inputs(template_id, inputs, brief)
+        blueprint = read_json(find_template(template_id, self.template_dirs))
+        chosen = resolve_formats(blueprint, formats)
+        check = self.check_inputs(template_id, inputs, brief, formats=chosen, layout=True)
         if not check["ok"]:
             raise ProductionError("Inputs do not fit the template: " + "; ".join(
                 f"{', '.join(i['slots'])}: {i['problem']}" for i in check["issues"][:8]))
-        blueprint = read_json(find_template(template_id, self.template_dirs))
         run = self.workspace.new_run(name or template_id.split(".")[-1])
         job = {"job_schema": "0.1.0", "id": f"run.{slug(run.name)}", "template": template_id,
                "template_version": blueprint["version"], "inputs": inputs, "assets": {}, "shot_assets": {},
@@ -205,25 +237,33 @@ class Service:
                                           "checked against the template's slot contracts"
                                           + (" and the brief." if brief else "; no brief was given, so "
                                              "verbatim facts were not matched against one.")}}
-        log("producing media")
-        produced, report = produce(job_path, self.profile, template_dirs=self.template_dirs)
-        log("rendering")
-        plan = compile_job(produced, template_dirs=self.template_dirs)
-        output = run / f"{slug(template_id.split('.')[-1])}.mp4"
-        receipt = run_render(plan, produced.parent, output, self.profile, context=context)
-        (run / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-        return self._summarise(run, template_id, receipt, report)
+        several = len(chosen) > 1
+        receipts, reports = {}, []
+        for format_id in chosen:
+            where = f" ({label(format_id)})" if several else ""
+            log(f"producing media{where}")
+            produced, report = produce(job_path, self.profile, template_dirs=self.template_dirs, format=format_id)
+            reports += report
+            log(f"rendering{where}")
+            plan = compile_job(produced, template_dirs=self.template_dirs, format=format_id)
+            output = output_path(run / f"{slug(template_id.split('.')[-1])}.mp4", format_id, several)
+            receipts[format_id] = run_render(plan, produced.parent, output, self.profile, context=context)
+            receipt_path = output_path(run / "receipt.json", format_id, several)
+            receipt_path.write_text(json.dumps(receipts[format_id], indent=2) + "\n", encoding="utf-8")
+        return self._summarise(run, template_id, receipts, reports)
 
     def create(self, template_id: str, brief: str, *, pinned: dict | None = None, name: str | None = None,
-               log: Callable[[str], None] = lambda _: None) -> dict:
+               formats: list[str] | None = None, log: Callable[[str], None] = lambda _: None) -> dict:
         """Brief to video with the operator's writer (fill, produce, render)."""
         from videogenome.create import create
         run = self.workspace.new_run(name or template_id.split(".")[-1])
         output = run / f"{slug(template_id.split('.')[-1])}.mp4"
-        receipt, result, _ = create(template_id, brief, self.profile, output, template_dirs=self.template_dirs,
-                                    pinned=pinned, workdir=run / "job", log=log)
-        (run / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-        return self._summarise(run, template_id, receipt, [])
+        receipts, result, _ = create(template_id, brief, self.profile, output, template_dirs=self.template_dirs,
+                                     pinned=pinned, workdir=run / "job", formats=formats or (), log=log)
+        for format_id, receipt in receipts.items():
+            path = output_path(run / "receipt.json", format_id, len(receipts) > 1)
+            path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+        return self._summarise(run, template_id, receipts, [])
 
     # ---- previews for the library ---------------------------------------------------------
     @property
@@ -253,7 +293,7 @@ class Service:
         if not info["renders_from_text_alone"]:
             raise ProductionError(f"{template_id} needs supplied media; no preview from text alone")
         inputs = {k: v for k, v in read_json(job)["inputs"].items() if k in info["slots"]}
-        result = self.render(template_id, inputs, name=f"preview-{template_id}", log=log)
+        result = self.render(template_id, inputs, name=f"preview-{template_id}", log=log)  # Main format.
         if result["contains_placeholder_media"]:
             # A library card must show what the template makes, never an animatic stand-in.
             raise ProductionError(f"{template_id}: pipeline {self.profile.id!r} produced placeholder media; "
@@ -263,19 +303,33 @@ class Service:
             shutil.copyfile(result["poster"], self.previews_dir / f"{template_id}.jpg")
         return result
 
-    def _summarise(self, run: Path, template_id: str, receipt: dict, report: list[dict]) -> dict:
-        deliverables = {k: v["path"] for k, v in receipt["deliverables"].items()}
+    def _summarise(self, run: Path, template_id: str, receipts: dict[str, dict], report: list[dict]) -> dict:
+        """One summary per run; the first format's files lead and every format is listed."""
+        several = len(receipts) > 1
+        rows = []
+        for format_id, receipt in receipts.items():
+            deliverables = {k: v["path"] for k, v in receipt["deliverables"].items()}
+            rows.append({
+                "format": format_id, "label": label(format_id),
+                "output": receipt["output_path"], "review_page": deliverables.get("review_page"),
+                "contact_sheet": deliverables.get("contact_sheet"), "poster": deliverables.get("poster"),
+                "receipt": str(output_path(run / "receipt.json", format_id, several)),
+                "duration_seconds": receipt["duration_observed_seconds"],
+                "gates": {g["id"]: g["status"] for g in receipt["quality_gates"]},
+                "automated_gates_failed": [g["id"] for g in receipt["quality_gates"] if g["status"] == "failed"],
+                "contains_placeholder_media": receipt["contains_placeholder_media"],
+                "loudness_lufs": receipt["measurements"].get("integrated_lufs"),
+            })
+        lead = rows[0]
         summary = {
             "run": run.name, "directory": str(run), "template": template_id, "kind": "template",
             "created": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
-            "output": receipt["output_path"], "review_page": deliverables.get("review_page"),
-            "contact_sheet": deliverables.get("contact_sheet"), "poster": deliverables.get("poster"),
-            "receipt": str(run / "receipt.json"),
-            "duration_seconds": receipt["duration_observed_seconds"],
-            "gates": {g["id"]: g["status"] for g in receipt["quality_gates"]},
-            "automated_gates_failed": [g["id"] for g in receipt["quality_gates"] if g["status"] == "failed"],
-            "contains_placeholder_media": receipt["contains_placeholder_media"],
-            "loudness_lufs": receipt["measurements"].get("integrated_lufs"),
+            **{k: lead[k] for k in ("output", "review_page", "contact_sheet", "poster", "receipt",
+                                    "duration_seconds", "gates", "loudness_lufs")},
+            # A gate that fails in any format fails the run; each format says where.
+            "automated_gates_failed": sorted({g for row in rows for g in row["automated_gates_failed"]}),
+            "contains_placeholder_media": any(row["contains_placeholder_media"] for row in rows),
+            "formats": rows,
             "produced": [{k: e.get(k) for k in ("input", "status", "providers", "placeholder")} for e in report],
         }
         (run / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")

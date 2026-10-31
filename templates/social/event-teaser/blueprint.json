@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "social.event-teaser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Event teaser with 3-2-1 countdown (9:16)",
   "category": "social",
   "description": "A 12-second vertical hype teaser for an event: a kicker and the event name slam in over an energetic motif, a diagonal wipe cuts to a countdown (3-2-1 digits that slam in with ring bursts and confetti while the ground swaps colour), and a second wipe reveals the poster lockup with the date in an accent block, the place with a pin and a call-to-action pill. Code-rendered (scene.event-countdown) with a procedural pulse bed, whooshes on the wipes and hits on every countdown beat.",
@@ -160,6 +160,16 @@
     "loudness": {
       "target_lufs": -14,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

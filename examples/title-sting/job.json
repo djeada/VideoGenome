@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.title-sting",
   "template": "commercial.title-sting",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "name": "VideoGenome",
     "tagline": "Design once. Produce anywhere.",

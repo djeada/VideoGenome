@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "commercial.stat-highlights",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Three headline numbers (9:16)",
   "category": "commercial",
   "description": "A 13-second vertical stat reveal: a heading and source line frame three headline numbers, each landing as the hero of its own beat with an odometer digit roll, a gauge ring that fills only for percentages, and its label rising in; a recap sets all three side by side. Code-rendered (scene.stat-reveal) with a procedural pulse bed, a riser under each count, a soft impact as each number lands and a whoosh on each exit.",
@@ -259,6 +259,16 @@
     "loudness": {
       "target_lufs": -14,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

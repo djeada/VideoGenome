@@ -71,9 +71,14 @@ model-written animation code into deterministic, parameterised scenes. The
 three-condition benchmark above still needs blinded human quality review;
 `bench` covers validity, honesty and timing only.
 
+v0.8 delivers multi-format output: schema `0.6.0` templates list the aspect
+ratios they are reviewed for, and one job renders 16:9, 9:16 and 1:1 with
+shared copy, timing, sound and gates ([delivery formats](delivery-formats.md)).
+Copy is checked against every format before rendering, including a real
+layout pass over code-rendered scenes. Subject-aware reframing of filmed
+media is still missing.
+
 Next:
-- **Multi-format delivery**: one job rendered to 16:9, 9:16 and 1:1 (scene
-  recipes already lay out for any aspect ratio).
 - **Quality evaluators**: a second model or human panel scoring copy against the
   brief (faithfulness, specificity), fed into `bench`.
 - **More scene recipes from the gallery classes**: data/stat reveals, maps and
@@ -83,4 +88,4 @@ Next:
 - **Audio-driven timing**: templates whose slots stretch to the produced
   narration instead of rejecting long expressive takes.
 - **Producers of `model_3d`** (text/image-to-3D) feeding render_3d chains.
-- Multi-aspect reframing and automatic ducking under dialogue.
+- Subject-aware reframing of footage for extra formats, and automatic ducking under dialogue.

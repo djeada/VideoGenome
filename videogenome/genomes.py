@@ -90,19 +90,24 @@ def genome_errors(data: object, directory: Path, *, check_links: bool = True,
             return errors + [f"cannot check links while the library is invalid: {exc}"]
         errors += [f"unknown recipe {r!r}" for r in data.get("recipes", []) if r not in known_recipes]
         errors += [f"unknown template {t!r}" for t in data.get("templates", []) if t not in known_templates]
+        if "any" not in data["formats"]:  # The library filters by format: list every one a template renders.
+            rendered = set().union(*(known_templates.get(t, set()) for t in data.get("templates", [])))
+            if missing := sorted(rendered - set(data["formats"])):
+                errors.append(f"formats must include {missing}, which its templates render")
     return errors
 
 
 _LINKS: dict[tuple, tuple[set, set]] = {}
 
 
-def _known_links(template_dirs: tuple[str, ...]) -> tuple[set, set]:
-    """Recipe and template ids, discovered once per process (validation checks every genome)."""
+def _known_links(template_dirs: tuple[str, ...]) -> tuple[set, dict[str, set]]:
+    """Recipe ids and template ids with their formats, discovered once per process."""
     if template_dirs not in _LINKS:
         from videogenome.catalog import discover as templates
         from videogenome.procedural import catalog as recipes
         _LINKS[template_dirs] = (set(recipes.discover()),
-                                 {entry["id"] for entry in templates(template_dirs=map(Path, template_dirs))})
+                                 {entry["id"]: {f["aspect_ratio"] for f in entry["formats"]}
+                                  for entry in templates(template_dirs=map(Path, template_dirs))})
     return _LINKS[template_dirs]
 
 

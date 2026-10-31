@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.cinematic-title",
   "template": "social.cinematic-title",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "The Long Light",
     "subtitle": "A journey through the northern valleys",

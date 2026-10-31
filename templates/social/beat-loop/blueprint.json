@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "social.beat-loop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Beat visualizer loop (9:16)",
   "category": "social",
   "description": "A 16-second vertical music-visualizer loop for a show, mix, channel or label ident: rings, a mirrored equaliser or snapping kinetic shapes hit exactly on the kick of a procedural four-on-the-floor bed, with a kicker, the title, a credit line and a beat counter. Picture and music are locked to the same tempo (120 BPM, 8 bars; every beat falls on a whole frame at 30 fps). Synced by tempo, not by analysing audio. Code-rendered (scene.beat-visualizer + audio.pulse).",
@@ -128,6 +128,16 @@
     "loudness": {
       "target_lufs": -14,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

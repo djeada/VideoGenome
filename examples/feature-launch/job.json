@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.feature-launch",
   "template": "commercial.feature-launch",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "product": "VideoGenome",
     "feature_1": "Gates you can read",

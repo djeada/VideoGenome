@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.stat-highlights",
   "template": "commercial.stat-highlights",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "title": "Northwind Couriers in 2025",
     "stat_1": 98,

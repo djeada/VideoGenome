@@ -19,7 +19,8 @@ videogenome create social.kinetic-promo --pipeline procedural-writer -o out/harb
 
 The output is a frame-exact MP4 with measured loudness and gates, a provenance
 receipt and a review page. Names, quotes and numbers are copied from the brief,
-never invented.
+never invented. Add `--format all` and the same job is also laid out and
+rendered for 16:9 and 1:1 ([delivery formats](docs/delivery-formats.md)).
 
 ## The library: prompt, code or ready to fill
 
@@ -43,13 +44,16 @@ videogenome genome physics-sim --prompt   # the authoring prompt for an agent
 | Typography | Kinetic type promo · title-card explainer |
 | Data | Headline stat reveal · animated chart with one takeaway |
 | Explainer | How-it-works system diagram · history timeline · step-by-step · narrated slides · captioned still · software walkthrough (your recording) |
-| Brand | Title sting · motion-design showreel (16:9 and 9:16) |
+| Brand | Title sting · motion-design showreel |
 | Product | 3D product hero (three.js stand-in: bottle, can, jar, box, device) · app launch with stylised UI · product turntable (your .glb) · cinematic reveal (your footage) |
 | 3D | Cinematic title over a generated valley flyover or orbital sunrise |
 | Social | Event teaser (3-2-1 and days-to-go) · vertical tips listicle · UGC testimonial (your footage) |
 | Story / maps | Route map on Natural Earth coastlines |
-| Generative / music | Quote or lyric loop over generative art (9:16, 1:1) · tempo-locked beat visualizer |
-| Code | Browser code reveal with syntax highlighting (16:9, 9:16) · typing reel (Type-Simulator) |
+| Generative / music | Quote or lyric loop over generative art · tempo-locked beat visualizer |
+| Code | Browser code reveal with syntax highlighting · typing reel (Type-Simulator) |
+
+Every code-animated template above renders 16:9, 9:16 and 1:1 from one job
+(the chart story: 16:9 and 9:16), each format reviewed frame by frame.
 | Documentary | Mini documentary from CC0 footage |
 
 Ready code: generative backdrops (aurora, bokeh, dot wave, mesh-gradient shader,
@@ -94,7 +98,8 @@ ollama pull qwen2.5:3b                      # optional: the local writer in `pro
    `verbatim` and must appear in the brief; numbers must sit next to their labels.
 3. **Copy.** A writer model (`fill`, `create`), an agent (MCP), a person (Studio)
    or a script fills the slots. Every value is checked by the compiler, the
-   renderer's glyph measurement and the narration budget. A brief that lacks a
+   renderer's glyph measurement, the narration budget and a layout pass that
+   loads each scene with the copy in every delivery format. A brief that lacks a
    required fact ends `incomplete` (exit 4), with nothing invented.
 4. **Pipeline.** The operator's profile decides which tools produce media:
    procedural recipes, CC0 search, TTS, Blender, ComfyUI, MCP servers, your own

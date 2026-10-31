@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.quote-square",
   "template": "social.quote-square",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "quote": "Nothing is so painful to the human mind as a great and sudden change.",
     "attribution": "Mary Shelley",

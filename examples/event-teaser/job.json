@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.event-teaser",
   "template": "social.event-teaser",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "event": "Signal Summit",
     "date": "14 June 2026",

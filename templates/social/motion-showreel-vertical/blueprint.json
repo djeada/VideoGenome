@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "social.motion-showreel-vertical",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Motion design showreel (9:16)",
   "category": "social",
   "description": "A 15-second abstract motion-design reel in a brand palette: a dot grid ripples and springs into a disc, the disc morphs through shapes on springs and irises open, three words land in turn (masked letter rises, circular kinetic type round a rotating ring, a two-tone mask sweep) with stripe, iris and shutter transitions, and the studio name closes with an impact ring and sprung shapes. A pulse bed with clicks, whooshes, a riser and an impact cued to every beat. Code-rendered (scene.motion-showreel).",
@@ -186,6 +186,16 @@
     "loudness": {
       "target_lufs": -14,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [

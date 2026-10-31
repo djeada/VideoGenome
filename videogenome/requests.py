@@ -11,6 +11,10 @@ from videogenome.compiler import ProductionError
 IDENTIFIER = {"type": "string", "minLength": 1, "maxLength": 200}
 BRIEF = {"type": "string", "maxLength": 12000}
 NAME = {"type": "string", "minLength": 1, "maxLength": 120}
+FORMATS = {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": True,
+           "items": {"type": "string", "pattern": "^(all|[1-9][0-9]?[x:][1-9][0-9]?)$"},
+           "description": "Delivery formats to render (aspect ids from the template's formats, e.g. 9x16, "
+                          "or 'all'); default: the template's main format"}
 RENDER_PROPERTIES = {
     "size": {"type": "string", "pattern": "^[0-9]{2,4}x[0-9]{2,4}$"},
     "fps": {"type": "integer", "minimum": 1, "maximum": 120},
@@ -18,7 +22,7 @@ RENDER_PROPERTIES = {
     "seed": {"type": "integer", "minimum": 0, "maximum": 4294967295},
     "params": {"type": "object"},
 }
-COPY_PROPERTIES = {"template": IDENTIFIER, "inputs": {"type": "object"}, "brief": BRIEF}
+COPY_PROPERTIES = {"template": IDENTIFIER, "inputs": {"type": "object"}, "brief": BRIEF, "formats": FORMATS}
 PREVIEW_PROPERTIES = {"recipe": IDENTIFIER, "preset": {"type": "string", "maxLength": 200}, **RENDER_PROPERTIES}
 CAPTURE_PROPERTIES = {
     "html": {"type": "string", "minLength": 1, "maxLength": 4 * 1024 * 1024},

@@ -17,6 +17,7 @@ from typing import Any, Iterable
 from jsonschema import Draft202012Validator
 
 from videogenome.blueprint import validate_blueprint
+from videogenome.formats import apply_format, format_ids, label, main_format, normalise
 from videogenome.layout import fit_copy, resolve_title_card
 from videogenome.resources import DATA_ROOT, SCHEMAS, template_roots
 
@@ -300,13 +301,31 @@ def _compile_timeline(blueprint: dict, inputs: dict, assets: dict, skip: set[str
     return timeline
 
 
+def job_format(job: dict, blueprint: dict, requested: str | None = None) -> str:
+    """The format a job renders in: ``requested``, else the job's own, else the main one.
+
+    Media a pipeline produced is made at one frame size, so a job holding produced
+    media renders only in the format it was produced for.
+    """
+    own = normalise(job["format"]) if job.get("format") else main_format(blueprint)
+    wanted = normalise(requested) if requested else own
+    if wanted != own and any("generation" in asset for asset in job.get("assets", {}).values()):
+        raise ProductionError(
+            f"This job's media was produced for the {label(own)} format; produce it for "
+            f"{label(wanted)} instead (`videogenome make --format {wanted}`)")
+    if wanted not in format_ids(blueprint):
+        apply_format(blueprint, wanted)  # Raises with the formats the template offers.
+    return wanted
+
+
 def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = (),
-                allow_pending: bool = False) -> dict[str, Any]:
+                allow_pending: bool = False, format: str | None = None) -> dict[str, Any]:
     """Compile a job to a render plan.
 
     With ``allow_pending`` (used by ``validate``), producible inputs that have not
     been produced yet are listed in ``plan["pending_inputs"]`` instead of failing;
-    such a plan is for checking only and is never rendered.
+    such a plan is for checking only and is never rendered. ``format`` picks one of
+    the template's delivery formats (default: the job's ``format``, else the main one).
     """
     job_path = job_path.resolve()
     job_dir = job_path.parent
@@ -314,15 +333,17 @@ def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = (),
     _validate_json(job, read_json(JOB_SCHEMA), "production job")
 
     template_path = resolve_template(job["template"], job_dir, template_dirs)
-    blueprint = read_json(template_path)
-    blueprint_errors = validate_blueprint(blueprint)
+    source = read_json(template_path)
+    blueprint_errors = validate_blueprint(source)
     if blueprint_errors:
         raise ProductionError("Invalid referenced blueprint: " + "; ".join(blueprint_errors))
-    if blueprint["version"] != job["template_version"]:
+    if source["version"] != job["template_version"]:
         raise ProductionError(
             f"Template version mismatch: job pins {job['template_version']}, "
-            f"actual {blueprint['version']}"
+            f"actual {source['version']}"
         )
+    format_id = job_format(job, source, format)
+    blueprint = apply_format(source, format_id)
 
     assets = job.get("assets", {})
     records: dict[str, dict] = {}
@@ -420,6 +441,7 @@ def compile_job(job_path: Path, *, template_dirs: Iterable[Path] = (),
         "ir_version": blueprint["schema_version"],
         "job_id": job["id"], "template_id": blueprint["id"],
         "template_version": blueprint["version"],
+        "format": format_id,
         "template_sha256": sha256_file(template_path),
         "job_sha256": sha256_file(job_path),
         "output": output, "palette": blueprint["style"]["palette"],

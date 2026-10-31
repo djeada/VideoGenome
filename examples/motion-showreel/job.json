@@ -2,7 +2,7 @@
   "job_schema": "0.1.0",
   "id": "sample.motion-showreel",
   "template": "social.motion-showreel",
-  "template_version": "0.1.0",
+  "template_version": "0.2.0",
   "inputs": {
     "name": "VideoGenome",
     "word_1": "Shape",

@@ -28,12 +28,13 @@ Avoid claiming that arbitrary AI video models can render text or exact product m
 
 ## Versioning policy
 
-- `schema_version` changes when the blueprint contract changes. Supported contracts: `0.1.0` to `0.5.0`. The optional audio/caption `timeline` requires `0.2.0`; title-card typography, kickers, transitions, programme fades, loudness targets, poster frames and machine-checked gates require `0.3.0` ([reference](motion-design-and-delivery.md)). Old templates continue to work unchanged.
+- `schema_version` changes when the blueprint contract changes. Supported contracts: `0.1.0` to `0.6.0`. The optional audio/caption `timeline` requires `0.2.0`; title-card typography, kickers, transitions, programme fades, loudness targets, poster frames and machine-checked gates require `0.3.0` ([reference](motion-design-and-delivery.md)). Old templates continue to work unchanged.
 - `version` is the template's own semantic version, independent from `schema_version`.
 - Breaking changes require a new major schema version and migration tooling. Keep template IDs stable across non-breaking edits.
 - Structured audio tracks and caption cues are available in `0.2.0`; typography, transitions, mastering and technical gate checks in `0.3.0`. Safe text-slot binding and asset provenance are implemented by the compiler. Template inheritance, multilingual variants and machine-executable *aesthetic* QA remain planned.
 - Schema `0.4.0` adds producible inputs (`inputs.<name>.produce` with a capability, request template, voice/style roles and references) and the `model_3d` input type; see [plugins and pipelines](plugins-and-pipelines.md). Name capabilities, never vendors.
 - Schema `0.5.0` adds `inputs.<name>.fill` and `copy_examples` for brief filling; see [briefs and writers](briefs-and-writers.md).
+- Schema `0.6.0` adds `output.formats`: other aspect ratios one job renders in, with per-format title-card and caption sizes; see [delivery formats](delivery-formats.md). Adding a format changes the contract, so bump the template's minor `version`.
 - Studio or private templates can live outside this repository: point `--templates DIR` or `VIDEOGENOME_TEMPLATE_PATH` at a directory of `*/blueprint.json` files. Template ids must be unique across all trusted directories.
 
 ## Acceptance checklist
@@ -41,7 +42,7 @@ Avoid claiming that arbitrary AI video models can render text or exact product m
 - [ ] Reusable content slots and clear locked creative decisions
 - [ ] Frame-accurate scene durations and unique shot IDs
 - [ ] Complete declared references and portable execution hints
-- [ ] Clear captions/audio requirements and platform format
+- [ ] Clear captions/audio requirements and platform format; every listed delivery format rendered and reviewed
 - [ ] Legal/consent/product-accuracy concerns surfaced as review gates
 - [ ] Example content and reproducible render evidence when rendering exists
 - [ ] Fill policies on every text input that must not be invented, and copy examples that pass validation

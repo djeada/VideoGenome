@@ -26,7 +26,8 @@
         "0.2.0",
         "0.3.0",
         "0.4.0",
-        "0.5.0"
+        "0.5.0",
+        "0.6.0"
       ]
     },
     "id": {
@@ -315,6 +316,103 @@
         "poster_frame": {
           "type": "integer",
           "minimum": 0
+        },
+        "formats": {
+          "type": "object",
+          "description": "Other aspect ratios this template is authored and reviewed for (schema 0.6.0), keyed by aspect id (9x16, 1x1, 4x5). Each renders the same story, copy, timing, audio and gates at another frame size; pixel-valued typography may be restated for that frame. Copy must fit every format.",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[1-9][0-9]?x[1-9][0-9]?$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "width",
+              "height"
+            ],
+            "properties": {
+              "width": {
+                "type": "integer",
+                "minimum": 320
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 320
+              },
+              "title_card": {
+                "type": "object",
+                "description": "Pixel-valued title-card settings for this frame; everything else stays locked",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "font_size": {
+                    "type": "integer",
+                    "minimum": 16,
+                    "maximum": 400
+                  },
+                  "min_font_size": {
+                    "type": "integer",
+                    "minimum": 12,
+                    "maximum": 400
+                  },
+                  "kicker_font_size": {
+                    "type": "integer",
+                    "minimum": 12,
+                    "maximum": 200
+                  },
+                  "max_lines": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 6
+                  },
+                  "safe_margin_x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "safe_margin_top": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "safe_margin_bottom": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              "caption_style": {
+                "type": "object",
+                "description": "Pixel-valued caption settings for this frame; reading speed stays locked",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "font_size": {
+                    "type": "integer",
+                    "minimum": 16,
+                    "maximum": 144
+                  },
+                  "margin_x": {
+                    "type": "integer",
+                    "minimum": 12
+                  },
+                  "margin_bottom": {
+                    "type": "integer",
+                    "minimum": 12
+                  },
+                  "max_chars_per_line": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 80
+                  },
+                  "max_lines": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 3
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

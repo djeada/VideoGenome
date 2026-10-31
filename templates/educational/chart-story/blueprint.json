@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "educational.chart-story",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Animated chart with one takeaway (16:9)",
   "category": "educational",
   "description": "A 12-second 16:9 data story: the title and what is measured rise in, three to six labelled values grow from zero as columns (bars when labels are long) or draw as a line, the key value keeps the accent while the rest recede, and a takeaway rises in over the source line. Code-rendered (scene.chart-story) with a lo-fi bed, a riser under the growth, a click on the focus and a swell under the takeaway.",
@@ -299,6 +299,12 @@
     "loudness": {
       "target_lufs": -16,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "9x16": {
+        "width": 1080,
+        "height": 1920
+      }
     }
   },
   "engines": [

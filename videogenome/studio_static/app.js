@@ -738,7 +738,13 @@ async function loadTemplate(id) {
       h(
         "div",
         { class: "template-facts" },
-        h("span", {}, `${d.output.aspect_ratio} format`),
+        h(
+          "span",
+          {},
+          t.formats?.length > 1
+            ? `${t.formats.map((f) => f.label).join(" · ")} formats`
+            : `${d.output.aspect_ratio} format`,
+        ),
         h("span", {}, `${d.duration_seconds}s runtime`),
         h("span", {}, `${d.output.width} × ${d.output.height}`),
       ),
@@ -756,6 +762,7 @@ async function loadTemplate(id) {
           ),
         ),
       );
+    renderFormatPicker(t.formats || []);
     $("#preview-title").textContent = d.title;
     $("#preview-format").textContent =
       `${d.output.aspect_ratio} · ${d.duration_seconds}s`;
@@ -1041,6 +1048,37 @@ function showIssues(result, focus = false) {
     if (!issue.slots?.length) summary.append(h("div", {}, issue.problem));
   if (focus && !result.ok) $("#slots [aria-invalid=true]")?.focus();
 }
+// Delivery formats: the template's main format is always offered first and checked by default.
+function renderFormatPicker(formats) {
+  const picker = $("#format-picker");
+  const options = clear($("#format-options"));
+  picker.classList.toggle("hidden", formats.length < 2);
+  formats.forEach((f, index) =>
+    options.append(
+      h(
+        "label",
+        { class: "format-option" },
+        h("input", {
+          type: "checkbox",
+          value: f.id,
+          checked: index === 0,
+          onchange: () => {
+            if (!selectedFormats().length)
+              options.querySelector("input").checked = true;
+          },
+        }),
+        h("span", { class: `format-shape ${f.orientation}`, "aria-hidden": "true" }),
+        h("b", {}, f.label),
+        h("span", { class: "format-size" }, `${f.width} × ${f.height}`),
+      ),
+    ),
+  );
+}
+function selectedFormats() {
+  return [...document.querySelectorAll("#format-options input:checked")].map(
+    (input) => input.value,
+  );
+}
 async function checkCopy(explicit = true) {
   if (!state.template || state.loadingTemplate) return null;
   const seq = ++state.checkSeq,
@@ -1048,10 +1086,14 @@ async function checkCopy(explicit = true) {
     inputs = slotValues(),
     snapshot = JSON.stringify(inputs);
   try {
+    const formats = selectedFormats();
     const result = await api("check", {
       template: id,
       inputs,
       brief: $("#brief").value.trim() || null,
+      ...(formats.length ? { formats } : {}),
+      // An explicit check also lays the copy out in each chosen format (a few seconds).
+      layout: explicit,
     });
     if (
       seq !== state.checkSeq ||
@@ -1171,7 +1213,18 @@ function gateSummary(result) {
       ? `${passed} ${passed === 1 ? "technical check passed" : "technical checks passed"}`
       : "Ready for review";
 }
-function resultView(result, player, panel) {
+function resultView(result, player, panel, shown = 0) {
+  const rows = Array.isArray(result.formats) ? result.formats : [];
+  if (rows.length > 1) {
+    // Several formats from one job: show one at a time and switch between them.
+    const row = rows[shown];
+    resultView(
+      { ...result, ...row, formats: null, formatRows: rows, shown, formatBase: result },
+      player,
+      panel,
+    );
+    return;
+  }
   clear(player).classList.remove("empty");
   const url = result.output_url || "";
   if (/\.mp4(?:$|\?)/i.test(url))
@@ -1198,9 +1251,31 @@ function resultView(result, player, panel) {
       "div",
       { class: "result-heading" },
       icon("check"),
-      "Your render is ready",
+      result.formatRows
+        ? `Your ${result.formatRows.length} formats are ready`
+        : "Your render is ready",
     ),
   );
+  if (result.formatRows)
+    target.append(
+      h(
+        "div",
+        { class: "filters format-switch", role: "group", "aria-label": "Show format" },
+        result.formatRows.map((row, index) =>
+          h(
+            "button",
+            {
+              type: "button",
+              class: `chip-btn${index === result.shown ? " active" : ""}`,
+              "aria-pressed": index === result.shown ? "true" : "false",
+              onclick: () => resultView(result.formatBase, player, panel, index),
+            },
+            row.label,
+            row.automated_gates_failed?.length ? h("span", {}, "gate failed") : null,
+          ),
+        ),
+      ),
+    );
   if (result.gates)
     target.append(
       h(
@@ -1314,10 +1389,12 @@ $("#btn-render").addEventListener("click", () =>
     const checked = await checkCopy(true);
     if (!checked?.ok) return;
     saveDraft();
+    const formats = selectedFormats();
     const { job } = await api("render", {
       template: state.template.descriptor.id,
       inputs: slotValues(),
       brief: $("#brief").value.trim() || null,
+      ...(formats.length ? { formats } : {}),
     });
     resultView(await follow(job, panel), $("#make-preview"), panel);
   }),
@@ -1363,9 +1440,11 @@ $("#btn-create").addEventListener("click", () =>
       throw new Error("Add a brief before creating your video.");
     }
     saveDraft();
+    const formats = selectedFormats();
     const { job } = await api("create", {
       template: state.template.descriptor.id,
       brief,
+      ...(formats.length ? { formats } : {}),
     });
     resultView(await follow(job, panel), $("#make-preview"), panel);
   }),
@@ -1895,7 +1974,11 @@ async function boot() {
           "optgroup",
           { label: pretty(category) },
           rows.map((t) =>
-            h("option", { value: t.id }, `${t.title} · ${t.aspect_ratio}`),
+            h(
+              "option",
+              { value: t.id },
+              `${t.title} · ${(t.formats || [t.aspect_ratio]).join(" / ")}`,
+            ),
           ),
         ),
       );

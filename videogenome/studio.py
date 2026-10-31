@@ -29,19 +29,21 @@ from videogenome import __version__
 from videogenome.compiler import ProductionError, read_json
 from videogenome.service import Service, contact_sheet
 from videogenome.requests import (
-    BRIEF, CAPTURE_PROPERTIES, COPY_PROPERTIES, IDENTIFIER, NAME, PREVIEW_PROPERTIES,
+    BRIEF, CAPTURE_PROPERTIES, COPY_PROPERTIES, FORMATS, IDENTIFIER, NAME, PREVIEW_PROPERTIES,
     object_schema, parse_request, validate_request,
 )
 
 STATIC = Path(__file__).resolve().parent / "studio_static"
 MAX_BODY = 4 * 1024 * 1024
 POST_SCHEMAS = {
-    "check": object_schema({**COPY_PROPERTIES, "brief": {**BRIEF, "type": ["string", "null"]}},
+    "check": object_schema({**COPY_PROPERTIES, "brief": {**BRIEF, "type": ["string", "null"]},
+                            "layout": {"type": "boolean"}},
                            ("template", "inputs")),
     "render": object_schema({**COPY_PROPERTIES, "brief": {**BRIEF, "type": ["string", "null"]},
-                             "author": NAME, "name": NAME}, ("template",)),
+                             "author": NAME, "name": NAME, "formats": FORMATS}, ("template",)),
     "fill": object_schema({"template": IDENTIFIER, "brief": {**BRIEF, "minLength": 1}}, ("template", "brief")),
-    "create": object_schema({"template": IDENTIFIER, "brief": {**BRIEF, "minLength": 1}, "name": NAME},
+    "create": object_schema({"template": IDENTIFIER, "brief": {**BRIEF, "minLength": 1}, "name": NAME,
+                             "formats": FORMATS},
                             ("template", "brief")),
     "preview-recipe": object_schema(PREVIEW_PROPERTIES, ("recipe",)),
     "capture": object_schema(CAPTURE_PROPERTIES, ("html",)),
@@ -130,6 +132,8 @@ class Studio:
         for key in ("output", "review_page", "contact_sheet", "poster", "receipt"):
             if result.get(key):
                 out[f"{key}_url"] = self.file_url(result[key])
+        if isinstance(result.get("formats"), list):  # One row per delivery format.
+            out["formats"] = [self.with_urls(row) if isinstance(row, dict) else row for row in result["formats"]]
         return out
 
     def render_preview(self, template_id: str, log) -> dict:
@@ -174,7 +178,8 @@ class Studio:
             if head in POST_SCHEMAS:
                 validate_request(body, POST_SCHEMAS[head])
             if head == "check":
-                return 200, s.check_inputs(body["template"], body.get("inputs", {}), body.get("brief") or None)
+                return 200, s.check_inputs(body["template"], body.get("inputs", {}), body.get("brief") or None,
+                                           formats=body.get("formats"), layout=body.get("layout", False))
             if head == "fill":
                 return 202, {"job": self.jobs.submit(f"write copy for {body['template']}",
                                                      lambda log: s.fill(body["template"], body["brief"]))}
@@ -182,11 +187,13 @@ class Studio:
                 return 202, {"job": self.jobs.submit(
                     f"render {body['template']}",
                     lambda log: s.render(body["template"], body.get("inputs", {}), brief=body.get("brief") or None,
-                                         author=body.get("author", "person"), name=body.get("name"), log=log))}
+                                         author=body.get("author", "person"), name=body.get("name"),
+                                         formats=body.get("formats"), log=log))}
             if head == "create":
                 return 202, {"job": self.jobs.submit(
                     f"brief to video: {body['template']}",
-                    lambda log: s.create(body["template"], body["brief"], name=body.get("name"), log=log))}
+                    lambda log: s.create(body["template"], body["brief"], name=body.get("name"),
+                                         formats=body.get("formats"), log=log))}
             if head == "preview-recipe":
                 return 202, {"job": self.jobs.submit(
                     f"preview {body['recipe']}",

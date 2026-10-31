@@ -143,16 +143,21 @@ const decimals = (v) => { const s = String(v); return s.includes(".") ? Math.min
 const counters = [];
 if (Number(P.distance) > 0) counters.push({ label: P.labels[0] || "Distance", total: Number(P.distance), unit: P.distance_unit, dec: decimals(P.distance) });
 if (Number(P.duration) > 0) counters.push({ label: P.labels[1] || "Time", total: Number(P.duration), unit: P.duration_unit, dec: decimals(P.duration) });
-const valueSize = Math.round(unit * (tallFrame ? 0.07 : 0.06));
 const labelSize = Math.round(unit * 0.03);
 const counterW = portrait ? (W - 2 * m) / Math.max(1, counters.length) : (panelW - 1.6 * m) / Math.max(1, counters.length);
-counters.forEach((c) => {
-  vg.font(ctx, valueSize, 800);
+// Match drawCounters: units use half-size type and a fixed gap, not the number's font.
+function counterWidth(c, size) {
+  vg.font(ctx, size, 800);
   const numberWidth = ctx.measureText(vg.formatNumber(c.total, c.dec)).width;
-  // Match drawCounters: units use half-size type and a fixed gap, not the number's font.
-  vg.font(ctx, valueSize * 0.5, 700);
-  const widest = numberWidth + valueSize * 0.18 + ctx.measureText(c.unit).width;
-  if (widest > counterW * 0.95) throw new Error(`route-map: counter "${c.total} ${c.unit}" does not fit`);
+  vg.font(ctx, size * 0.5, 700);
+  return numberWidth + size * 0.18 + ctx.measureText(c.unit).width;
+}
+// One shared value size: the design size, shrunk until every counter fits its column.
+let valueSize = Math.round(unit * (tallFrame ? 0.07 : 0.06));
+const minValueSize = Math.round(unit * 0.042);
+while (valueSize > minValueSize && counters.some((c) => counterWidth(c, valueSize) > counterW * 0.95)) valueSize -= 1;
+counters.forEach((c) => {
+  if (counterWidth(c, valueSize) > counterW * 0.95) throw new Error(`route-map: counter "${c.total} ${c.unit}" does not fit`);
   vg.font(ctx, labelSize, 700);
   if (ctx.measureText(c.label.toUpperCase()).width * 1.1 > counterW * 0.95) throw new Error(`route-map: label "${c.label}" does not fit`);
 });

@@ -97,9 +97,12 @@ class SceneSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             result = provider.generate("procedural", request, Path(directory))
             self.assertGreater(result.path.stat().st_size, 2000)
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(PluginError, r'counter "100000 km" does not fit'):
-                provider.generate("procedural", {**request, "params": {"distance": 100000}}, Path(directory))
+        with tempfile.TemporaryDirectory() as directory:  # Shrinks to fit its column, down to a legible floor...
+            provider.generate("procedural", {**request, "params": {"distance": 100000}}, Path(directory))
+        with tempfile.TemporaryDirectory() as directory:  # ...and refuses what cannot fit even there.
+            with self.assertRaisesRegex(PluginError, r'counter "99999.99 nmi" does not fit'):
+                provider.generate("procedural", {**request, "params": {"distance": 99999.99, "distance_unit": "nmi"}},
+                                  Path(directory))
 
     def test_every_scene_recipe_renders_a_still_in_two_formats(self) -> None:
         from videogenome.providers.procedural import ProceduralProvider

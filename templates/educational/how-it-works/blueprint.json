@@ -1,7 +1,7 @@
 {
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "id": "educational.how-it-works",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "How it works: animated system diagram (16:9)",
   "category": "educational",
   "description": "A 24-second 16:9 concept explainer in the diagram style of maths and engineering channels: the title rises and glides into a header, four labelled nodes with code-drawn line icons appear one per beat at the tips of self-drawing arrows, packets stream along the arrows to show the flow, the current node is lit with a caption explaining it while the camera frames what exists so far, and the last beat lights the whole system with a takeaway. Code-rendered (scene.how-it-works) with a procedural lo-fi bed, a click on each node and a swell when the system lights.",
@@ -336,6 +336,16 @@
     "loudness": {
       "target_lufs": -16,
       "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "9x16": {
+        "width": 1080,
+        "height": 1920
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
     }
   },
   "engines": [
