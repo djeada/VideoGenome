@@ -47,7 +47,7 @@ videogenome genome physics-sim --prompt   # the authoring prompt for an agent
 | Brand | Title sting · motion-design showreel |
 | Product | 3D product hero (three.js stand-in: bottle, can, jar, box, device) · app launch with stylised UI · product turntable (your .glb) · cinematic reveal (your footage) |
 | 3D | Cinematic title over a generated valley flyover or orbital sunrise |
-| Social | Event teaser (3-2-1 and days-to-go) · vertical tips listicle · UGC testimonial (your footage) |
+| Social | Event teaser (3-2-1 and days-to-go) · vertical tips listicle · beat-the-clock quiz challenge · UGC testimonial (your footage) |
 | Story / maps | Route map on Natural Earth coastlines |
 | Generative / music | Quote or lyric loop over generative art · tempo-locked beat visualizer |
 | Code | Browser code reveal with syntax highlighting · typing reel (Type-Simulator) |

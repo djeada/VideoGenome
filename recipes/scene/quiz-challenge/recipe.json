@@ -1,0 +1,264 @@
+{
+  "recipe_schema": "0.1.0",
+  "id": "scene.quiz-challenge",
+  "version": "0.1.0",
+  "title": "Quiz challenge (Canvas)",
+  "description": "A beat-the-clock quiz short: 2-4 shared answers sit at the bottom as labelled bins; each round a card drops in with the prompt, a ring counts down 3-2-1, the right bin lights up, the card shows the answer (as a tag, or before the prompt like 'das Mädchen') with a one-line reason, then falls into its bin. The outro recaps every answer, asks for the viewer's score and closes on a call to action. Timed to a musical beat grid; works at any aspect ratio.",
+  "media": [
+    "video",
+    "image"
+  ],
+  "runtime": "browser",
+  "entry": "index.html",
+  "timing": "clock",
+  "libraries": [
+    "vg-scene"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 40,
+        "default": "Which continent?",
+        "description": "The challenge, shown big in the intro and small in the header (the hook)"
+      },
+      "kicker": {
+        "type": "string",
+        "maxLength": 48,
+        "default": "Four countries. Beat the clock.",
+        "description": "One line under the hook in the intro; empty for none"
+      },
+      "options": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 14
+        },
+        "default": [
+          "Asia",
+          "Africa",
+          "Europe"
+        ],
+        "description": "The answers every round chooses from, left to right as bins"
+      },
+      "prompts": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "default": [
+          "Mongolia",
+          "Ghana",
+          "Portugal",
+          "Laos"
+        ],
+        "description": "One prompt per round, shown on the card"
+      },
+      "hints": {
+        "type": "array",
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "default": [],
+        "description": "Optional small line under each prompt (a translation, a clue); one per prompt or none"
+      },
+      "answers": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 14
+        },
+        "default": [
+          "Asia",
+          "Africa",
+          "Europe",
+          "Asia"
+        ],
+        "description": "The right option for each prompt; each must equal one of the options"
+      },
+      "notes": {
+        "type": "array",
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "default": [
+          "Capital: Ulaanbaatar",
+          "Capital: Accra",
+          "Capital: Lisbon",
+          "Capital: Vientiane"
+        ],
+        "description": "Optional one-line reason shown after each reveal; one per prompt or none"
+      },
+      "outro": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 40,
+        "default": "How many did you get?",
+        "description": "Outro heading that asks for the viewer's score"
+      },
+      "cta": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 36,
+        "default": "Comment your score",
+        "description": "Call to action in the closing pill"
+      },
+      "link": {
+        "type": "string",
+        "maxLength": 44,
+        "default": "",
+        "description": "Optional short link under the call to action; empty for none"
+      },
+      "answer_style": {
+        "enum": [
+          "tag",
+          "prefix"
+        ],
+        "default": "tag",
+        "description": "tag: the answer appears as a pill above the prompt; prefix: it slides in before the prompt (articles: 'das Mädchen')"
+      },
+      "recap": {
+        "type": "boolean",
+        "default": true,
+        "description": "List every prompt with its answer in the outro"
+      },
+      "bpm": {
+        "type": "number",
+        "minimum": 90,
+        "maximum": 128,
+        "default": 112.5,
+        "description": "Beat grid: intro 3 beats, each round 6 beats (ticks at 0.75, 1.5, 2.25; reveal on 3; drop on 5), outro the rest (at least 2.5 s); match the music bed. A duration too short for the grid speeds it up, to at most a 0.32 s beat"
+      },
+      "palette": {
+        "type": "array",
+        "minItems": 4,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#0E1218",
+          "#171E27",
+          "#E9EEF5",
+          "#8794A6"
+        ],
+        "description": "Ground, card panel, ink and muted text"
+      },
+      "option_colors": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "default": [
+          "#8AC2FF",
+          "#FF8F8F",
+          "#63C79C",
+          "#F2C14E"
+        ],
+        "description": "One colour per option, in order (cycled when shorter); falls back to ink where it would not read"
+      },
+      "lanes": {
+        "type": "boolean",
+        "default": true,
+        "description": "Dashed lane guides between the bins"
+      },
+      "grain": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 0.1,
+        "default": 0.03,
+        "description": "Film grain amount"
+      }
+    }
+  },
+  "presets": {
+    "slate": {},
+    "paper": {
+      "palette": [
+        "#F7F8FA",
+        "#FFFFFF",
+        "#0E1218",
+        "#5B6676"
+      ],
+      "option_colors": [
+        "#1F4FD1",
+        "#C23B3B",
+        "#137A55",
+        "#9A5B00"
+      ],
+      "grain": 0.02
+    },
+    "neon": {
+      "palette": [
+        "#07080A",
+        "#121418",
+        "#F2F2F2",
+        "#8A8F98"
+      ],
+      "option_colors": [
+        "#B6FF3B",
+        "#FF3DCB",
+        "#3DD6FF",
+        "#FFD23D"
+      ],
+      "grain": 0.04
+    },
+    "sunrise": {
+      "palette": [
+        "#FFF4E6",
+        "#FFFFFF",
+        "#1B1B1F",
+        "#6B6259"
+      ],
+      "option_colors": [
+        "#E8590C",
+        "#7048E8",
+        "#0C8599",
+        "#C2255C"
+      ],
+      "lanes": false
+    }
+  },
+  "tags": [
+    "scene",
+    "quiz",
+    "challenge",
+    "social",
+    "education",
+    "countdown",
+    "canvas"
+  ],
+  "license": "MIT",
+  "authors": [
+    "VideoGenome contributors"
+  ],
+  "notes": [
+    "Needs `pip install playwright` and `playwright install chromium-headless-shell`.",
+    "Uses the system's Inter (fonts-inter) when installed, else Helvetica Neue/Arial.",
+    "Throws when an answer is not one of the options, when hints or notes are given for only some prompts, or when the duration cannot hold 3 + 6N beats of at least 0.32 s plus a 2.5 s outro."
+  ],
+  "cost": {
+    "seconds_per_output_second": 2.0
+  }
+}

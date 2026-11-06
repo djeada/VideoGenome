@@ -34,7 +34,8 @@ DEFAULT = {
     "routes": {"procedural": "procedural"},
     "renderer": {"type": "ffmpeg"},
     "analyzers": [{"type": "ffmpeg"}],
-    "exporters": [{"type": "subtitles"}, {"type": "poster"}, {"type": "contact_sheet"}, {"type": "review"}],
+    "exporters": [{"type": "subtitles"}, {"type": "poster"}, {"type": "contact_sheet"}, {"type": "silent_cut"},
+                  {"type": "review"}],
 }
 
 

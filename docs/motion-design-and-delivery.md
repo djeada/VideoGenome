@@ -9,7 +9,7 @@ contracts, all owned by the template author and locked against job overrides:
 | Picture transitions | `timeline.transitions`, `timeline.fade_in_frames`, `timeline.fade_out_frames` | Frame-exact crossfades (with source handles) and dips through a colour |
 | Loudness delivery | `output.loudness` | Two-pass EBU R128 normalisation; video is stream-copied in the second pass |
 | Machine-checked gates | `quality_gates[].check` | Measures the output and marks the gate `passed`, `failed` or `not_applicable` |
-| Review sidecars | `output.poster_frame` (optional) | Writes SRT/WebVTT, a poster frame and a per-shot contact sheet |
+| Review sidecars | `output.poster_frame`, `output.review_frames`, `output.silent_cut` (optional) | Writes SRT/WebVTT, a poster frame, a contact sheet and, when asked, a silent cut |
 
 Using any of these fields with `schema_version` 0.1.0 or 0.2.0 is a validation
 error, so older compilers never silently ignore them. Existing 0.1/0.2
@@ -138,7 +138,15 @@ Unless `--no-deliverables` is passed, the renderer writes next to `OUTPUT.mp4`:
   breaks as the burned-in captions and millisecond timestamps derived from frames
   (only when the blueprint has captions),
 * `OUTPUT.poster.jpg`: `output.poster_frame`, or two-thirds into the first shot,
-* `OUTPUT.contact.jpg`: one tile per shot, sampled after entrances complete.
+* `OUTPUT.contact.jpg`: the frames in `output.review_frames` (schema 0.6.0), else
+  one tile per shot sampled after entrances complete, and for a shot longer than
+  10 s one tile per ~5 s slice (up to six), so a one-shot animation is not judged
+  by a single frame that may fall between its beats. Templates built on one long
+  scene should list their key moments (each reveal, the end card),
+* `OUTPUT.silent.mp4`: only when the template sets `output.silent_cut` (schema
+  0.6.0). The same picture, stream-copied, with no audio, for platforms where the
+  post is set to in-app (trending) sound. The mastered cut stays the main output
+  and carries the gates.
 
 Each sidecar is hashed in the receipt. Sidecars are decoded from the verified output,
 never rendered separately, and may not overwrite a source asset.

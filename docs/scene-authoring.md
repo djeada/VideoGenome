@@ -76,7 +76,7 @@ vendored at `_lib/three` with bloom, glTF loading and a room environment.
   `python -m tools.validate` checks them like a writer's reply.
 * Sound comes from audio recipes on the timeline, cued to the scene's beats
   (`audio.pulse`, `audio.lofi-beat`, `audio.ambient-pad`, `audio.transition`
-  presets `whoosh`, `riser`, `impact`, `swell`, `soft-click`...). Master social
+  presets `whoosh`, `riser`, `impact`, `swell`, `soft-click`, `tick`, `chime`...). Master social
   9:16 to -14 LUFS and everything else to -16, with `programme_loudness` and
   `true_peak_headroom` gates. Use `no_dead_picture` unless the class has a
   deliberate hold on a flat ground. Add human gates for what only people can

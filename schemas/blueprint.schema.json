@@ -317,6 +317,21 @@
           "type": "integer",
           "minimum": 0
         },
+        "silent_cut": {
+          "type": "boolean",
+          "description": "Schema 0.6.0: also deliver <name>.silent.mp4, the same picture with no audio, for platforms where the post is set to in-app (trending) sound. The mastered cut stays the main output and carries the gates."
+        },
+        "review_frames": {
+          "type": "array",
+          "description": "Schema 0.6.0: the frames the contact sheet shows, in programme order (for example each reveal of a one-shot animation). Without it the sheet takes one frame per shot, and several from shots longer than 10 seconds.",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
         "formats": {
           "type": "object",
           "description": "Other aspect ratios this template is authored and reviewed for (schema 0.6.0), keyed by aspect id (9x16, 1x1, 4x5). Each renders the same story, copy, timing, audio and gates at another frame size; pixel-valued typography may be restated for that frame. Copy must fit every format.",

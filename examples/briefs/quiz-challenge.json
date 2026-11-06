@@ -1,0 +1,35 @@
+{
+  "suite_schema": "0.1.0",
+  "description": "Briefs for the quiz challenge (social.quiz-challenge): five questions sharing 2-4 answers, with optional hints and reasons, including a brief that gives no answers and one that gives no call to action.",
+  "briefs": [
+    {
+      "id": "german-articles",
+      "template": "social.quiz-challenge",
+      "brief": "Promo reel for the Der Die Das Game, a free browser game for German articles. Der, die or das? Five words: Mädchen (girl) is das, Junge (boy) is der, Zeitung (newspaper) is die, Mond (moon) is der, Messer (knife) is das. Reasons to show: '-chen (little) is always das', '-e is usually die. Not here.', '-ung is die 99% of the time', 'Moon der, sun die', 'Spoon der, fork die, knife das'. Show the article before the word. Call to action: Play 6,000 nouns free, link adamdjellouli.com/tools/der_die_das."
+    },
+    {
+      "id": "spanish-el-la",
+      "template": "social.quiz-challenge",
+      "brief": "Quiz for our Spanish school's account: el or la? mapa is el, mano is la, día is el, foto is la, idioma is el. End with 'Book a free trial class'."
+    },
+    {
+      "id": "fruit-or-vegetable",
+      "template": "social.quiz-challenge",
+      "brief": "Kitchen-science short for Sprout Academy, botanically speaking: fruit or vegetable? Tomato is a fruit, carrot is a vegetable, cucumber is a fruit, potato is a vegetable, pumpkin is a fruit. Reasons: 'it holds the seeds', 'it is a root', 'it holds the seeds', 'it is a tuber', 'it holds the seeds'. Call to action: Follow for more kitchen science."
+    },
+    {
+      "id": "quiz-without-answers",
+      "template": "social.quiz-challenge",
+      "expect": "incomplete",
+      "brief": "Make a quiz video for our coffee shop: guess the origin of five of our beans (Ethiopia, Colombia, Brazil, Kenya, Guatemala)! Ask people to comment their score. Call to action: Visit Beanline on Market Street.",
+      "note": "The brief names five beans' origins but not the questions or which answer belongs to which; answers are verbatim, so the writer must report them missing rather than invent a pairing."
+    },
+    {
+      "id": "quiz-without-cta",
+      "template": "social.quiz-challenge",
+      "expect": "incomplete",
+      "brief": "True or false quiz: the Great Wall is visible from space with the naked eye (false), octopuses have three hearts (true), bats are blind (false), honey never spoils (true), lightning never strikes the same place twice (false).",
+      "note": "No call to action is given and the cta slot is verbatim and required."
+    }
+  ]
+}

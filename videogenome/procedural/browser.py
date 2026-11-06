@@ -207,6 +207,9 @@ def _served(root: Path, allowed: list[Path], libraries: dict[str, Path] | None =
     return handler
 
 
+LOAD_BEARING = {"script", "stylesheet", "image", "font"}
+
+
 def _write_wav(path: Path, pcm: bytes, sample_rate: int) -> None:
     import wave
     with wave.open(str(path), "wb") as handle:
@@ -230,6 +233,17 @@ def _open_page(browser, spec: dict, entry: Path, root: Path, allowed: list[Path]
     page = context.new_page()
     errors: list[str] = []
     page.on("pageerror", lambda exc: errors.append(str(exc)))
+
+    def missing(response) -> None:
+        # The sandbox answers 404 for files outside the page's tree and its declared
+        # libraries. A module or stylesheet that fails to load does not throw, so the
+        # page would otherwise render blank frames without an error.
+        if response.status == 404 and response.request.resource_type in LOAD_BEARING:
+            path = unquote(urlparse(response.url).path)
+            if path != "/favicon.ico":
+                errors.append(f"could not load {path}: it is not in the page's directory or a declared "
+                              f"shared library (a recipe lists those under \"libraries\" in recipe.json)")
+    page.on("response", missing)
     public = {k: spec[k] for k in ("params", "width", "height", "fps", "duration_seconds", "seed", "media")
               if k in spec}
     page.add_init_script(f"window.__vgSeed = {int(spec.get('seed', 0))};"

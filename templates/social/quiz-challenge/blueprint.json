@@ -1,0 +1,776 @@
+{
+  "schema_version": "0.6.0",
+  "id": "social.quiz-challenge",
+  "version": "0.1.0",
+  "title": "Quiz challenge: beat the clock (9:16)",
+  "category": "social",
+  "description": "A 21.6-second beat-the-clock quiz short: 2-4 shared answers sit at the bottom as labelled bins; five times a card drops in, a ring counts down 3-2-1 with ticks, the right bin lights up with a chime and confetti, the answer and a one-line reason appear, and the card falls into its bin. The outro recaps every answer, asks for the viewer's score (comment bait) and closes on a call to action and link. Code-rendered (scene.quiz-challenge) on a 112.5 bpm grid shared with the music bed, so it renders with no footage, models or downloads.",
+  "tags": [
+    "social",
+    "vertical",
+    "quiz",
+    "challenge",
+    "education",
+    "language_learning",
+    "trivia",
+    "engagement",
+    "motion_graphics",
+    "code_animation",
+    "renderable"
+  ],
+  "inputs": {
+    "hook": {
+      "type": "string",
+      "required": true,
+      "description": "The challenge, 2-5 words, shown big for the first 1.6 s and then in the header (e.g. 'Which continent?'); an option's name in it takes that option's colour. Under 40 characters"
+    },
+    "kicker": {
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "One line under the hook, under 48 characters (e.g. 'Five countries. Beat the clock.'); no statistic the brief does not give"
+    },
+    "option_1": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The first of the quiz's answers, copied from the brief (under 14 characters). Fill one option per possible answer, in the order the brief names them: der, die, das are three options; true or false are two"
+    },
+    "option_2": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The second possible answer, copied from the brief (under 14 characters)"
+    },
+    "option_3": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "The third possible answer, copied from the brief; fill it whenever the quiz has three or more answers (der, die, das). Leave it out only for a two-answer quiz"
+    },
+    "option_4": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "The fourth possible answer, copied from the brief; leave it out unless the quiz has four answers"
+    },
+    "prompt_1": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Question 1: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_1, not here"
+    },
+    "answer_1": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The answer the brief gives for question 1, copied exactly as one of the options. If the brief does not say which answer belongs to question 1, leave it out and list it as missing; never pair them yourself"
+    },
+    "prompt_2": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Question 2: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_2, not here"
+    },
+    "answer_2": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The answer the brief gives for question 2, copied exactly as one of the options. If the brief does not say which answer belongs to question 2, leave it out and list it as missing; never pair them yourself"
+    },
+    "prompt_3": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Question 3: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_3, not here"
+    },
+    "answer_3": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The answer the brief gives for question 3, copied exactly as one of the options. If the brief does not say which answer belongs to question 3, leave it out and list it as missing; never pair them yourself"
+    },
+    "prompt_4": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Question 4: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_4, not here"
+    },
+    "answer_4": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The answer the brief gives for question 4, copied exactly as one of the options. If the brief does not say which answer belongs to question 4, leave it out and list it as missing; never pair them yourself"
+    },
+    "prompt_5": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Question 5: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_5, not here"
+    },
+    "answer_5": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "The answer the brief gives for question 5, copied exactly as one of the options. If the brief does not say which answer belongs to question 5, leave it out and list it as missing; never pair them yourself"
+    },
+    "hint_1": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Small line under question 1: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+    },
+    "hint_2": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Small line under question 2: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+    },
+    "hint_3": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Small line under question 3: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+    },
+    "hint_4": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Small line under question 4: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+    },
+    "hint_5": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "Small line under question 5: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+    },
+    "note_1": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "One-line reason shown after answer 1 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+    },
+    "note_2": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "One-line reason shown after answer 2 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+    },
+    "note_3": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "One-line reason shown after answer 3 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+    },
+    "note_4": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "One-line reason shown after answer 4 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+    },
+    "note_5": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "description": "One-line reason shown after answer 5 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+    },
+    "outro": {
+      "type": "string",
+      "required": false,
+      "default": "How many did you get?",
+      "description": "Outro heading asking for the viewer's score, under 40 characters"
+    },
+    "cta": {
+      "type": "string",
+      "required": true,
+      "fill": "verbatim",
+      "description": "Call to action in the closing pill, copied from the brief (e.g. 'Comment your score', 'Play free in your browser'), under 36 characters"
+    },
+    "link": {
+      "type": "string",
+      "required": false,
+      "fill": "verbatim",
+      "default": "",
+      "description": "Short link under the call to action, copied from the brief, under 44 characters; empty for none"
+    },
+    "answer_style": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "tag",
+        "prefix"
+      ],
+      "default": "tag",
+      "description": "How the answer shows on the card: tag (a pill above the question) or prefix (before the question, for articles: 'das Mädchen')"
+    },
+    "look": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "slate",
+        "paper",
+        "neon",
+        "sunrise"
+      ],
+      "default": "slate",
+      "description": "Visual look: slate (ink-dark, pastel blue/rose/green), paper (white, deep blue/red/green), neon (black, lime/magenta/cyan), sunrise (warm cream, orange/violet/teal)"
+    },
+    "energy": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "upbeat",
+        "product",
+        "night"
+      ],
+      "default": "product",
+      "description": "Music energy for the procedural pulse bed (always at the scene's 112.5 bpm)"
+    },
+    "scene": {
+      "type": "video",
+      "required": false,
+      "description": "The quiz animation; rendered from the copy unless supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "scene.quiz-challenge",
+          "preset": "{{look}}",
+          "params": {
+            "title": "{{hook}}",
+            "kicker": "{{kicker}}",
+            "options": [
+              "{{option_1}}",
+              "{{option_2}}",
+              "{{option_3}}",
+              "{{option_4}}"
+            ],
+            "prompts": [
+              "{{prompt_1}}",
+              "{{prompt_2}}",
+              "{{prompt_3}}",
+              "{{prompt_4}}",
+              "{{prompt_5}}"
+            ],
+            "answers": [
+              "{{answer_1}}",
+              "{{answer_2}}",
+              "{{answer_3}}",
+              "{{answer_4}}",
+              "{{answer_5}}"
+            ],
+            "hints": [
+              "{{hint_1}}",
+              "{{hint_2}}",
+              "{{hint_3}}",
+              "{{hint_4}}",
+              "{{hint_5}}"
+            ],
+            "notes": [
+              "{{note_1}}",
+              "{{note_2}}",
+              "{{note_3}}",
+              "{{note_4}}",
+              "{{note_5}}"
+            ],
+            "outro": "{{outro}}",
+            "cta": "{{cta}}",
+            "link": "{{link}}",
+            "answer_style": "{{answer_style}}",
+            "bpm": 112.5
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "audio",
+      "required": false,
+      "description": "Music bed; produced procedurally at 112.5 bpm unless a cleared track is supplied",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.pulse",
+          "preset": "{{energy}}",
+          "params": {
+            "bpm": 112.5
+          }
+        }
+      }
+    },
+    "tick": {
+      "type": "audio",
+      "required": false,
+      "description": "Clock tick on each countdown number",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "tick"
+        }
+      }
+    },
+    "chime": {
+      "type": "audio",
+      "required": false,
+      "description": "Correct-answer chime on each reveal",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "chime"
+        }
+      }
+    },
+    "whoosh": {
+      "type": "audio",
+      "required": false,
+      "description": "Whoosh as each card drops into its bin",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "whoosh"
+        }
+      }
+    },
+    "impact": {
+      "type": "audio",
+      "required": false,
+      "description": "Soft hit under the hook and the call to action",
+      "produce": {
+        "capability": "procedural",
+        "request": {
+          "recipe": "audio.transition",
+          "preset": "impact"
+        }
+      }
+    }
+  },
+  "copy_examples": [
+    {
+      "brief": "Quiz reel for Cellar Door, a Spanish class in Leeds. Is it el or la? Five words with their meanings: agua (water) is el, mano (hand) is la, problema (problem) is el, foto (photo) is la, día (day) is el. One-line reasons to show: agua is 'el agua: dodges la agua' (it stays feminine); mano is 'feminine, despite the -o'; problema is 'Greek -ma words: masculine'; foto is 'short for fotografía'; día is 'masculine, despite the -a'. End with 'Book a free trial class' and cellardoorspanish.co.uk.",
+      "inputs": {
+        "hook": "El or la?",
+        "kicker": "Five words. Beat the clock.",
+        "option_1": "el",
+        "option_2": "la",
+        "prompt_1": "agua",
+        "answer_1": "el",
+        "prompt_2": "mano",
+        "answer_2": "la",
+        "prompt_3": "problema",
+        "answer_3": "el",
+        "prompt_4": "foto",
+        "answer_4": "la",
+        "prompt_5": "día",
+        "answer_5": "el",
+        "hint_1": "water",
+        "hint_2": "hand",
+        "hint_3": "problem",
+        "hint_4": "photo",
+        "hint_5": "day",
+        "note_1": "el agua: dodges la agua",
+        "note_2": "feminine, despite the -o",
+        "note_3": "Greek -ma words: masculine",
+        "note_4": "short for fotografía",
+        "note_5": "masculine, despite the -a",
+        "outro": "How many did you get?",
+        "cta": "Book a free trial class",
+        "link": "cellardoorspanish.co.uk",
+        "answer_style": "prefix",
+        "look": "sunrise",
+        "energy": "upbeat"
+      },
+      "note": "Two options, so option_3 and option_4 are left out. Every word, answer, meaning and reason is copied from the brief; the writer only composed the hook, kicker and outro. Articles read best with the prefix style ('el agua')."
+    },
+    {
+      "brief": "Trivia short for the Orbit Club astronomy society: planet or moon? Titan is a moon (of Saturn), Mercury is a planet (smallest one), Ganymede is a moon (bigger than Mercury), Venus is a planet (hottest planet), Europa is a moon (ice-covered ocean). Call to action: Join us at the next stargazing night.",
+      "inputs": {
+        "hook": "Planet or moon?",
+        "kicker": "Five names. Three seconds each.",
+        "option_1": "Planet",
+        "option_2": "Moon",
+        "prompt_1": "Titan",
+        "answer_1": "Moon",
+        "prompt_2": "Mercury",
+        "answer_2": "Planet",
+        "prompt_3": "Ganymede",
+        "answer_3": "Moon",
+        "prompt_4": "Venus",
+        "answer_4": "Planet",
+        "prompt_5": "Europa",
+        "answer_5": "Moon",
+        "note_1": "of Saturn",
+        "note_2": "smallest one",
+        "note_3": "bigger than Mercury",
+        "note_4": "hottest planet",
+        "note_5": "ice-covered ocean",
+        "cta": "Join us at the next stargazing night",
+        "answer_style": "tag",
+        "look": "neon",
+        "energy": "night"
+      },
+      "note": "The brief's answers are lower case ('a moon'); options are copied in title case and answers match them. No link was given, so none is shown; reasons are the brief's own words."
+    }
+  ],
+  "style": {
+    "mood": "playful, tense, rewarding",
+    "palette": [
+      "#0E1218",
+      "#171E27",
+      "#E9EEF5",
+      "#8AC2FF",
+      "#FF8F8F",
+      "#63C79C"
+    ],
+    "typography": "Inter ExtraBold/Black, centred cards, bins labelled in their option colour",
+    "pacing": "dynamic"
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "captions": false,
+    "silent_cut": true,
+    "poster_frame": 36,
+    "review_frames": [
+      78,
+      110,
+      206,
+      302,
+      398,
+      494,
+      600
+    ],
+    "loudness": {
+      "target_lufs": -14,
+      "max_true_peak_dbtp": -1.0
+    },
+    "formats": {
+      "16x9": {
+        "width": 1920,
+        "height": 1080
+      },
+      "1x1": {
+        "width": 1080,
+        "height": 1080
+      }
+    }
+  },
+  "engines": [
+    "ffmpeg",
+    "browser"
+  ],
+  "scenes": [
+    {
+      "id": "quiz",
+      "role": "challenge",
+      "duration_frames": 648,
+      "shots": [
+        {
+          "id": "quiz_reel",
+          "kind": "animation",
+          "duration_frames": 648,
+          "engine_hint": "browser",
+          "fit": "cover",
+          "direction": {
+            "action": "Hook, five timed rounds (drop in, 3-2-1, reveal with reason, drop into the bin), recap and call to action"
+          },
+          "input_refs": [
+            "scene",
+            "hook",
+            "kicker",
+            "option_1",
+            "option_2",
+            "option_3",
+            "option_4",
+            "prompt_1",
+            "answer_1",
+            "hint_1",
+            "note_1",
+            "prompt_2",
+            "answer_2",
+            "hint_2",
+            "note_2",
+            "prompt_3",
+            "answer_3",
+            "hint_3",
+            "note_3",
+            "prompt_4",
+            "answer_4",
+            "hint_4",
+            "note_4",
+            "prompt_5",
+            "answer_5",
+            "hint_5",
+            "note_5",
+            "outro",
+            "cta",
+            "link"
+          ]
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "source_audio": "mute",
+    "fade_out_frames": 10,
+    "audio_tracks": [
+      {
+        "id": "music_bed",
+        "input_ref": "music",
+        "start_frame": 0,
+        "duration_frames": 648,
+        "gain_db": -6,
+        "fade_in_frames": 4,
+        "fade_out_frames": 30
+      },
+      {
+        "id": "hook_hit",
+        "input_ref": "impact",
+        "start_frame": 0,
+        "duration_frames": 45,
+        "gain_db": -12
+      },
+      {
+        "id": "r1_tick_3",
+        "input_ref": "tick",
+        "start_frame": 60,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r1_tick_2",
+        "input_ref": "tick",
+        "start_frame": 72,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r1_tick_1",
+        "input_ref": "tick",
+        "start_frame": 84,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r1_chime",
+        "input_ref": "chime",
+        "start_frame": 96,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "r1_drop",
+        "input_ref": "whoosh",
+        "start_frame": 124,
+        "duration_frames": 20,
+        "gain_db": -10
+      },
+      {
+        "id": "r2_tick_3",
+        "input_ref": "tick",
+        "start_frame": 156,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r2_tick_2",
+        "input_ref": "tick",
+        "start_frame": 168,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r2_tick_1",
+        "input_ref": "tick",
+        "start_frame": 180,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r2_chime",
+        "input_ref": "chime",
+        "start_frame": 192,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "r2_drop",
+        "input_ref": "whoosh",
+        "start_frame": 220,
+        "duration_frames": 20,
+        "gain_db": -10
+      },
+      {
+        "id": "r3_tick_3",
+        "input_ref": "tick",
+        "start_frame": 252,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r3_tick_2",
+        "input_ref": "tick",
+        "start_frame": 264,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r3_tick_1",
+        "input_ref": "tick",
+        "start_frame": 276,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r3_chime",
+        "input_ref": "chime",
+        "start_frame": 288,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "r3_drop",
+        "input_ref": "whoosh",
+        "start_frame": 316,
+        "duration_frames": 20,
+        "gain_db": -10
+      },
+      {
+        "id": "r4_tick_3",
+        "input_ref": "tick",
+        "start_frame": 348,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r4_tick_2",
+        "input_ref": "tick",
+        "start_frame": 360,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r4_tick_1",
+        "input_ref": "tick",
+        "start_frame": 372,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r4_chime",
+        "input_ref": "chime",
+        "start_frame": 384,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "r4_drop",
+        "input_ref": "whoosh",
+        "start_frame": 412,
+        "duration_frames": 20,
+        "gain_db": -10
+      },
+      {
+        "id": "r5_tick_3",
+        "input_ref": "tick",
+        "start_frame": 444,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r5_tick_2",
+        "input_ref": "tick",
+        "start_frame": 456,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r5_tick_1",
+        "input_ref": "tick",
+        "start_frame": 468,
+        "duration_frames": 9,
+        "gain_db": -4
+      },
+      {
+        "id": "r5_chime",
+        "input_ref": "chime",
+        "start_frame": 480,
+        "duration_frames": 30,
+        "gain_db": -5
+      },
+      {
+        "id": "r5_drop",
+        "input_ref": "whoosh",
+        "start_frame": 508,
+        "duration_frames": 20,
+        "gain_db": -10
+      },
+      {
+        "id": "cta_hit",
+        "input_ref": "impact",
+        "start_frame": 561,
+        "duration_frames": 45,
+        "gain_db": -13
+      }
+    ]
+  },
+  "rules": {
+    "allow_scene_reordering": false,
+    "locked_elements": [
+      "style",
+      "output",
+      "scenes",
+      "timeline"
+    ],
+    "notes": [
+      "The animation is code (recipes/scene/quiz-challenge) rendered frame-exactly on a virtual clock; the writer supplies the copy and three choices only.",
+      "Questions, answers, hints, reasons, options, the call to action and the link are verbatim: they must come from the brief, because a quiz that teaches a wrong answer is worse than no video. Each answer must equal one of the options; the scene throws (and check_inputs reports it) otherwise.",
+      "Hints and reasons are all-or-none: give one for every question or leave them all out.",
+      "Beat grid 112.5 bpm (16 frames a beat): hook frames 0-48; round k (0-4) starts at frame 48 + 96k with ticks at +12, +24, +36, the reveal and chime at +48, and the drop whoosh at +76; outro from frame 528 with the call to action at 561. The music bed runs at the same tempo, so every reveal lands on a beat.",
+      "The poster frame (36) shows the coloured hook over the bins: a cover that states the challenge.",
+      "The contact sheet shows round 1's countdown (78), each reveal with its reason on screen (110, 206, 302, 398, 494) and the outro recap (600).",
+      "output.silent_cut also delivers <name>.silent.mp4 (picture only) for posting with in-app trending sound; the mastered cut with ticks, chimes and the bed stays the main deliverable."
+    ]
+  },
+  "quality_gates": [
+    {
+      "id": "programme_loudness",
+      "mode": "automated",
+      "description": "Integrated loudness lands within 1 LU of the -14 LUFS delivery target.",
+      "check": {
+        "metric": "integrated_lufs",
+        "min": -15,
+        "max": -13
+      }
+    },
+    {
+      "id": "true_peak_headroom",
+      "mode": "automated",
+      "description": "Decoded true peak stays at or below -0.5 dBTP after AAC encoding.",
+      "check": {
+        "metric": "true_peak_dbtp",
+        "max": -0.5
+      }
+    },
+    {
+      "id": "no_dead_picture",
+      "mode": "automated",
+      "description": "No stretch of blank picture (no visible contrast, any colour) lasts longer than 0.5 seconds.",
+      "check": {
+        "metric": "longest_blank_seconds",
+        "max": 0.5
+      }
+    },
+    {
+      "id": "answer_accuracy",
+      "mode": "human",
+      "description": "A subject expert checks every answer, hint and reason against a trusted source; one wrong answer misteaches every viewer."
+    },
+    {
+      "id": "claims_review",
+      "mode": "human",
+      "description": "A reviewer confirms the hook, call to action and link are accurate and approved for publication."
+    }
+  ]
+}
