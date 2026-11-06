@@ -322,6 +322,7 @@ BUILTINS: dict[str, dict[str, str]] = {
         "subtitles": "videogenome.deliverables:SubtitleExporter",
         "poster": "videogenome.deliverables:PosterExporter",
         "contact_sheet": "videogenome.deliverables:ContactSheetExporter",
+        "silent_cut": "videogenome.deliverables:SilentCutExporter",
         "review": "videogenome.review:ReviewPageExporter",
     },
     "writer": {

@@ -15,7 +15,7 @@ from videogenome.__main__ import EXIT_GATE_FAILED, main
 from videogenome.blueprint import validate_blueprint
 from videogenome.catalog import discover
 from videogenome.compiler import ROOT, ProductionError, compile_job
-from videogenome.deliverables import subtitles
+from videogenome.deliverables import review_frames, subtitles
 from videogenome.layout import balanced_wrap, fit_copy, resolve_title_card
 from videogenome.qa import evaluate_gates
 from videogenome.render import render
@@ -218,6 +218,27 @@ class GateAndSidecarUnitTests(unittest.TestCase):
         self.assertIn("intro\n00:00:00.500 --> 00:00:03.000", vtt)
         self.assertIsNone(subtitles({"output": {"fps": 24}}))
 
+    def test_review_frames_sample_long_shots_or_follow_the_template(self) -> None:
+        segments = [{"start_frame": 0, "duration_frames": 90}, {"start_frame": 90, "duration_frames": 648}]
+        plan = {"output": {"fps": 30}, "segments": segments}
+        poster, frames = review_frames(plan)
+        self.assertEqual(poster, 60)                      # two-thirds into the first shot
+        self.assertEqual(frames[0], 60)                   # a short shot keeps one tile
+        self.assertEqual(len(frames), 6)                  # a 21.6 s shot gives five, one per slice
+        self.assertTrue(all(90 <= f < 738 for f in frames[1:]))
+        self.assertEqual(frames, sorted(frames))
+        plan["output"].update({"poster_frame": 10, "review_frames": [400, 120]})
+        self.assertEqual(review_frames(plan), (10, [120, 400]))
+
+    def test_review_frames_must_lie_inside_the_programme(self) -> None:
+        data = load(ROOT / "templates/social/quiz-challenge/blueprint.json")
+        self.assertEqual(validate_blueprint(data), [])
+        data["output"]["review_frames"] = [10, 5000]
+        self.assertIn("output.review_frames lies beyond the programme", validate_blueprint(data))
+        data["schema_version"] = "0.5.0"
+        data["output"].pop("formats")
+        self.assertIn("output.review_frames requires schema_version 0.6.0", validate_blueprint(data))
+
 
 @unittest.skipUnless(HAS_FFMPEG, "FFmpeg required")
 class ProductRenderTests(unittest.TestCase):
@@ -225,6 +246,23 @@ class ProductRenderTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
+
+    def test_silent_cut_copies_the_picture_without_audio_only_when_asked(self) -> None:
+        from videogenome.deliverables import SilentCutExporter
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "reel.mp4"
+            subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=64x64:rate=10:d=1",
+                            "-f", "lavfi", "-i", "sine=f=440:d=1", "-c:v", "libx264", "-c:a", "aac", "-shortest",
+                            str(output)], check=True)
+            exporter = SilentCutExporter("silent_cut", {})
+            self.assertEqual(exporter.export({"output": {}}, output, set()), {})
+            written = exporter.export({"output": {"silent_cut": True}}, output, {output.resolve()})
+            streams = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-of", "json",
+                                                 str(written["silent_cut"])], capture_output=True, text=True,
+                                                check=True).stdout)["streams"]
+            self.assertEqual(written["silent_cut"].name, "reel.silent.mp4")
+            self.assertEqual([s["codec_type"] for s in streams], ["video"])
+            self.assertEqual(streams[0]["nb_frames"], "10")
 
     def test_vertical_music_is_mastered_and_machine_gated(self) -> None:
         write_tone(self.root / "bed.wav", 330, 14)

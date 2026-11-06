@@ -264,6 +264,9 @@ def _version_errors(data: dict, shots: list[dict]) -> list[str]:
     errors = []
     if _version(data) < (0, 6, 0) and "formats" in data["output"]:
         errors.append("output.formats requires schema_version 0.6.0")
+    for key in ("review_frames", "silent_cut"):
+        if _version(data) < (0, 6, 0) and key in data["output"]:
+            errors.append(f"output.{key} requires schema_version 0.6.0")
     if _version(data) < (0, 5, 0):
         newer = [name for name, spec in data["inputs"].items() if "fill" in spec or "grounded_with" in spec or "whole_quote" in spec]
         if newer:
@@ -367,6 +370,8 @@ def validate_blueprint(data: object, schema: dict | None = None) -> list[str]:
     total = sum(scene["duration_frames"] for scene in data["scenes"])
     if data["output"].get("poster_frame", 0) >= total:
         errors.append("output.poster_frame lies beyond the programme")
+    if any(frame >= total for frame in data["output"].get("review_frames", [])):
+        errors.append("output.review_frames lies beyond the programme")
     errors.extend(_version_errors(data, shots))
     errors.extend(_timeline_errors(data))
     errors.extend(_picture_errors(data, shots))

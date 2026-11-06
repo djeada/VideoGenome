@@ -183,6 +183,19 @@ fetch("../secret.txt").then(r => r.ok ? r.text() : "blocked").catch(() => "block
             self.assertGreater(pixel[2], 200)
             self.assertLess(pixel[0], 50)
 
+    def test_a_module_the_page_cannot_load_fails_the_capture(self) -> None:
+        # A failed module import does not throw a page error, so without this check the
+        # page renders blank frames and the capture "succeeds".
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write(root / "page.html", """<!doctype html><body><canvas id="c" width="32" height="32"></canvas>
+<script type="module">import { x } from "../_lib/missing/lib.js";
+document.getElementById("c").getContext("2d").fillRect(0, 0, 32, 32);</script></body>""")
+            with self.assertRaises(ProductionError) as caught:
+                capture_page(root / "page.html", root / "out.png", size="32x32", at=0.2, audio=False)
+            self.assertIn("could not load /_lib/missing/lib.js", str(caught.exception))
+            self.assertIn('"libraries"', str(caught.exception))
+
     def test_recipe_scaffold_renders(self) -> None:
         from videogenome.authoring import scaffold_recipe
         with tempfile.TemporaryDirectory() as directory:

@@ -36,13 +36,30 @@ def subtitles(plan: dict) -> tuple[str, str] | None:
     return "\n".join(srt), "\n".join(vtt)
 
 
+LONG_SHOT_SECONDS = 10
+MAX_TILES_PER_SHOT = 6
+
+
 def review_frames(plan: dict) -> tuple[int, list[int]]:
-    """Poster frame and one representative frame per shot (after entrances)."""
+    """Poster frame and the contact sheet's frames.
+
+    A template's ``output.review_frames`` names the moments worth reviewing.
+    Otherwise each shot gives one frame two-thirds in (after entrances), and a
+    shot longer than ten seconds is split into slices of about five seconds,
+    each sampled two-thirds in, so one long animation is not judged by a frame
+    that may fall between its beats.
+    """
     frames = []
+    fps = plan["output"]["fps"]
     for segment in plan["segments"]:
-        frames.append(segment["start_frame"] + (2 * segment["duration_frames"]) // 3)
+        start, length = segment["start_frame"], segment["duration_frames"]
+        slices = 1
+        if length > LONG_SHOT_SECONDS * fps:
+            slices = min(MAX_TILES_PER_SHOT, math.ceil(length / (5 * fps)))
+        frames.extend(start + (length * (3 * k + 2)) // (3 * slices) for k in range(slices))
     poster = plan["output"].get("poster_frame", frames[0])
-    return poster, frames
+    chosen = plan["output"].get("review_frames")
+    return poster, sorted(chosen) if chosen else frames  # tiles read in programme order
 
 
 def _guard(paths: list[Path], protected: set[Path]) -> None:
@@ -89,10 +106,29 @@ class PosterExporter(Exporter):
         return {"poster": path}
 
 
-class ContactSheetExporter(Exporter):
-    """One tile per shot, sampled after entrances complete."""
+class SilentCutExporter(Exporter):
+    """The verified picture with no audio, when the template asks for it (output.silent_cut).
 
-    summary = "Contact sheet JPEG, one tile per shot"
+    Short-form platforms rank posts that use in-app (trending) sound; the poster
+    adds that sound on the platform, so it needs the picture without the bed.
+    The video stream is copied, not re-encoded, so it is frame-identical.
+    """
+
+    summary = "Silent cut MP4 (picture only) when the template sets output.silent_cut"
+
+    def export(self, plan: dict, output: Path, protected: set[Path]) -> dict[str, Path]:
+        if not plan["output"].get("silent_cut"):
+            return {}
+        path = Path(f"{output.with_suffix('')}.silent.mp4")
+        _guard([path], protected)
+        _ffmpeg(["-i", str(output), "-map", "0:v:0", "-c", "copy", "-an", "-movflags", "+faststart", str(path)])
+        return {"silent_cut": path}
+
+
+class ContactSheetExporter(Exporter):
+    """The template's review frames, else one tile per shot (several for long shots)."""
+
+    summary = "Contact sheet JPEG: output.review_frames, else one tile per shot"
     config_schema = {"type": "object", "additionalProperties": False,
                      "properties": {"columns": {"type": "integer", "minimum": 1, "maximum": 12},
                                     "tile_width": {"type": "integer", "minimum": 64, "maximum": 1920}}}

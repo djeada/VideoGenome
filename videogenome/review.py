@@ -81,6 +81,7 @@ def review_html(receipt: dict, page: Path) -> str:
     deliverables = receipt.get("deliverables", {})
     poster = _local(deliverables.get("poster", {}).get("path"), page)
     contact = _local(deliverables.get("contact_sheet", {}).get("path"), page)
+    silent = _local(deliverables.get("silent_cut", {}).get("path"), page)
     measured = receipt.get("measurements", {})
     loudness = measured.get("integrated_lufs")
     peak = measured.get("true_peak_dbtp")
@@ -105,8 +106,10 @@ def review_html(receipt: dict, page: Path) -> str:
     if video:
         poster_attr = f' poster="{_e(poster)}"' if poster else ""
         out.append(f"<section><video controls preload=\"metadata\" src=\"{_e(video)}\"{poster_attr}></video></section>")
+    if silent:
+        out.append(f"<p class=\"sub\">Silent cut for in-app sound: <a href=\"{_e(silent)}\">{_e(Path(silent).name)}</a></p>")
     if contact:
-        out.append(f"<section><h2>Contact sheet</h2><img src=\"{_e(contact)}\" alt=\"One frame per shot\"></section>")
+        out.append(f"<section><h2>Contact sheet</h2><img src=\"{_e(contact)}\" alt=\"Review frames\"></section>")
     out.append("</div><div>")
     out.append("<section><h2>Measured</h2><dl class=\"facts\">"
                + "".join(f"<div><dt>{_e(k)}</dt><dd>{_e(v)}</dd></div>" for k, v in facts) + "</dl></section>")
