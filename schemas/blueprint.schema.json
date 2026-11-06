@@ -768,7 +768,7 @@
         },
         "audio_tracks": {
           "type": "array",
-          "maxItems": 32,
+          "maxItems": 48,
           "items": {
             "$ref": "#/$defs/audio_track"
           }

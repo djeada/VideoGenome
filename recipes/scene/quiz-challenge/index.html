@@ -1,21 +1,25 @@
 <!doctype html>
 <!--
-  Quiz challenge: a "can you beat the clock?" short. The same 2-4 answers sit
-  at the bottom as labelled bins for every round (der / die / das, Asia /
-  Africa / Europe, fact / myth). Each round a card drops in with the prompt, a
-  ring counts down 3-2-1, the right bin lights up, the card shows the answer
-  and a one-line reason, then falls into its bin. The outro recaps every
-  answer, asks the viewer for their score and closes on a call to action.
+  Quiz challenge: a "can you beat the clock?" short built to be read on a phone.
+  The same 2-4 answers sit at the bottom as big labelled bins for every round
+  (der / die / das, Asia / Africa / Europe, fact / myth). Each round the prompt
+  slams in at full width over an empty answer slot, a big 3-2-1 counts down,
+  and on the reveal the right answer's colour floods the whole screen out of its
+  bin: the answer fills the slot, a one-line reason (or twist) appears, and the
+  colour wipes off to the left for the next round. The outro recaps every
+  answer, asks the viewer for their score, closes on a call to action and
+  fades back into the opening frame, so the short loops.
 
   Beat grid (b = 60 / bpm seconds; at the default 112.5 bpm b = 16 frames at 30 fps;
   a duration too short for the grid shortens b, down to 0.32 s):
-    intro           0 .. 3b         hook rises word by word, kicker, bins slide up
+    intro           0 .. 3b         hook is legible on frame 0 and settles; bins already in place
     round k starts  R = 3b + 6b*k
-      R + 0         card falls in from above and settles
+      R + 0         prompt slams in over the empty answer slot
       R + 0.75b     tick "3"    R + 1.5b  tick "2"    R + 2.25b  tick "1"
-      R + 3b        reveal: right bin fills, answer and reason appear
-      R + 5b        card drops into its bin (whoosh here), lands at R + 6b
-    outro           O = 3b + 6b*N .. D: bins leave, heading, recap, CTA
+      R + 3b        reveal: the answer colour floods out of its bin, answer fills the slot
+      R + 3.3b      reason line rises in
+      R + 5.4b      the colour wipes off to the left (whoosh here), gone at R + 6b
+    outro           O = 3b + 6b*N .. D: bins leave, heading, recap, CTA, fade to the opening frame
 
   Timing: clock (requestAnimationFrame on VideoGenome's virtual clock).
   Copy is drawn with fillText, fitted with measured glyphs, and the page
@@ -45,14 +49,14 @@ const { P, W, H, D, unit, portrait, seed } = vg.setup({
   bpm: 112.5,
   palette: ["#0E1218", "#171E27", "#E9EEF5", "#8794A6"],
   option_colors: ["#8AC2FF", "#FF8F8F", "#63C79C", "#F2C14E"],
-  lanes: true,
   grain: 0.03,
 });
 const ctx = vg.canvas2d();
 const [GROUND, PANEL, INK0, MUTED0] = P.palette;
 const INK = vg.readable(GROUND, [INK0, "#FFFFFF", "#000000"]);
-const MUTED = vg.contrast(MUTED0, PANEL) >= 3 ? MUTED0 : INK;
+const MUTED = vg.contrast(MUTED0, GROUND) >= 3 ? MUTED0 : INK;
 const square = !portrait && W / H < 1.2;
+const wide = !portrait && !square;
 
 // ---- inputs ---------------------------------------------------------------------
 const clean = (list) => (list || []).map((s) => String(s).trim());
@@ -73,11 +77,17 @@ const answers = clean(P.answers).map((a, i) => {
   return k;
 });
 
-// Colour per option: the option colour where it reads on the panel, else ink.
+// Colour per option. A flood of an option's colour carries text in whichever of
+// ground or ink reads on it; on the ground the colour itself is used where it reads.
 const COLORS = options.map((_, k) => P.option_colors[k % P.option_colors.length]);
-const onPanel = COLORS.map((c) => (vg.contrast(c, PANEL) >= 3 ? c : INK));
 const onFill = COLORS.map((c) => vg.readable(c, [GROUND, INK, "#0E1218", "#FFFFFF"]));
 const onGround = COLORS.map((c) => (vg.contrast(c, GROUND) >= 3 ? c : INK));
+// A pill drawn on a flood: the colour that contrasts with the flood, holding the option's colour if it reads.
+const pillOn = (floodK) => onFill[floodK];
+const pillText = (floodK, k) => {
+  const bg = pillOn(floodK);
+  return vg.contrast(COLORS[k], bg) >= 3 ? COLORS[k] : COLORS[floodK];
+};
 
 // ---- beat grid ----------------------------------------------------------------------
 // The grid runs at `bpm` (templates size the duration to it so the music lines up). A
@@ -90,370 +100,398 @@ if (b < 0.32) {
 const ROUND = 6 * b, INTRO = 3 * b;
 const OUTRO = INTRO + N * ROUND;
 const roundStart = (k) => INTRO + k * ROUND;
+const TICKS = [0.75 * b, 1.5 * b, 2.25 * b];
+const REVEAL = 3 * b, NOTE_IN = 3.3 * b, WIPE = 5.4 * b;
 
 // ---- layout ---------------------------------------------------------------------------
-const safeTop = portrait ? H * 0.12 : H * (square ? 0.07 : 0.075);
-const safeBot = portrait ? H * 0.78 : H * (square ? 0.93 : 0.925);
-const side = portrait ? W * 0.07 : square ? W * 0.07 : W * 0.1;
-const CW = W - 2 * side;
-const headerH = unit * 0.05;
-const binH = unit * (portrait ? 0.2 : 0.17);
+// Portrait keeps clear of the platform UI: top 10% (tabs), bottom 20% (caption, buttons).
+const safeTop = portrait ? H * 0.1 : H * 0.07;
+const safeBot = portrait ? H * 0.8 : H * 0.93;
+const side = wide ? W * 0.1 : W * 0.07;
+const rowW = wide ? Math.min(W - 2 * side, unit * 1.45) : W - 2 * side;
+const rowX = (W - rowW) / 2;
+const segH = Math.max(6, unit * 0.011);
+const binH = unit * (portrait ? 0.19 : 0.15);
 const binTop = safeBot - binH;
-const binGap = unit * 0.022;
-const binW = (CW - binGap * (options.length - 1)) / options.length;
-const binX = (k) => side + k * (binW + binGap);
-const cardW = portrait ? CW : Math.min(CW, unit * (square ? 0.86 : 1.05));
-const regionTop = safeTop + headerH + unit * 0.035;
-const avail = binTop - regionTop;
-const cardH = Math.min(unit * (portrait ? 0.36 : 0.27), avail * 0.48);
-const cardY = regionTop + (avail - cardH) * (portrait ? 0.16 : 0.08);
-const cardX = (W - cardW) / 2;
-// The lane between card and bins holds the countdown ring, then the reason line.
-const zoneTop = cardY + cardH, zoneH = binTop - zoneTop;
-const zoneMid = zoneTop + zoneH / 2;
-const ringR = Math.min(unit * 0.07, zoneH * 0.3);
-const noteH = zoneH * 0.78;
-const radius = unit * 0.022;
-if (zoneH < unit * 0.16) throw new Error("quiz-challenge: the frame is too short for this layout");
+const binGap = unit * 0.024;
+const binW = (rowW - binGap * (options.length - 1)) / options.length;
+const binX = (k) => rowX + k * (binW + binGap);
+const radius = unit * 0.026;
+const stageTop = safeTop + segH + unit * 0.045;
+const stageBot = binTop - unit * 0.035;
+const stageH = stageBot - stageTop;
+if (stageH < unit * 0.45) throw new Error("quiz-challenge: the frame is too short for this layout");
 
 // ---- copy fitting (throws when it cannot fit) ------------------------------------------------
 const W8 = 800;
-const titleBlock = vg.fit(ctx, P.title, { maxSize: unit * (portrait ? 0.125 : 0.11), minSize: unit * 0.045, weight: 900,
-  maxWidth: CW * 0.94, maxLines: 3, maxHeight: (binTop - regionTop) * 0.62, leading: 1.04, label: "title" });
-const kickerBlock = P.kicker ? vg.fit(ctx, P.kicker, { maxSize: unit * 0.046, minSize: unit * 0.03, weight: 500,
-  maxWidth: CW * 0.86, maxLines: 2, label: "kicker" }) : null;
-const headTitle = vg.fit(ctx, P.title, { maxSize: unit * 0.038, minSize: unit * 0.026, weight: 700,
-  maxWidth: CW * 0.6, maxLines: 1, balance: false, label: "title" });
-// Words of the title that name an option ("Der, die or das?") take that option's colour.
 const optionOf = (word) => options.findIndex((o) => o.toLowerCase() === word.replace(/[^\p{L}\p{N}'-]/gu, "").toLowerCase());
 
-// Bin labels share one size so no option looks louder than another.
-const binSize = Math.min(...options.map((o, k) => vg.fit(ctx, o, { maxSize: unit * 0.068, minSize: unit * 0.032,
-  weight: W8, maxWidth: binW * 0.8, maxLines: 1, balance: false, label: `option ${k + 1}` }).size));
+// Answer slot: one pill size for every option, so no option looks louder than another.
+const pillSize = Math.min(unit * 0.07, stageH * 0.07);
+vg.font(ctx, pillSize, W8);
+const pillW = Math.max(...options.map((o) => ctx.measureText(o).width)) + pillSize * 1.3;
+const pillH = pillSize * 1.6;
+if (pillW > rowW) throw new Error("option: the options do not fit the answer slot; use shorter options");
+const hintSize = hints.length ? Math.min(unit * 0.068, stageH * 0.066) : 0;
+const hintFits = hints.map((h, i) => vg.fit(ctx, h, { maxSize: hintSize, minSize: unit * 0.032, weight: 600,
+  maxWidth: rowW * 0.92, maxLines: 1, balance: false, label: `hint ${i + 1}` }));
 
-// The prompt is sized once with the longest option in front of it, so revealing the
-// answer (prefix style) or the tag never changes the prompt's size.
-const longest = options.reduce((a, o) => { vg.font(ctx, 100, W8); return ctx.measureText(o).width > ctx.measureText(a).width ? o : a; }, "");
-const promptBlocks = prompts.map((p, i) => vg.fit(ctx, P.answer_style === "prefix" ? `${longest} ${p}` : p, {
-  maxSize: unit * 0.14, minSize: unit * 0.05, weight: W8, maxWidth: cardW * 0.84, maxLines: P.answer_style === "prefix" ? 1 : 2,
-  maxHeight: cardH * 0.5, balance: false, label: `prompt ${i + 1}` }));
-const hintBlocks = hints.map((h, i) => vg.fit(ctx, h, { maxSize: unit * 0.05, minSize: unit * 0.03, weight: 500,
-  maxWidth: cardW * 0.8, maxLines: 1, balance: false, label: `hint ${i + 1}` }));
-// A reason reads fastest on one line: take one line down to 80% of the full size before wrapping.
-const noteBlocks = notes.map((n, i) => {
-  const opts = { maxSize: unit * 0.056, minSize: unit * 0.032, weight: 700, maxWidth: CW * 0.92, maxHeight: noteH, label: `note ${i + 1}` };
-  try { return vg.fit(ctx, n, { ...opts, minSize: unit * 0.045, maxLines: 1, balance: false }); }
+// Every prompt shares one size (the size the longest needs), as big as the stage allows.
+const promptMaxH = stageH * (wide ? 0.34 : 0.3);
+const promptOpts = { minSize: unit * 0.05, weight: 900, maxWidth: rowW * 0.98, maxLines: 2, maxHeight: promptMaxH,
+                     leading: 1.0, balance: true };
+const promptSize = Math.min(...prompts.map((p, i) => vg.fit(ctx, p, { ...promptOpts, maxSize: unit * 0.26, label: `prompt ${i + 1}` }).size));
+const promptBlocks = prompts.map((p, i) => vg.fit(ctx, p, { ...promptOpts, maxSize: promptSize, label: `prompt ${i + 1}` }));
+const promptH = Math.max(...promptBlocks.map((pb) => pb.height));
+
+// Stack: answer slot, prompt, hint; the zone below holds the countdown, then the reason.
+const gapA = pillSize * 0.55, gapB = hintSize * 0.35;
+const groupH = pillH + gapA + promptH + (hints.length ? gapB + hintSize * 1.25 : 0);
+const groupTop = stageTop + Math.max(0, (stageH * (portrait ? 0.62 : 0.6) - groupH) * 0.45);
+const pillY = groupTop;
+const promptY = pillY + pillH + gapA;
+const hintY = promptY + promptH + gapB;
+const zoneTop = groupTop + groupH + unit * 0.02;
+const zoneH = stageBot - zoneTop;
+const zoneMid = zoneTop + zoneH / 2;
+if (zoneH < unit * 0.14) throw new Error("prompt: the prompts leave no room for the countdown; use shorter prompts");
+const digitSize = Math.min(unit * 0.2, zoneH * 0.56);
+
+// Reason line on the flood: one line down to 80% of full size before wrapping. Words that
+// name an option get a pill in that option's colour ("die See = the sea").
+const noteMax = Math.min(unit * 0.088, zoneH * 0.3);
+// A line never starts with "=", ":" or a dash: the sign is glued to the word before it.
+const glue = (n) => n.replace(/ ([=:\u2013\u2014-])(?= )/g, "\u00A0$1");
+const noteBlocks = notes.map((n0, i) => {
+  const n = glue(n0);
+  const opts = { maxSize: noteMax, minSize: unit * 0.032, weight: 800, maxWidth: rowW * 0.92, maxHeight: zoneH * 0.9,
+                 leading: 1.3, label: `note ${i + 1}` };
+  try { return vg.fit(ctx, n, { ...opts, minSize: noteMax * 0.85, maxLines: 1, balance: false }); }
   catch (_) { return vg.fit(ctx, n, { ...opts, maxLines: 2 }); }
 });
-const tagSize = Math.min(unit * 0.046, cardH * 0.12);
+
+const titleBlock = vg.fit(ctx, P.title, { maxSize: unit * (portrait ? 0.16 : 0.13), minSize: unit * 0.05, weight: 900,
+  maxWidth: rowW * 0.96, maxLines: 3, maxHeight: stageH * 0.55, leading: 1.02, label: "title" });
+const kickerBlock = P.kicker ? vg.fit(ctx, P.kicker, { maxSize: unit * 0.052, minSize: unit * 0.03, weight: 600,
+  maxWidth: rowW * 0.9, maxLines: 2, label: "kicker" }) : null;
+const binSize = Math.min(...options.map((o, k) => vg.fit(ctx, o, { maxSize: unit * 0.085, minSize: unit * 0.032,
+  weight: 900, maxWidth: binW * 0.82, maxHeight: binH * 0.6, maxLines: 1, balance: false, label: `option ${k + 1}` }).size));
 
 // Outro: heading, recap rows, call to action, all within the safe area.
-const outroBlock = vg.fit(ctx, P.outro, { maxSize: unit * 0.1, minSize: unit * 0.04, weight: 900,
-  maxWidth: CW * 0.94, maxLines: 2, label: "outro" });
-const ctaBlock = vg.fit(ctx, P.cta, { maxSize: unit * 0.066, minSize: unit * 0.032, weight: W8,
-  maxWidth: CW * 0.84, maxLines: 1, balance: false, label: "cta" });
+const outroBlock = vg.fit(ctx, P.outro, { maxSize: unit * 0.11, minSize: unit * 0.04, weight: 900,
+  maxWidth: rowW * 0.96, maxLines: 2, leading: 1.02, label: "outro" });
+const ctaBlock = vg.fit(ctx, P.cta, { maxSize: unit * 0.068, minSize: unit * 0.032, weight: 900,
+  maxWidth: rowW * 0.84, maxLines: 1, balance: false, label: "cta" });
 const linkBlock = P.link ? vg.fit(ctx, P.link, { maxSize: unit * 0.04, minSize: unit * 0.024, weight: 600,
-  maxWidth: CW * 0.84, maxLines: 1, balance: false, label: "link" }) : null;
+  maxWidth: rowW * 0.84, maxLines: 1, balance: false, label: "link" }) : null;
 const ctaH = ctaBlock.size * 1.9 + (linkBlock ? linkBlock.size * 1.6 : 0);
 const ctaY = safeBot - ctaH;
-const recapTop = safeTop + outroBlock.height + unit * 0.05;
-const recapBot = ctaY - unit * 0.05;
-const recapText = (i) => P.answer_style === "prefix" ? [options[answers[i]], prompts[i]] : [prompts[i], options[answers[i]]];
-let recapSize = Math.min(unit * 0.07, (recapBot - recapTop) / (N * 1.45));
+const recapTop = safeTop + outroBlock.height + unit * 0.06;
+const recapBot = ctaY - unit * 0.06;
+const prefix = P.answer_style === "prefix";
+// A recap row: "das Mädchen  girl" (prefix) or "Mongolia · Asia  clue" (tag); hints in muted.
+const recapParts = (i) => {
+  const parts = prefix ? [[options[answers[i]], "answer"], [" " + prompts[i], "prompt"]]
+                       : [[prompts[i], "prompt"], ["  ·  ", "sep"], [options[answers[i]], "answer"]];
+  if (hints.length) parts.push(["   " + hints[i], "hint"]);
+  return parts;
+};
+let recapSize = Math.min(unit * 0.07, (recapBot - recapTop) / (N * 1.5));
 if (P.recap) {
-  vg.font(ctx, 100, 700);
-  const widest = Math.max(...prompts.map((_, i) => ctx.measureText(recapText(i).join(P.answer_style === "prefix" ? " " : "  ·  ")).width));
-  recapSize = Math.min(recapSize, (CW * 0.9) / (widest / 100));
+  const widest = Math.max(...prompts.map((_, i) => recapParts(i).reduce((w, [s, kind]) => {
+    vg.font(ctx, kind === "hint" ? 60 : 100, kind === "hint" ? 600 : 800);
+    return w + ctx.measureText(s).width;
+  }, 0)));
+  recapSize = Math.min(recapSize, (rowW * 0.94) / (widest / 100));
   if (recapSize < unit * 0.026) throw new Error("recap: the answers do not fit the outro; use shorter prompts or fewer rounds");
 }
 
 // ---- drawing helpers ------------------------------------------------------------------------
-function lanes(alpha) {
-  if (!P.lanes) return;
+function background(t) {
+  ctx.fillStyle = GROUND; ctx.fillRect(0, 0, W, H);
+  // Two slow glows in the option colours give the ground depth without competing with the copy.
+  for (let j = 0; j < 2; j++) {
+    const c = COLORS[j % COLORS.length];
+    const x = W * (0.2 + 0.6 * j) + Math.sin(t * 0.35 + j * 2.1) * unit * 0.08;
+    const y = H * (0.28 + 0.38 * j) + Math.cos(t * 0.3 + j) * unit * 0.06;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, unit * 0.75);
+    g.addColorStop(0, vg.rgba(c, 0.09)); g.addColorStop(1, vg.rgba(c, 0));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// Progress: one segment per round across the top, filled in the answer colour once revealed.
+function segments(revealedThrough, current, flood, alpha = 1) {
+  const gap = unit * 0.012, sw = (rowW - gap * (N - 1)) / N;
   ctx.save();
-  ctx.strokeStyle = MUTED; ctx.globalAlpha = 0.16 * alpha; ctx.lineWidth = Math.max(1, unit * 0.0016);
-  ctx.setLineDash([unit * 0.008, unit * 0.012]);
-  for (let k = 1; k < options.length; k++) {
-    const x = binX(k) - binGap / 2;
-    ctx.beginPath(); ctx.moveTo(x, safeTop + headerH); ctx.lineTo(x, binTop - unit * 0.01); ctx.stroke();
+  ctx.globalAlpha = alpha;
+  for (let i = 0; i < N; i++) {
+    vg.roundRect(ctx, rowX + i * (sw + gap), safeTop, sw, segH, segH / 2);
+    if (flood >= 0) ctx.fillStyle = vg.rgba(onFill[flood], i <= revealedThrough ? 0.9 : i === current ? 0.5 : 0.22);
+    else ctx.fillStyle = i <= revealedThrough ? COLORS[answers[i]] : vg.rgba(i === current ? INK : MUTED, i === current ? 0.75 : 0.28);
+    ctx.fill();
   }
   ctx.restore();
 }
 
-// state: {fill: 0..1 for the highlighted bin, lit: index or -1, dim: 0..1, enter: 0..1, pulse: scale}
-function bins(state) {
+// enter: 0..1 per bin; pulse: bounce on the ticks.
+function bins(enter, pulse, alpha = 1) {
   for (let k = 0; k < options.length; k++) {
-    const enter = vg.clamp(state.enter[k]);
-    if (enter <= 0) continue;
-    const lit = state.lit === k ? state.fill : 0;
-    const pop = state.lit === k ? state.pop : 0;
-    const x = binX(k), y = binTop + (1 - enter) * (binH + unit * 0.08);
-    const alpha = enter * (state.lit >= 0 && state.lit !== k ? 1 - 0.62 * state.dim : 1);
+    const e = vg.clamp(enter[k]);
+    if (e <= 0) continue;
+    const x = binX(k), y = binTop + (1 - e) * (binH + unit * 0.1);
+    const s = 1 + 0.035 * pulse;
     ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x + binW / 2, y + binH / 2);
-    ctx.scale(1 + pop * 0.06, 1 + pop * 0.06);
-    ctx.translate(-binW / 2, -binH / 2);
-    vg.roundRect(ctx, 0, 0, binW, binH, radius * 0.6);
-    ctx.fillStyle = vg.mix(PANEL, COLORS[k], lit);
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, unit * 0.0018);
-    ctx.strokeStyle = vg.rgba(MUTED, 0.35 * (1 - lit));
-    ctx.stroke();
-    ctx.fillStyle = COLORS[k];                       // the app-style top rule
-    ctx.fillRect(radius * 0.3, 0, binW - radius * 0.6, Math.max(3, unit * 0.005));
-    vg.font(ctx, unit * 0.022, 600);
-    ctx.fillStyle = lit > 0.5 ? onFill[k] : MUTED;
+    ctx.globalAlpha = alpha * Math.min(1, e * 1.4);
+    ctx.translate(x + binW / 2, y + binH / 2); ctx.scale(s, s); ctx.translate(-binW / 2, -binH / 2);
+    vg.roundRect(ctx, 0, 0, binW, binH, radius);
+    ctx.fillStyle = vg.mix(PANEL, COLORS[k], 0.14); ctx.fill();
+    ctx.lineWidth = Math.max(2, unit * 0.004);
+    ctx.strokeStyle = vg.rgba(COLORS[k], 0.85); ctx.stroke();
+    vg.font(ctx, binSize, 900);
+    ctx.fillStyle = onGround[k];
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(String(k + 1), unit * 0.018, unit * 0.042);
-    vg.font(ctx, binSize, W8);
-    ctx.fillStyle = lit > 0.5 ? onFill[k] : onPanel[k];
     const lw = ctx.measureText(options[k]).width;
     ctx.fillText(options[k], (binW - lw) / 2, binH / 2 + binSize * 0.36);
     ctx.restore();
   }
 }
 
-function header(t, revealedThrough, current, alpha) {
-  if (alpha <= 0) return;
-  const y = safeTop;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  vg.font(ctx, headTitle.size, headTitle.weight);
-  let hx = side;
-  const hy = y + headerH / 2 + headTitle.size * 0.36;
-  for (const w of headTitle.lines[0].split(" ")) {
-    const k = optionOf(w);
-    ctx.fillStyle = k >= 0 ? onGround[k] : MUTED;
-    ctx.fillText(w, hx, hy);
-    hx += ctx.measureText(w + " ").width;
-  }
-  const r = unit * 0.013, gap = unit * 0.016;
-  const rowW = N * 2 * r + (N - 1) * gap;
-  for (let i = 0; i < N; i++) {
-    const cx = side + CW - rowW + r + i * (2 * r + gap), cy = y + headerH / 2;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    if (i <= revealedThrough) { ctx.fillStyle = COLORS[answers[i]]; ctx.fill(); }
-    else {
-      ctx.lineWidth = Math.max(1.5, unit * 0.0025);
-      ctx.strokeStyle = i === current ? INK : vg.rgba(MUTED, 0.6);
-      ctx.stroke();
-    }
-  }
-  ctx.restore();
-}
-
-function ring(cx, cy, r, progress, digit, popK, color) {
-  ctx.save();
-  ctx.lineWidth = r * 0.2;
-  ctx.strokeStyle = vg.rgba(MUTED, 0.3);
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = color;
-  ctx.lineCap = "round";
-  if (progress > 0.001) {
-    ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress); ctx.stroke();
-  }
-  if (digit) {
-    const s = r * 1.05 * (1 + 0.35 * popK);
-    vg.font(ctx, s, W8);
-    ctx.fillStyle = INK;
-    const w = ctx.measureText(digit).width;
-    ctx.fillText(digit, cx - w / 2, cy + s * 0.36);
-  }
-  ctx.restore();
-}
-
-// Draws the card for round i at local time u (seconds since the round started).
-function card(i, u) {
-  const settle = vg.spring(u / b, { stiffness: 7, damping: 0.42 });
-  const reveal = vg.tween(u, 3 * b, 0.35 * b, vg.ease.outCubic);
-  const fall = vg.tween(u, 5 * b, b, vg.ease.inCubic);
-  const k = answers[i];
-  // Drop in from above the frame, settle, then fall into the answer's bin.
-  let x = cardX, y = vg.lerp(-cardH * 1.2, cardY, settle), scale = 1;
-  if (fall > 0) {
-    const tx = binX(k) + binW / 2 - cardW / 2, ty = binTop + binH / 2 - cardH / 2;
-    x = vg.lerp(cardX, tx, vg.ease.inOutCubic(fall));
-    y = vg.lerp(cardY, ty, fall);
-    scale = vg.lerp(1, 0.18, fall);
-  }
-  const alpha = 1 - vg.clamp((fall - 0.8) / 0.2);
-  if (alpha <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(x + cardW / 2, y + cardH / 2);
-  ctx.scale(scale, scale);
-  ctx.translate(-cardW / 2, -cardH / 2);
-  // Shadow, panel, border (turns to the answer colour on reveal).
-  ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = unit * 0.04; ctx.shadowOffsetY = unit * 0.012;
-  vg.roundRect(ctx, 0, 0, cardW, cardH, radius);
-  ctx.fillStyle = PANEL; ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.lineWidth = Math.max(2, unit * (0.002 + 0.003 * reveal));
-  ctx.strokeStyle = reveal > 0 ? vg.mix(MUTED, COLORS[k], reveal) : vg.rgba(MUTED, 0.45);
-  ctx.stroke();
-
-  const pb = promptBlocks[i];
-  const hasHint = hints.length > 0;
-  const blockH = pb.height + (hasHint ? hintBlocks[i].size * 1.7 : 0);
-  const top = (cardH - blockH) / 2 + (P.answer_style === "tag" ? tagSize * 0.6 : 0);
-  vg.font(ctx, pb.size, W8);
-  if (P.answer_style === "prefix") {
-    // "das Mädchen": the answer slides in before the prompt, which steps aside.
-    const art = options[k], gap = ctx.measureText(" ").width;
-    const aw = ctx.measureText(art).width, pw = ctx.measureText(prompts[i]).width;
-    const xAlone = (cardW - pw) / 2, xWith = (cardW - (aw + gap + pw)) / 2 + aw + gap;
-    const px = vg.lerp(xAlone, xWith, reveal), base = top + pb.size * 0.78;
-    ctx.fillStyle = INK; ctx.fillText(prompts[i], px, base);
-    if (reveal > 0) {
-      ctx.globalAlpha = alpha * reveal;
-      ctx.fillStyle = onPanel[k];
-      ctx.fillText(art, px - gap - aw - (1 - reveal) * pb.size * 0.4, base);
-      ctx.globalAlpha = alpha;
-    }
-  } else {
-    vg.drawLines(ctx, pb, cardW / 2, top, { color: INK, align: "center", alpha });
-    if (reveal > 0) {  // Answer tag above the prompt.
-      vg.font(ctx, tagSize, W8);
-      const tw = ctx.measureText(options[k]).width, padX = tagSize * 0.7, th = tagSize * 1.6;
-      const tx = (cardW - tw) / 2 - padX, ty = top - th - tagSize * 0.35 + (1 - reveal) * tagSize;
-      ctx.globalAlpha = alpha * reveal;
-      vg.roundRect(ctx, tx, ty, tw + 2 * padX, th, th / 2);
-      ctx.fillStyle = COLORS[k]; ctx.fill();
-      ctx.fillStyle = onFill[k];
-      ctx.fillText(options[k], tx + padX, ty + th / 2 + tagSize * 0.36);
-      ctx.globalAlpha = alpha;
-    }
-  }
-  if (hasHint) {
-    const hb = hintBlocks[i];
-    vg.drawLines(ctx, hb, cardW / 2, top + pb.height + hb.size * 0.55, { color: MUTED, align: "center", alpha });
-  }
-  ctx.restore();
-  // Reveal shockwave from the card edge.
-  const wave = vg.tween(u, 3 * b, 1.1 * b, vg.ease.outCubic);
-  if (wave > 0 && wave < 1 && fall <= 0) {
+// The bins on the flood: the answer's bin turns solid, the others recede.
+function floodBins(k, u) {
+  const pop = Math.max(0, Math.sin(Math.PI * vg.clamp((u - REVEAL) / (0.6 * b))));
+  for (let j = 0; j < options.length; j++) {
+    const lit = j === k;
+    const s = 1 + (lit ? 0.07 * pop : 0);
     ctx.save();
-    ctx.globalAlpha = 0.5 * (1 - wave);
-    ctx.lineWidth = unit * 0.006 * (1 - wave) + 1;
-    ctx.strokeStyle = COLORS[k];
-    const g = wave * unit * 0.05;
-    vg.roundRect(ctx, cardX - g, cardY - g, cardW + 2 * g, cardH + 2 * g, radius + g);
-    ctx.stroke();
+    ctx.translate(binX(j) + binW / 2, binTop + binH / 2); ctx.scale(s, s); ctx.translate(-binW / 2, -binH / 2);
+    vg.roundRect(ctx, 0, 0, binW, binH, radius);
+    if (lit) { ctx.fillStyle = onFill[k]; ctx.fill(); }
+    else { ctx.lineWidth = Math.max(2, unit * 0.004); ctx.strokeStyle = vg.rgba(onFill[k], 0.25); ctx.stroke(); }
+    vg.font(ctx, binSize, 900);
+    ctx.fillStyle = lit ? pillText(k, k) : vg.rgba(onFill[k], 0.3);
+    const lw = ctx.measureText(options[j]).width;
+    ctx.fillText(options[j], (binW - lw) / 2, binH / 2 + binSize * 0.36);
     ctx.restore();
   }
 }
 
-function note(i, u) {
-  if (!notes.length) return;
-  const nb = noteBlocks[i];
-  const k = vg.tween(u, 3.15 * b, 0.4 * b) * (1 - vg.tween(u, 4.85 * b, 0.3 * b));
-  if (k <= 0) return;
-  vg.drawLines(ctx, nb, W / 2, zoneMid - nb.height / 2 + (1 - k) * nb.size * 0.4,
-               { color: INK, align: "center", alpha: k });
-}
-
-// Big countdown ring in the lane under the card: 3, 2, 1 on the ticks; it bursts at the reveal.
-function timer(u) {
-  const show = vg.tween(u, 0.3 * b, 0.4 * b, vg.ease.outBack);
-  const burst = vg.tween(u, 3 * b, 0.3 * b, vg.ease.outCubic);
-  if (show <= 0 || burst >= 1) return;
-  const progress = 1 - vg.clamp((u - 0.75 * b) / (2.25 * b));
-  const tick = Math.floor((u - 0.75 * b) / (0.75 * b));
-  const digit = tick < 0 ? "3" : String(3 - Math.min(2, tick));
-  const sinceTick = tick < 0 ? 9 : u - 0.75 * b - tick * 0.75 * b;
-  const popK = Math.max(0, 1 - sinceTick / (0.35 * b));
-  ctx.save();
-  ctx.globalAlpha = vg.clamp(show) * (1 - burst);
-  const r = ringR * vg.clamp(show, 0, 1.2) * (1 + 0.5 * burst);
-  ring(W / 2, zoneMid, r, progress, burst > 0 ? "" : digit, popK, INK);
-  ctx.restore();
-}
-
-// Confetti from the lit bin on the reveal: seeded, gravity, gone within two beats.
-const CONFETTI = Array.from({ length: 36 }, (_, j) => {
-  const r = vg.rng(seed * 977 + j * 31);
-  return { a: -Math.PI / 2 + (r() - 0.5) * 1.9, v: 0.55 + r() * 0.75, s: 0.008 + r() * 0.01, spin: (r() - 0.5) * 14, c: r() };
-});
-function confetti(k, u) {
-  const age = (u - 3 * b) / (2 * b);
-  if (age <= 0 || age >= 1) return;
-  const ox = binX(k) + binW / 2, oy = binTop;
-  ctx.save();
-  CONFETTI.forEach((p, j) => {
-    const tt = age * 2 * b;
-    const x = ox + Math.cos(p.a) * p.v * unit * 0.75 * tt;
-    const y = oy + Math.sin(p.a) * p.v * unit * 0.75 * tt + 0.5 * unit * 2.4 * tt * tt;
-    ctx.globalAlpha = 1 - age * age;
-    ctx.fillStyle = p.c < 0.6 ? COLORS[k] : INK;
-    ctx.translate(x, y); ctx.rotate(p.spin * tt);
-    const sz = unit * p.s;
-    ctx.fillRect(-sz, -sz * 0.45, sz * 2, sz * 0.9);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-  });
-  ctx.restore();
-}
-
-function intro(t) {
-  const out = vg.tween(t, 2.5 * b, 0.6 * b, vg.ease.inCubic);
-  if (out >= 1) return;
-  // Hook rises word by word through a line mask; kicker follows.
-  const blockH = titleBlock.height + (kickerBlock ? kickerBlock.height + unit * 0.04 : 0);
-  const top = (regionTop + binTop - blockH) / 2 - out * unit * 0.12;
-  vg.font(ctx, titleBlock.size, titleBlock.weight);
-  let n = 0;
-  titleBlock.lines.forEach((line, li) => {
-    const words = line.split(" "), space = ctx.measureText(" ").width;
-    let x = W / 2 - ctx.measureText(line).width / 2;
-    const base = top + titleBlock.size * 0.78 + li * titleBlock.size * titleBlock.leading;
-    for (const w of words) {
-      const p = vg.tween(t, -0.12 + n * 0.07, 0.5, vg.ease.outExpo);   // first word is already rising on frame 0
-      ctx.save();
-      ctx.beginPath(); ctx.rect(0, base - titleBlock.size * 0.95, W, titleBlock.size * 1.2); ctx.clip();
-      ctx.globalAlpha = 1 - out;
-      const k = optionOf(w);
-      ctx.fillStyle = k >= 0 ? onGround[k] : INK;
-      ctx.fillText(w, x, base + (1 - p) * titleBlock.size);
-      ctx.restore();
-      x += ctx.measureText(w).width + space; n++;
-    }
-  });
-  if (kickerBlock) {
-    const k = vg.tween(t, 0.35, 0.4) * (1 - out);
-    vg.drawLines(ctx, kickerBlock, W / 2, top + titleBlock.height + unit * 0.04 + (1 - k) * unit * 0.02,
-                 { color: MUTED, align: "center", alpha: k });
+function pill(x, y, w, h, fill, stroke, dash) {
+  vg.roundRect(ctx, x, y, w, h, h / 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) {
+    ctx.save();
+    ctx.lineWidth = Math.max(2, unit * 0.004); ctx.strokeStyle = stroke;
+    if (dash) ctx.setLineDash([unit * 0.014, unit * 0.012]);
+    ctx.stroke(); ctx.restore();
   }
 }
 
+// The prompt (centred, shared size), the hint below it.
+function promptAndHint(i, color, hintColor, alpha) {
+  vg.drawLines(ctx, promptBlocks[i], W / 2, promptY + (promptH - promptBlocks[i].height) / 2, { color, align: "center", alpha });
+  if (hints.length) vg.drawLines(ctx, hintFits[i], W / 2, hintY, { color: hintColor, align: "center", alpha });
+}
+
+// Before the reveal: dashed empty slot, prompt slamming in, big countdown.
+function roundDark(i, u) {
+  const slam = vg.tween(u, 0, 0.38 * b, vg.ease.outCubic);
+  if (slam <= 0) return;
+  const s = 1 + 0.32 * (1 - slam);
+  ctx.save();
+  ctx.translate(W / 2, promptY + promptH / 2); ctx.scale(s, s); ctx.translate(-W / 2, -(promptY + promptH / 2));
+  promptAndHint(i, INK, MUTED, slam);
+  ctx.restore();
+  const slot = vg.tween(u, 0.15 * b, 0.35 * b, vg.ease.outBack);
+  if (slot > 0) {
+    ctx.save();
+    ctx.globalAlpha = vg.clamp(slot);
+    const w = pillW * vg.clamp(slot, 0, 1.1);
+    pill(W / 2 - w / 2, pillY, w, pillH, vg.rgba(INK, 0.06), vg.rgba(INK, 0.55), true);
+    vg.font(ctx, pillSize, W8);
+    ctx.fillStyle = vg.rgba(INK, 0.7);
+    const qw = ctx.measureText("?").width;
+    ctx.fillText("?", W / 2 - qw / 2, pillY + pillH / 2 + pillSize * 0.36);
+    ctx.restore();
+  }
+  // 3-2-1: a big digit that pops on each tick inside a draining ring.
+  const show = vg.tween(u, 0.4 * b, 0.35 * b, vg.ease.outBack);
+  if (show <= 0) return;
+  const tick = TICKS.filter((tk) => u >= tk).length;          // 0..3
+  const digit = String(Math.max(1, 3 - Math.max(0, tick - 1)));
+  const since = tick ? u - TICKS[tick - 1] : 9;
+  const pop = Math.max(0, 1 - since / (0.4 * b));
+  const progress = 1 - vg.clamp((u - TICKS[0]) / (REVEAL - TICKS[0]));
+  const r = digitSize * 0.78 * vg.clamp(show, 0, 1.15);
+  ctx.save();
+  ctx.globalAlpha = vg.clamp(show);
+  ctx.lineWidth = Math.max(4, digitSize * 0.085);
+  ctx.strokeStyle = vg.rgba(INK, 0.14);
+  ctx.beginPath(); ctx.arc(W / 2, zoneMid, r, 0, Math.PI * 2); ctx.stroke();
+  const urgent = tick >= 3;
+  ctx.strokeStyle = urgent ? COLORS[1 % COLORS.length] : INK;
+  ctx.lineCap = "round";
+  if (progress > 0.001) { ctx.beginPath(); ctx.arc(W / 2, zoneMid, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress); ctx.stroke(); }
+  const ds = digitSize * 0.82 * (1 + 0.28 * pop);
+  vg.font(ctx, ds, 900);
+  ctx.fillStyle = INK;
+  const dw = ctx.measureText(digit).width;
+  ctx.fillText(digit, W / 2 - dw / 2, zoneMid + ds * 0.36);
+  ctx.restore();
+}
+
+// Note words: an option word gets a pill in its colour, the rest is plain text.
+function noteLines(i, color, floodK, alpha, rise) {
+  const nb = noteBlocks[i];
+  const top = zoneMid - nb.height / 2 + rise;
+  vg.font(ctx, nb.size, nb.weight);
+  ctx.textBaseline = "alphabetic";
+  nb.lines.forEach((line, li) => {
+    const words = line.split(" "), space = ctx.measureText(" ").width;
+    const padX = nb.size * 0.32;
+    const widths = words.map((w) => ctx.measureText(w).width + (optionOf(w) >= 0 ? 2 * padX : 0));
+    let x = W / 2 - (widths.reduce((a, c) => a + c, 0) + space * (words.length - 1)) / 2;
+    const base = top + nb.size * 0.92 + li * nb.size * nb.leading;
+    words.forEach((w, j) => {
+      const k = optionOf(w);
+      ctx.globalAlpha = alpha;
+      if (k >= 0) {
+        pill(x, base - nb.size * 0.98, widths[j], nb.size * 1.32, pillOn(floodK));
+        ctx.fillStyle = pillText(floodK, k);
+        ctx.fillText(w, x + padX, base);
+      } else {
+        ctx.fillStyle = color;
+        ctx.fillText(w, x, base);
+      }
+      x += widths[j] + space;
+    });
+  });
+  ctx.globalAlpha = 1;
+}
+
+// Short bright strokes radiating from the answer slot on the reveal.
+const RAYS = Array.from({ length: 14 }, (_, j) => {
+  const r = vg.rng(seed * 977 + j * 31);
+  return { a: (j / 14) * Math.PI * 2 + (r() - 0.5) * 0.3, v: 0.75 + r() * 0.5, l: 0.5 + r() * 0.6 };
+});
+function rays(k, u) {
+  const age = (u - REVEAL) / (0.9 * b);
+  if (age <= 0 || age >= 1) return;
+  const cx = W / 2, cy = pillY + pillH / 2;
+  ctx.save();
+  ctx.strokeStyle = onFill[k]; ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(3, unit * 0.007) * (1 - age);
+  ctx.globalAlpha = 1 - age;
+  for (const p of RAYS) {
+    const d0 = pillW * 0.55 + vg.ease.outCubic(age) * unit * 0.2 * p.v;
+    const d1 = d0 + unit * 0.05 * p.l * (1 - age);
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(p.a) * d0, cy + Math.sin(p.a) * d0 * 0.55);
+    ctx.lineTo(cx + Math.cos(p.a) * d1, cy + Math.sin(p.a) * d1 * 0.55);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// After the reveal: the answer colour floods out of its bin, carries the answer and the
+// reason, then wipes off to the left.
+function roundFlood(i, u) {
+  const k = answers[i];
+  const grow = vg.tween(u, REVEAL, 0.32 * b, vg.ease.outCubic);
+  const wipe = vg.tween(u, WIPE, ROUND - WIPE, vg.ease.inCubic);
+  if (grow <= 0 || wipe >= 1) return;
+  const ox = binX(k) + binW / 2, oy = binTop + binH / 2;
+  const far = Math.max(Math.hypot(ox, oy), Math.hypot(W - ox, oy), Math.hypot(ox, H - oy), Math.hypot(W - ox, H - oy));
+  const dx = -wipe * W * 1.05;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(ox, oy, Math.max(1, far * grow), 0, Math.PI * 2);
+  ctx.clip();
+  ctx.beginPath(); ctx.rect(dx, 0, W, H); ctx.clip();
+  ctx.fillStyle = COLORS[k]; ctx.fillRect(0, 0, W, H);
+  ctx.translate(dx, 0);
+  floodBins(k, u);
+  // Punch-in on the reveal.
+  const punch = 1 + 0.06 * (1 - vg.tween(u, REVEAL, 0.55 * b, vg.ease.outCubic));
+  ctx.translate(W / 2, H * 0.42); ctx.scale(punch, punch); ctx.translate(-W / 2, -H * 0.42);
+  segments(i, i, k);
+  const fg = onFill[k];
+  promptAndHint(i, fg, vg.rgba(fg, 0.72), 1);
+  // The answer fills the slot.
+  const fill = vg.tween(u, REVEAL, 0.4 * b, vg.ease.outBack);
+  const pw = pillW * vg.clamp(0.7 + 0.3 * fill, 0, 1.08);
+  pill(W / 2 - pw / 2, pillY, pw, pillH, pillOn(k));
+  vg.font(ctx, pillSize * vg.clamp(0.75 + 0.25 * fill, 0, 1.08), W8);
+  ctx.fillStyle = pillText(k, k);
+  const aw = ctx.measureText(options[k]).width;
+  ctx.fillText(options[k], W / 2 - aw / 2, pillY + pillH / 2 + pillSize * 0.36);
+  rays(k, u);
+  if (notes.length) {
+    const n = vg.tween(u, NOTE_IN, 0.45 * b, vg.ease.outCubic);
+    if (n > 0) noteLines(i, fg, k, n, (1 - n) * unit * 0.04);
+  }
+  ctx.restore();
+}
+
+function hook(alpha, t) {
+  if (alpha <= 0) return;
+  const settle = 1 + 0.06 * (1 - vg.ease.outCubic(vg.clamp(t / 0.7)));
+  const blockH = titleBlock.height + (kickerBlock ? kickerBlock.height + unit * 0.045 : 0);
+  const top = stageTop + (stageH - blockH) * 0.42;
+  ctx.save();
+  ctx.translate(W / 2, top + blockH / 2); ctx.scale(settle, settle); ctx.translate(-W / 2, -(top + blockH / 2));
+  ctx.globalAlpha = alpha;
+  vg.font(ctx, titleBlock.size, titleBlock.weight);
+  ctx.textBaseline = "alphabetic";
+  titleBlock.lines.forEach((line, li) => {
+    const space = ctx.measureText(" ").width;
+    let x = W / 2 - ctx.measureText(line).width / 2;
+    const base = top + titleBlock.size * 0.8 + li * titleBlock.size * titleBlock.leading;
+    for (const w of line.split(" ")) {
+      const k = optionOf(w);
+      ctx.fillStyle = k >= 0 ? onGround[k] : INK;
+      ctx.fillText(w, x, base);
+      x += ctx.measureText(w).width + space;
+    }
+  });
+  if (kickerBlock) {
+    vg.drawLines(ctx, kickerBlock, W / 2, top + titleBlock.height + unit * 0.045, { color: MUTED, align: "center", alpha });
+  }
+  ctx.restore();
+}
+
 function outro(o) {
-  const head = vg.tween(o, 0.3, 0.45, vg.ease.outExpo);
-  vg.drawLines(ctx, outroBlock, W / 2, safeTop + (1 - head) * unit * 0.04, { color: INK, align: "center", alpha: head });
+  const head = vg.tween(o, 0.15, 0.45, vg.ease.outExpo);
+  vg.drawLines(ctx, outroBlock, W / 2, safeTop + (1 - head) * unit * 0.05, { color: INK, align: "center", alpha: head });
   if (P.recap) {
     const rowH = recapSize * 1.5;
     const top = (recapTop + recapBot - N * rowH) / 2;
     for (let i = 0; i < N; i++) {
-      const k = vg.tween(o, 0.55 + i * 0.08, 0.35);
+      const k = vg.tween(o, 0.35 + i * 0.08, 0.35);
       if (k <= 0) continue;
-      const [a, c] = recapText(i), sep = P.answer_style === "prefix" ? " " : "  ·  ";
-      vg.font(ctx, recapSize, 700);
-      const total = ctx.measureText(a + sep + c).width;
-      let x = W / 2 - total / 2 + (1 - k) * unit * 0.03;
+      const parts = recapParts(i);
+      const widthOf = ([s, kind]) => { vg.font(ctx, kind === "hint" ? recapSize * 0.6 : recapSize, kind === "hint" ? 600 : 800); return ctx.measureText(s).width; };
+      const total = parts.reduce((w, p) => w + widthOf(p), 0);
+      let x = W / 2 - total / 2 + (1 - k) * unit * 0.04;
       const y = top + i * rowH + recapSize * 0.95;
       ctx.globalAlpha = k;
-      const colourFirst = P.answer_style === "prefix";
-      ctx.fillStyle = colourFirst ? onPanel[answers[i]] : INK; ctx.fillText(a, x, y); x += ctx.measureText(a).width;
-      ctx.fillStyle = MUTED; ctx.fillText(sep, x, y); x += ctx.measureText(sep).width;
-      ctx.fillStyle = colourFirst ? INK : onPanel[answers[i]]; ctx.fillText(c, x, y);
+      for (const p of parts) {
+        const [s, kind] = p;
+        const w = widthOf(p);
+        ctx.fillStyle = kind === "answer" ? onGround[answers[i]] : kind === "prompt" ? INK : MUTED;
+        ctx.fillText(s, x, y);
+        x += w;
+      }
       ctx.globalAlpha = 1;
     }
   }
-  const c = vg.tween(o, 1.1, 0.5, vg.ease.outBack);
+  const c = vg.tween(o, 1.0, 0.5, vg.ease.outBack);
   if (c > 0) {
     const y = ctaY + (1 - c) * unit * 0.06;
     ctx.save();
     ctx.globalAlpha = vg.clamp(c);
-    const pw = Math.max(ctaBlock.width, linkBlock ? linkBlock.width : 0) + unit * 0.1;
-    vg.roundRect(ctx, (W - pw) / 2, y, pw, ctaH, radius);
+    const pw = Math.max(ctaBlock.width, linkBlock ? linkBlock.width : 0) + unit * 0.12;
+    vg.roundRect(ctx, (W - pw) / 2, y, pw, ctaH, radius * 1.2);
     ctx.fillStyle = COLORS[0]; ctx.fill();
     vg.drawLines(ctx, ctaBlock, W / 2, y + ctaBlock.size * 0.45, { color: onFill[0], align: "center", alpha: vg.clamp(c) });
     if (linkBlock) vg.drawLines(ctx, linkBlock, W / 2, y + ctaBlock.size * 1.55, { color: onFill[0], align: "center", alpha: vg.clamp(c) * 0.85 });
@@ -461,39 +499,51 @@ function outro(o) {
   }
 }
 
+// The opening frame: hook over the bins, no progress yet. The outro fades back into it so the short loops.
+function opening(t, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  segments(-1, -1, -1, alpha);
+  bins(options.map(() => 1), 0, alpha);
+  hook(alpha, t);
+  ctx.restore();
+}
+
 // ---- frame -------------------------------------------------------------------------------
 vg.loop((t) => {
-  ctx.fillStyle = GROUND; ctx.fillRect(0, 0, W, H);
+  background(t);
   const inOutro = t >= OUTRO;
   const o = t - OUTRO;
-  const leave = inOutro ? vg.tween(o, 0, 0.35, vg.ease.inCubic) : 0;
-  lanes(1 - leave);
 
-  const i = Math.min(N - 1, Math.max(-1, Math.floor((t - INTRO) / ROUND)));
-  const u = t - roundStart(Math.max(0, i));
-  const revealed = i < 0 ? -1 : (u >= 3 * b || inOutro ? i : i - 1);
-  header(t, revealed, i, vg.tween(t, 0.5, 0.4) * (1 - leave));
-
-  // Bins: slide up in the intro, light the answer on the reveal, leave for the outro.
-  const enter = options.map((_, k) => vg.tween(t, 0.2 + k * 0.1, 0.55, vg.ease.outBack) * (1 - leave));
-  let state = { enter, lit: -1, fill: 0, dim: 0, pop: 0 };
-  if (i >= 0 && !inOutro) {
-    const on = vg.tween(u, 3 * b, 0.25 * b);
-    const off = 1 - vg.tween(u, 5.85 * b, 0.15 * b);
-    state = { enter, lit: answers[i], fill: on * off, dim: on * off,
-              pop: Math.max(0, Math.sin(Math.PI * vg.clamp((u - 3 * b) / (0.6 * b)))) +
-                   Math.max(0, Math.sin(Math.PI * vg.clamp((u - 5.85 * b) / (0.3 * b)))) * 0.6 };
+  if (t < INTRO) {
+    const out = vg.tween(t, 2.45 * b, 0.55 * b, vg.ease.inCubic);
+    segments(-1, -1, -1);
+    bins(options.map(() => 1), 0);
+    ctx.save();
+    ctx.translate(0, -out * unit * 0.1);
+    hook(1 - out, t);
+    ctx.restore();
+  } else if (!inOutro) {
+    const i = Math.min(N - 1, Math.floor((t - INTRO) / ROUND));
+    const u = t - roundStart(i);
+    segments(u >= REVEAL ? i : i - 1, i, -1);
+    const since = TICKS.filter((tk) => u >= tk).map((tk) => u - tk).pop();
+    const pulse = since === undefined ? 0 : Math.max(0, 1 - since / (0.35 * b));
+    bins(options.map(() => 1), pulse);
+    if (u < REVEAL + 0.4 * b) roundDark(i, u);
+    roundFlood(i, u);
+  } else {
+    const leave = vg.tween(o, 0, 0.35, vg.ease.inCubic);
+    segments(N - 1, -1, -1, 1 - vg.tween(o, 0, 0.3));
+    bins(options.map(() => 1 - leave), 0);
+    outro(o);
+    const back = vg.tween(t, D - 0.45, 0.4, vg.ease.inOutCubic);
+    if (back > 0) {
+      ctx.save(); ctx.globalAlpha = back; background(t); ctx.restore();
+      opening(0, back);
+    }
   }
-  bins(state);
-
-  if (t < INTRO + b) intro(t);
-  if (i >= 0 && !inOutro) {
-    const flash = vg.tween(u, 3 * b, 0.1 * b) * (1 - vg.tween(u, 3.1 * b, 1.4 * b));
-    if (flash > 0) { ctx.fillStyle = vg.rgba(COLORS[answers[i]], 0.1 * flash); ctx.fillRect(0, 0, W, H); }
-    timer(u); confetti(answers[i], u); note(i, u); card(i, u);
-  }
-  if (inOutro) outro(o);
-  vg.vignette(ctx, 0.22);
+  vg.vignette(ctx, 0.2);
   vg.grain(ctx, t, P.grain);
 });
 </script>

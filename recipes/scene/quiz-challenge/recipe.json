@@ -3,7 +3,7 @@
   "id": "scene.quiz-challenge",
   "version": "0.1.0",
   "title": "Quiz challenge (Canvas)",
-  "description": "A beat-the-clock quiz short: 2-4 shared answers sit at the bottom as labelled bins; each round a card drops in with the prompt, a ring counts down 3-2-1, the right bin lights up, the card shows the answer (as a tag, or before the prompt like 'das Mädchen') with a one-line reason, then falls into its bin. The outro recaps every answer, asks for the viewer's score and closes on a call to action. Timed to a musical beat grid; works at any aspect ratio.",
+  "description": "A beat-the-clock quiz short built for a phone screen: 2-4 shared answers sit at the bottom as big labelled bins; each round the prompt slams in at full width over an empty answer slot, a big 3-2-1 counts down, then the right answer's colour floods the screen out of its bin, the answer fills the slot and a one-line reason or twist appears (option words in it get pills in their colours) before the colour wipes off. The outro recaps every answer, asks for the viewer's score, closes on a call to action and fades back into the opening frame so the short loops. Timed to a musical beat grid; works at any aspect ratio.",
   "media": [
     "video",
     "image"
@@ -62,7 +62,7 @@
           "Portugal",
           "Laos"
         ],
-        "description": "One prompt per round, shown on the card"
+        "description": "One prompt per round, shown full width; every prompt shares the size the longest needs"
       },
       "hints": {
         "type": "array",
@@ -72,7 +72,7 @@
           "maxLength": 32
         },
         "default": [],
-        "description": "Optional small line under each prompt (a translation, a clue); one per prompt or none"
+        "description": "Optional line under each prompt (a translation, a clue, which meaning is asked); one per prompt or none. Also shown in the recap"
       },
       "answers": {
         "type": "array",
@@ -104,7 +104,7 @@
           "Capital: Lisbon",
           "Capital: Vientiane"
         ],
-        "description": "Optional one-line reason shown after each reveal; one per prompt or none"
+        "description": "Optional one-line reason or twist shown on the reveal; words in it that equal an option get a pill in that option's colour ('die See = the sea'); one per prompt or none"
       },
       "outro": {
         "type": "string",
@@ -132,7 +132,7 @@
           "prefix"
         ],
         "default": "tag",
-        "description": "tag: the answer appears as a pill above the prompt; prefix: it slides in before the prompt (articles: 'das Mädchen')"
+        "description": "How the recap reads: tag lists 'prompt · answer' (Mongolia · Asia); prefix puts the answer first (articles: 'das Mädchen'). In the rounds the answer always fills the slot above the prompt"
       },
       "recap": {
         "type": "boolean",
@@ -144,7 +144,7 @@
         "minimum": 90,
         "maximum": 128,
         "default": 112.5,
-        "description": "Beat grid: intro 3 beats, each round 6 beats (ticks at 0.75, 1.5, 2.25; reveal on 3; drop on 5), outro the rest (at least 2.5 s); match the music bed. A duration too short for the grid speeds it up, to at most a 0.32 s beat"
+        "description": "Beat grid: intro 3 beats, each round 6 beats (ticks at 0.75, 1.5, 2.25; reveal on 3; wipe off from 5.4), outro the rest (at least 2.5 s); match the music bed. A duration too short for the grid speeds it up, to at most a 0.32 s beat"
       },
       "palette": {
         "type": "array",
@@ -160,7 +160,7 @@
           "#E9EEF5",
           "#8794A6"
         ],
-        "description": "Ground, card panel, ink and muted text"
+        "description": "Ground, bin panel, ink and muted text"
       },
       "option_colors": {
         "type": "array",
@@ -177,11 +177,6 @@
           "#F2C14E"
         ],
         "description": "One colour per option, in order (cycled when shorter); falls back to ink where it would not read"
-      },
-      "lanes": {
-        "type": "boolean",
-        "default": true,
-        "description": "Dashed lane guides between the bins"
       },
       "grain": {
         "type": "number",
@@ -236,8 +231,7 @@
         "#7048E8",
         "#0C8599",
         "#C2255C"
-      ],
-      "lanes": false
+      ]
     }
   },
   "tags": [
