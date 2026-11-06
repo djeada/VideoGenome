@@ -3,20 +3,26 @@
 ## Unreleased
 
 ### Quiz challenge class
-- **New genome `quiz-challenge`** (template level): a beat-the-clock quiz short.
-  2-4 shared answers wait at the bottom as bins; each round a card drops in, a ring
-  counts down 3-2-1, the right bin lights up with confetti, the answer and a reason
-  appear, and the card falls into its bin; the outro recaps every answer, asks for
-  the viewer's score and closes on a call to action and link.
+- **New genome `quiz-challenge`** (template level): a beat-the-clock quiz short built
+  for a phone screen. 2-4 shared answers wait at the bottom as big bins; each round the
+  question slams in at full width over an empty answer slot, a big 3-2-1 counts down,
+  then the right answer's colour floods the screen out of its bin, the answer fills the
+  slot and a one-line reason or twist appears before the colour wipes off; the outro
+  recaps every answer, asks for the viewer's score, closes on a call to action and
+  link, and fades back into the opening frame so the short loops.
 - `scene.quiz-challenge`: a Canvas recipe on a musical beat grid (`bpm`) shared with
-  the music bed; answers as a tag or before the prompt (`das Mädchen`); option words
-  in the hook take their colours; throws when an answer is not an option, hints or
-  reasons are partial, or the duration is too short to read. Presets slate, paper,
-  neon and sunrise; 16:9, 9:16 and 1:1.
-- `social.quiz-challenge`: five rounds in 21.6 s at 112.5 bpm, with ticks, a chime
-  per reveal and a whoosh per drop cued to the grid; questions, answers, hints,
-  reasons, options, CTA and link are verbatim, with an `answer_accuracy` human gate.
-  Sample job, copy examples (Spanish articles, planets and moons) and a bench suite.
+  the music bed; every prompt shares one size; option words in the hook take their
+  colours and option words in a reason get pills (`die See = the sea`); throws when an
+  answer is not an option, hints or reasons are partial, or the duration is too short
+  to read. Presets slate, paper, neon and sunrise; 16:9, 9:16 and 1:1.
+- `social.quiz-challenge`: five rounds in 21.6 s at 112.5 bpm, with ticks, a chime and
+  a hit per reveal and a whoosh per wipe cued to the grid, and no fade to black at the
+  end; questions, answers, hints, reasons, options, CTA and link are verbatim, with an
+  `answer_accuracy` human gate. Sample job, copy examples (Spanish articles, planets
+  and moons) and a bench suite. The genome prompt records why the first, app-like
+  version of this design failed on a phone.
+- Blueprint schema: `timeline.audio_tracks` takes up to 48 tracks (was 32), so a
+  five-round short can cue six sounds per round.
 - `audio.transition`: a `chime` kind (two bell strikes, struck at the start) and the
   `tick` and `chime` presets.
 

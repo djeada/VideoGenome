@@ -2,7 +2,7 @@
   "genome_schema": "0.1.0",
   "id": "quiz-challenge",
   "title": "Quiz challenge (beat the clock)",
-  "summary": "A timed quiz short: the same few answers wait at the bottom as bins, each round a card drops in, a ring counts down 3-2-1, the right bin lights up with a chime and the card falls into it; the end recaps the answers and asks for the viewer's score. Built for comments, rewatches and saves.",
+  "summary": "A timed quiz short: the same few answers wait at the bottom as bins, each round the question slams in full width, a big 3-2-1 counts down, then the right answer's colour floods the screen out of its bin with the answer and a one-line reason or twist; the end recaps the answers, asks for the viewer's score and loops back to the opening frame. Built for comments, rewatches and saves.",
   "family": "social",
   "formats": ["9:16", "16:9", "1:1"],
   "duration_seconds": [12, 30],
@@ -15,9 +15,9 @@
   "techniques": [
     "Canvas 2D",
     "musical beat grid shared with the music bed",
-    "spring drop-ins",
-    "countdown ring",
-    "seeded confetti",
+    "full-screen colour flood from the answer's bin",
+    "countdown ring with popping digits",
+    "seamless loop back to the opening frame",
     "measured text fitting"
   ],
   "gallery_share": "Guess-the-answer and 'only 1% get this right' quizzes are a staple of language-learning, trivia and education accounts on Shorts, Reels and TikTok.",

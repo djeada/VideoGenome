@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "title": "Quiz challenge: beat the clock (9:16)",
   "category": "social",
-  "description": "A 21.6-second beat-the-clock quiz short: 2-4 shared answers sit at the bottom as labelled bins; five times a card drops in, a ring counts down 3-2-1 with ticks, the right bin lights up with a chime and confetti, the answer and a one-line reason appear, and the card falls into its bin. The outro recaps every answer, asks for the viewer's score (comment bait) and closes on a call to action and link. Code-rendered (scene.quiz-challenge) on a 112.5 bpm grid shared with the music bed, so it renders with no footage, models or downloads.",
+  "description": "A 21.6-second beat-the-clock quiz short built for a phone screen: 2-4 shared answers sit at the bottom as big labelled bins; five times the question slams in at full width over an empty answer slot, a big 3-2-1 counts down with ticks, then the right answer's colour floods the screen out of its bin with a chime and a hit, the answer fills the slot and a one-line reason or twist appears before the colour wipes off. The outro recaps every answer, asks for the viewer's score (comment bait), closes on a call to action and link, and fades back into the opening frame so the short loops. Code-rendered (scene.quiz-challenge) on a 112.5 bpm grid shared with the music bed, so it renders with no footage, models or downloads.",
   "tags": [
     "social",
     "vertical",
@@ -22,7 +22,7 @@
     "hook": {
       "type": "string",
       "required": true,
-      "description": "The challenge, 2-5 words, shown big for the first 1.6 s and then in the header (e.g. 'Which continent?'); an option's name in it takes that option's colour. Under 40 characters"
+      "description": "The challenge and its stakes, 2-5 words, legible on the very first frame and shown for the first 1.6 s (e.g. 'Which continent?', 'Wrong article, wrong word'); an option's name in it takes that option's colour. Under 40 characters"
     },
     "kicker": {
       "type": "string",
@@ -58,7 +58,7 @@
       "type": "string",
       "required": true,
       "fill": "verbatim",
-      "description": "Question 1: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_1, not here"
+      "description": "Question 1: only the word or name shown full width, copied from the brief, under 24 characters; a translation in brackets goes in hint_1, not here"
     },
     "answer_1": {
       "type": "string",
@@ -70,7 +70,7 @@
       "type": "string",
       "required": true,
       "fill": "verbatim",
-      "description": "Question 2: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_2, not here"
+      "description": "Question 2: only the word or name shown full width, copied from the brief, under 24 characters; a translation in brackets goes in hint_2, not here"
     },
     "answer_2": {
       "type": "string",
@@ -82,7 +82,7 @@
       "type": "string",
       "required": true,
       "fill": "verbatim",
-      "description": "Question 3: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_3, not here"
+      "description": "Question 3: only the word or name shown full width, copied from the brief, under 24 characters; a translation in brackets goes in hint_3, not here"
     },
     "answer_3": {
       "type": "string",
@@ -94,7 +94,7 @@
       "type": "string",
       "required": true,
       "fill": "verbatim",
-      "description": "Question 4: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_4, not here"
+      "description": "Question 4: only the word or name shown full width, copied from the brief, under 24 characters; a translation in brackets goes in hint_4, not here"
     },
     "answer_4": {
       "type": "string",
@@ -106,7 +106,7 @@
       "type": "string",
       "required": true,
       "fill": "verbatim",
-      "description": "Question 5: only the word or name on the card, copied from the brief, under 24 characters; a translation in brackets goes in hint_5, not here"
+      "description": "Question 5: only the word or name shown full width, copied from the brief, under 24 characters; a translation in brackets goes in hint_5, not here"
     },
     "answer_5": {
       "type": "string",
@@ -118,61 +118,61 @@
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "Small line under question 1: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+      "description": "Line under question 1: the translation, clue or meaning asked that the brief gives for it (often in brackets), under 32 characters; give all five hints or none. Hints also appear in the recap"
     },
     "hint_2": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "Small line under question 2: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+      "description": "Line under question 2: the translation, clue or meaning asked that the brief gives for it (often in brackets), under 32 characters; give all five hints or none. Hints also appear in the recap"
     },
     "hint_3": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "Small line under question 3: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+      "description": "Line under question 3: the translation, clue or meaning asked that the brief gives for it (often in brackets), under 32 characters; give all five hints or none. Hints also appear in the recap"
     },
     "hint_4": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "Small line under question 4: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+      "description": "Line under question 4: the translation, clue or meaning asked that the brief gives for it (often in brackets), under 32 characters; give all five hints or none. Hints also appear in the recap"
     },
     "hint_5": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "Small line under question 5: the translation or clue the brief gives for it (often in brackets), under 32 characters; give all five hints or none"
+      "description": "Line under question 5: the translation, clue or meaning asked that the brief gives for it (often in brackets), under 32 characters; give all five hints or none. Hints also appear in the recap"
     },
     "note_1": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "One-line reason shown after answer 1 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+      "description": "One-line reason or twist shown on the colour flood after answer 1, copied from the brief, under 32 characters; a word in it that equals an option gets a pill in that option's colour. Give all five reasons or none"
     },
     "note_2": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "One-line reason shown after answer 2 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+      "description": "One-line reason or twist shown on the colour flood after answer 2, copied from the brief, under 32 characters; a word in it that equals an option gets a pill in that option's colour. Give all five reasons or none"
     },
     "note_3": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "One-line reason shown after answer 3 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+      "description": "One-line reason or twist shown on the colour flood after answer 3, copied from the brief, under 32 characters; a word in it that equals an option gets a pill in that option's colour. Give all five reasons or none"
     },
     "note_4": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "One-line reason shown after answer 4 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+      "description": "One-line reason or twist shown on the colour flood after answer 4, copied from the brief, under 32 characters; a word in it that equals an option gets a pill in that option's colour. Give all five reasons or none"
     },
     "note_5": {
       "type": "string",
       "required": false,
       "fill": "verbatim",
-      "description": "One-line reason shown after answer 5 is revealed, copied from the brief, under 32 characters; give all five reasons or none"
+      "description": "One-line reason or twist shown on the colour flood after answer 5, copied from the brief, under 32 characters; a word in it that equals an option gets a pill in that option's colour. Give all five reasons or none"
     },
     "outro": {
       "type": "string",
@@ -201,7 +201,7 @@
         "prefix"
       ],
       "default": "tag",
-      "description": "How the answer shows on the card: tag (a pill above the question) or prefix (before the question, for articles: 'das Mädchen')"
+      "description": "How the outro recap reads: tag ('Mongolia · Asia') or prefix (answer first, for articles: 'das Mädchen'). In the rounds the answer always fills the slot above the question"
     },
     "look": {
       "type": "string",
@@ -323,7 +323,7 @@
     "whoosh": {
       "type": "audio",
       "required": false,
-      "description": "Whoosh as each card drops into its bin",
+      "description": "Whoosh as each answer colour wipes off the screen",
       "produce": {
         "capability": "procedural",
         "request": {
@@ -335,7 +335,7 @@
     "impact": {
       "type": "audio",
       "required": false,
-      "description": "Soft hit under the hook and the call to action",
+      "description": "Hit under the hook, each reveal and the call to action",
       "produce": {
         "capability": "procedural",
         "request": {
@@ -413,7 +413,7 @@
     }
   ],
   "style": {
-    "mood": "playful, tense, rewarding",
+    "mood": "playful, tense, punchy, rewarding",
     "palette": [
       "#0E1218",
       "#171E27",
@@ -422,7 +422,7 @@
       "#FF8F8F",
       "#63C79C"
     ],
-    "typography": "Inter ExtraBold/Black, centred cards, bins labelled in their option colour",
+    "typography": "Inter Black questions at full width, answers in pills, bins labelled in their option colour; each reveal floods the screen in the answer's colour",
     "pacing": "dynamic"
   },
   "output": {
@@ -473,7 +473,7 @@
           "engine_hint": "browser",
           "fit": "cover",
           "direction": {
-            "action": "Hook, five timed rounds (drop in, 3-2-1, reveal with reason, drop into the bin), recap and call to action"
+            "action": "Hook, five timed rounds (question slams in, 3-2-1, the answer colour floods out of its bin with the answer and reason, wipe off), recap, call to action, fade back to the opening frame"
           },
           "input_refs": [
             "scene",
@@ -513,7 +513,7 @@
   ],
   "timeline": {
     "source_audio": "mute",
-    "fade_out_frames": 10,
+    "fade_out_frames": 0,
     "audio_tracks": [
       {
         "id": "music_bed",
@@ -560,11 +560,18 @@
         "gain_db": -5
       },
       {
-        "id": "r1_drop",
+        "id": "r1_hit",
+        "input_ref": "impact",
+        "start_frame": 96,
+        "duration_frames": 30,
+        "gain_db": -17
+      },
+      {
+        "id": "r1_wipe",
         "input_ref": "whoosh",
-        "start_frame": 124,
+        "start_frame": 132,
         "duration_frames": 20,
-        "gain_db": -10
+        "gain_db": -11
       },
       {
         "id": "r2_tick_3",
@@ -595,11 +602,18 @@
         "gain_db": -5
       },
       {
-        "id": "r2_drop",
+        "id": "r2_hit",
+        "input_ref": "impact",
+        "start_frame": 192,
+        "duration_frames": 30,
+        "gain_db": -17
+      },
+      {
+        "id": "r2_wipe",
         "input_ref": "whoosh",
-        "start_frame": 220,
+        "start_frame": 228,
         "duration_frames": 20,
-        "gain_db": -10
+        "gain_db": -11
       },
       {
         "id": "r3_tick_3",
@@ -630,11 +644,18 @@
         "gain_db": -5
       },
       {
-        "id": "r3_drop",
+        "id": "r3_hit",
+        "input_ref": "impact",
+        "start_frame": 288,
+        "duration_frames": 30,
+        "gain_db": -17
+      },
+      {
+        "id": "r3_wipe",
         "input_ref": "whoosh",
-        "start_frame": 316,
+        "start_frame": 324,
         "duration_frames": 20,
-        "gain_db": -10
+        "gain_db": -11
       },
       {
         "id": "r4_tick_3",
@@ -665,11 +686,18 @@
         "gain_db": -5
       },
       {
-        "id": "r4_drop",
+        "id": "r4_hit",
+        "input_ref": "impact",
+        "start_frame": 384,
+        "duration_frames": 30,
+        "gain_db": -17
+      },
+      {
+        "id": "r4_wipe",
         "input_ref": "whoosh",
-        "start_frame": 412,
+        "start_frame": 420,
         "duration_frames": 20,
-        "gain_db": -10
+        "gain_db": -11
       },
       {
         "id": "r5_tick_3",
@@ -700,11 +728,18 @@
         "gain_db": -5
       },
       {
-        "id": "r5_drop",
+        "id": "r5_hit",
+        "input_ref": "impact",
+        "start_frame": 480,
+        "duration_frames": 30,
+        "gain_db": -17
+      },
+      {
+        "id": "r5_wipe",
         "input_ref": "whoosh",
-        "start_frame": 508,
+        "start_frame": 516,
         "duration_frames": 20,
-        "gain_db": -10
+        "gain_db": -11
       },
       {
         "id": "cta_hit",
@@ -727,10 +762,11 @@
       "The animation is code (recipes/scene/quiz-challenge) rendered frame-exactly on a virtual clock; the writer supplies the copy and three choices only.",
       "Questions, answers, hints, reasons, options, the call to action and the link are verbatim: they must come from the brief, because a quiz that teaches a wrong answer is worse than no video. Each answer must equal one of the options; the scene throws (and check_inputs reports it) otherwise.",
       "Hints and reasons are all-or-none: give one for every question or leave them all out.",
-      "Beat grid 112.5 bpm (16 frames a beat): hook frames 0-48; round k (0-4) starts at frame 48 + 96k with ticks at +12, +24, +36, the reveal and chime at +48, and the drop whoosh at +76; outro from frame 528 with the call to action at 561. The music bed runs at the same tempo, so every reveal lands on a beat.",
-      "The poster frame (36) shows the coloured hook over the bins: a cover that states the challenge.",
+      "Beat grid 112.5 bpm (16 frames a beat): hook frames 0-48; round k (0-4) starts at frame 48 + 96k with ticks at +12, +24, +36, the reveal (chime and hit) at +48, the reason at +53 and the wipe whoosh at +84; outro from frame 528 with the call to action at 561 and a fade back to the opening frame over the last 0.45 s. The music bed runs at the same tempo, so every reveal lands on a beat.",
+      "The poster frame (36) shows the hook over the bins: a cover that states the challenge. Frame 0 shows the same, fully legible, so the first frame in a feed already hooks.",
       "The contact sheet shows round 1's countdown (78), each reveal with its reason on screen (110, 206, 302, 398, 494) and the outro recap (600).",
-      "output.silent_cut also delivers <name>.silent.mp4 (picture only) for posting with in-app trending sound; the mastered cut with ticks, chimes and the bed stays the main deliverable."
+      "output.silent_cut also delivers <name>.silent.mp4 (picture only) for posting with in-app trending sound; the mastered cut with ticks, chimes and the bed stays the main deliverable.",
+      "No picture fade at the end: the scene itself fades back into the opening frame, so the short loops without a dip to black."
     ]
   },
   "quality_gates": [
