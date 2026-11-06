@@ -1,0 +1,31 @@
+{
+  "genome_schema": "0.1.0",
+  "id": "quiz-challenge",
+  "title": "Quiz challenge (beat the clock)",
+  "summary": "A timed quiz short: the same few answers wait at the bottom as bins, each round a card drops in, a ring counts down 3-2-1, the right bin lights up with a chime and the card falls into it; the end recaps the answers and asks for the viewer's score. Built for comments, rewatches and saves.",
+  "family": "social",
+  "formats": ["9:16", "16:9", "1:1"],
+  "duration_seconds": [12, 30],
+  "recipes": ["scene.quiz-challenge"],
+  "templates": ["social.quiz-challenge"],
+  "prompt": "prompt.md",
+  "needs": [
+    "Questions with checked answers (and optional hints and reasons) in the brief"
+  ],
+  "techniques": [
+    "Canvas 2D",
+    "musical beat grid shared with the music bed",
+    "spring drop-ins",
+    "countdown ring",
+    "seeded confetti",
+    "measured text fitting"
+  ],
+  "gallery_share": "Guess-the-answer and 'only 1% get this right' quizzes are a staple of language-learning, trivia and education accounts on Shorts, Reels and TikTok.",
+  "limits": [
+    "Every round shares one set of 2-4 answers; per-question answer sets are not supported",
+    "The template has exactly five rounds; the recipe takes one to six",
+    "Answers are only as right as the brief: a person must check them (answer_accuracy gate)",
+    "A 3B local writer fills the five-round template only for simple briefs (2-3 of 5 bench briefs); use an agent over MCP, a larger writer or a hand-filled job",
+    "Latin scripts set best; one typeface (Inter or the system sans)"
+  ]
+}

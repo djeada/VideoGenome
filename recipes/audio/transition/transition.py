@@ -4,7 +4,8 @@ Kinds: whoosh (band-passed noise sweeping up then down while panning across),
 riser (noise plus a gliding tone that builds and peaks at the very end),
 impact (low boom, body and noise burst near the start with a reverb tail),
 swell (soft tonal-noise bloom peaking late), reverse_cymbal (a cymbal decay
-played backwards into the cut) and soft_click (a small UI tick at the start).
+played backwards into the cut), soft_click (a small UI tick at the start) and
+chime (a bright two-note bell, the "correct answer" ding, struck at the start).
 Every kind renders exactly spec.duration_seconds so it lines up with a cut.
 """
 from __future__ import annotations
@@ -94,8 +95,32 @@ def soft_click(n: int, p: dict, rng: np.random.Generator) -> np.ndarray:
     return dsp.pan(mono, 0.0)
 
 
+def chime(n: int, p: dict, rng: np.random.Generator) -> np.ndarray:
+    """Two bell strikes a major sixth apart (a game-show "correct"), struck at the start."""
+    mono = np.zeros(n, dtype=np.float32)
+    root = 76 + p["pitch"]  # E5
+    for offset, interval, velocity in ((0.0, 0, 0.8), (0.075, 9, 1.0)):
+        start = round(offset * dsp.SR)
+        length = n - start
+        if length <= 0:
+            continue
+        t = dsp.t_axis(length)
+        f = dsp.midi_to_hz(root + interval)
+        # Bell partials (slightly inharmonic) with shorter decays for the upper ones.
+        bell = np.zeros(length, dtype=np.float32)
+        for ratio, amp, decay in ((1.0, 1.0, 0.55), (2.0, 0.5 * (0.5 + p["brightness"]), 0.35),
+                                  (2.76, 0.35 * p["brightness"] + 0.1, 0.22), (5.4, 0.18 * p["brightness"], 0.1)):
+            if f * ratio < dsp.SR * 0.45:
+                bell += amp * np.sin(2 * np.pi * f * ratio * t) * np.exp(-t / decay)
+        strike = 0.25 * dsp.bandpass(rng.standard_normal(length).astype(np.float32), 2000, 9000) * np.exp(-t / 0.004)
+        mono[start:] += velocity * (bell + strike)
+    motion = p["stereo_motion"]
+    return inst.autopan(mono, -0.25 * motion, 0.25 * motion)
+
+
 KINDS = {"whoosh": whoosh, "riser": riser, "impact": impact, "swell": swell,
-         "reverse_cymbal": reverse_cymbal, "soft_click": soft_click}
+         "reverse_cymbal": reverse_cymbal, "soft_click": soft_click,
+         "chime": chime}
 
 
 def render(spec: kit.Spec) -> None:

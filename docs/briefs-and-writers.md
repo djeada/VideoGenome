@@ -156,3 +156,13 @@ efficiently increases capacity"). Templates keep their human review gates
 numbers next to their labels) hold up well even with a 3B model; slots the
 writer composes cannot be checked against the brief, so human review gates
 remain essential for code, diagrams and claims.
+
+**quiz-challenge (2026-11-06, same writer and profile):** 3/5, 3/5 and 2/5 over
+three runs (temperature 0.4). The Spanish two-answer quiz filled every time and
+the brief with no call to action was refused every time. The 3B writer struggles
+with the template's 31 slots: it fills two of three options (der, die but not
+das), leaves translations inside the question, and pairs answers the brief never
+paired, then fails after three attempts. Every miss ended `failed` or
+`incomplete`; none rendered a wrong quiz, because answers must be options and
+facts are verbatim. Fill this template with an agent (MCP) or by hand, or use a
+larger writer.
